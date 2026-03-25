@@ -1,0 +1,365 @@
+import React, { useState, useEffect } from 'react';
+import { AnamnesisForm } from './components/AnamnesisForm';
+import { WorkoutPlanView } from './components/WorkoutPlanView';
+import { LandingPage } from './components/LandingPage';
+import { AdminDashboard } from './components/AdminDashboard';
+import { ExerciseLibrary } from './components/ExerciseLibrary';
+import { AnamnesisData, WorkoutPlan } from './services/workoutGenerator';
+import { generateWorkoutPlanRuleBased } from './services/workoutGenerator';
+import { Logo } from './components/Logo';
+import { Dumbbell, Palette, LogIn, LogOut, User as UserIcon, Shield, BookOpen } from 'lucide-react';
+import { auth, db, googleProvider } from './firebase';
+import { signInWithPopup, signOut, onAuthStateChanged, User } from 'firebase/auth';
+import { doc, getDoc, setDoc, deleteDoc } from 'firebase/firestore';
+
+type AppState = 'landing' | 'form' | 'plan' | 'admin' | 'library';
+type Theme = 'default' | 'green' | 'blue' | 'gold';
+
+export default function App() {
+  const [appState, setAppState] = useState<AppState>('landing');
+  const [plan, setPlan] = useState<WorkoutPlan | null>(null);
+  const [userData, setUserData] = useState<AnamnesisData | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [theme, setTheme] = useState<Theme>('default');
+  
+  // Firebase Auth State
+  const [user, setUser] = useState<User | null>(null);
+  const [isAuthReady, setIsAuthReady] = useState(false);
+
+  // Load theme from local storage on mount
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('fitgenius_theme') as Theme;
+    if (savedTheme) {
+      setTheme(savedTheme);
+      document.documentElement.setAttribute('data-theme', savedTheme);
+    }
+  }, []);
+
+  // Handle Firebase Auth and Data Loading
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+      setUser(currentUser);
+      
+      if (currentUser) {
+        // Clear local storage and state to prevent data bleed from previous user
+        setPlan(null);
+        setUserData(null);
+        localStorage.removeItem('fitgenius_plan');
+        localStorage.removeItem('fitgenius_user');
+        localStorage.removeItem('fitgenius_completed_sets');
+        localStorage.removeItem('fitgenius_actual_loads');
+
+        // Load data from Firestore
+        try {
+          const userDocRef = doc(db, 'users', currentUser.uid);
+          
+          // Ensure user document exists
+          await setDoc(userDocRef, {
+            uid: currentUser.uid,
+            email: currentUser.email,
+            name: currentUser.displayName || 'Aluno',
+            role: 'user',
+            createdAt: new Date().toISOString()
+          }, { merge: true });
+
+          const anamnesisRef = doc(db, `users/${currentUser.uid}/data/anamnesis`);
+          const planRef = doc(db, `users/${currentUser.uid}/data/workoutPlan`);
+          
+          const [anamnesisSnap, planSnap] = await Promise.all([
+            getDoc(anamnesisRef),
+            getDoc(planRef)
+          ]);
+
+          if (anamnesisSnap.exists() && planSnap.exists()) {
+            setUserData(anamnesisSnap.data() as AnamnesisData);
+            setPlan(planSnap.data() as WorkoutPlan);
+            // Do not auto-redirect to plan to allow users to see the landing page
+          } else {
+            setPlan(null);
+            setUserData(null);
+            if (appState === 'plan') setAppState('landing');
+          }
+        } catch (err) {
+          console.error("Error loading user data from Firestore:", err);
+        }
+      } else {
+        // Clear state if not logged in
+        setPlan(null);
+        setUserData(null);
+        if (appState === 'plan' || appState === 'form' || appState === 'admin') {
+          setAppState('landing');
+        }
+      }
+      setIsAuthReady(true);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  const handleLogin = async () => {
+    try {
+      await signInWithPopup(auth, googleProvider);
+    } catch (err: any) {
+      console.error("Login error:", err);
+      if (err.code !== 'auth/popup-closed-by-user' && err.code !== 'auth/cancelled-popup-request') {
+        alert("Erro ao fazer login. Tente novamente.");
+      }
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      setPlan(null);
+      setUserData(null);
+      setAppState('landing');
+      localStorage.removeItem('fitgenius_plan');
+      localStorage.removeItem('fitgenius_user');
+      localStorage.removeItem('fitgenius_completed_sets');
+      localStorage.removeItem('fitgenius_actual_loads');
+    } catch (err) {
+      console.error("Logout error:", err);
+    }
+  };
+
+  const handleThemeChange = (newTheme: Theme) => {
+    setTheme(newTheme);
+    document.documentElement.setAttribute('data-theme', newTheme);
+    localStorage.setItem('fitgenius_theme', newTheme);
+  };
+
+  const handleAnamnesisSubmit = async (data: AnamnesisData) => {
+    if (!user) {
+      alert("Você precisa estar logado para gerar um treino.");
+      return;
+    }
+    
+    setIsLoading(true);
+    setError(null);
+    try {
+      const generatedPlan = await generateWorkoutPlanRuleBased(data);
+      setPlan(generatedPlan);
+      setUserData(data);
+      setAppState('plan');
+      
+      // Save to Firestore
+      const anamnesisRef = doc(db, `users/${user.uid}/data/anamnesis`);
+      const planRef = doc(db, `users/${user.uid}/data/workoutPlan`);
+      
+      // Deep clean undefined values before saving to Firestore
+      const cleanObject = (obj: any): any => {
+        if (Array.isArray(obj)) {
+          return obj.map(cleanObject);
+        } else if (obj !== null && typeof obj === 'object') {
+          return Object.fromEntries(
+            Object.entries(obj)
+              .filter(([_, v]) => v !== undefined)
+              .map(([k, v]) => [k, cleanObject(v)])
+          );
+        }
+        return obj;
+      };
+
+      const cleanData = cleanObject(data);
+      const cleanPlan = cleanObject(generatedPlan);
+
+      await Promise.all([
+        setDoc(anamnesisRef, { ...cleanData, updatedAt: new Date().toISOString() }),
+        setDoc(planRef, { ...cleanPlan, createdAt: new Date().toISOString() })
+      ]);
+      
+      // Clear old progress
+      const progressRef = doc(db, `users/${user.uid}/data/progress`);
+      await deleteDoc(progressRef).catch(() => {}); // Ignore if doesn't exist
+    } catch (err) {
+      console.error(err);
+      setError(err instanceof Error ? err.message : 'Ocorreu um erro ao gerar seu plano. Por favor, tente novamente.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleUpdatePlan = async (newPlan: WorkoutPlan) => {
+    if (!user) return;
+    setPlan(newPlan);
+    const planRef = doc(db, `users/${user.uid}/data/workoutPlan`);
+    
+    // Deep clean undefined values before saving to Firestore
+    const cleanObject = (obj: any): any => {
+      if (Array.isArray(obj)) {
+        return obj.map(cleanObject);
+      } else if (obj !== null && typeof obj === 'object') {
+        return Object.fromEntries(
+          Object.entries(obj)
+            .filter(([_, v]) => v !== undefined)
+            .map(([k, v]) => [k, cleanObject(v)])
+        );
+      }
+      return obj;
+    };
+
+    const cleanPlan = cleanObject(newPlan);
+    await setDoc(planRef, { ...cleanPlan, createdAt: new Date().toISOString() });
+  };
+
+  const handleReset = async () => {
+    setPlan(null);
+    setUserData(null);
+    setError(null);
+    setAppState('form');
+    
+    if (user) {
+      try {
+        await Promise.all([
+          deleteDoc(doc(db, `users/${user.uid}/data/anamnesis`)),
+          deleteDoc(doc(db, `users/${user.uid}/data/workoutPlan`)),
+          deleteDoc(doc(db, `users/${user.uid}/data/progress`))
+        ]);
+      } catch (err) {
+        console.error("Error deleting data:", err);
+      }
+    }
+  };
+
+  if (!isAuthReady) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-bg-main">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-brand"></div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-bg-main text-text-main font-sans transition-colors duration-300">
+      {/* Header */}
+      <header className="border-b border-border bg-bg-main/80 backdrop-blur-md sticky top-0 z-50 print:hidden">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+          <div 
+            className="flex items-center gap-3 cursor-pointer" 
+            onClick={() => {
+              window.scrollTo(0,0);
+              setAppState('landing');
+            }}
+          >
+            <Logo size="sm" />
+          </div>
+
+          <div className="flex items-center gap-2">
+            {user ? (
+              <div className="flex items-center gap-3 mr-2">
+                <div className="hidden sm:flex flex-col items-end">
+                  <span className="text-sm font-bold text-text-main">{user.displayName}</span>
+                  <span className="text-xs text-text-muted">{user.email}</span>
+                </div>
+                {user.email === 'calepi@gmail.com' && (
+                  <button 
+                    onClick={() => setAppState('admin')}
+                    className={`p-2 ml-1 rounded-xl transition-colors ${appState === 'admin' ? 'bg-brand text-text-inverse' : 'bg-brand/10 text-brand hover:bg-brand/20'}`}
+                    title="Painel do Treinador"
+                  >
+                    <Shield className="w-5 h-5" />
+                  </button>
+                )}
+                <button 
+                  onClick={() => setAppState('library')}
+                  className={`p-2 ml-1 rounded-xl transition-colors ${appState === 'library' ? 'bg-brand text-text-inverse' : 'bg-brand/10 text-brand hover:bg-brand/20'}`}
+                  title="Biblioteca de Exercícios"
+                >
+                  <BookOpen className="w-5 h-5" />
+                </button>
+                {user.photoURL ? (
+                  <img src={user.photoURL} alt="User" className="w-8 h-8 rounded-full border border-border" referrerPolicy="no-referrer" />
+                ) : (
+                  <div className="w-8 h-8 rounded-full bg-brand/20 text-brand flex items-center justify-center">
+                    <UserIcon className="w-4 h-4" />
+                  </div>
+                )}
+                <button 
+                  onClick={handleLogout}
+                  className="p-2 ml-1 rounded-full hover:bg-red-500/10 text-text-muted hover:text-red-500 transition-colors"
+                  title="Sair"
+                >
+                  <LogOut className="w-5 h-5" />
+                </button>
+              </div>
+            ) : (
+              <button 
+                onClick={handleLogin}
+                className="flex items-center gap-2 px-4 py-2 mr-2 rounded-xl bg-brand/10 text-brand hover:bg-brand/20 transition-colors font-bold text-sm"
+              >
+                <LogIn className="w-4 h-4" />
+                <span className="hidden sm:inline">Entrar</span>
+              </button>
+            )}
+
+            <div className="group relative">
+              <button className="p-2 rounded-full hover:bg-surface transition-colors flex items-center gap-2 text-text-muted hover:text-text-main">
+                <Palette className="w-5 h-5" />
+                <span className="hidden sm:inline text-sm font-medium">Tema</span>
+              </button>
+              <div className="absolute right-0 top-full mt-2 bg-surface border border-border rounded-xl shadow-xl p-2 hidden group-hover:flex flex-col gap-1 min-w-[120px]">
+                <button onClick={() => handleThemeChange('default')} className={`px-3 py-2 rounded-lg text-sm text-left hover:bg-bg-main transition-colors ${theme === 'default' ? 'text-brand font-bold' : 'text-text-main'}`}>Laranja (Padrão)</button>
+                <button onClick={() => handleThemeChange('green')} className={`px-3 py-2 rounded-lg text-sm text-left hover:bg-bg-main transition-colors ${theme === 'green' ? 'text-brand font-bold' : 'text-text-main'}`}>Verde</button>
+                <button onClick={() => handleThemeChange('blue')} className={`px-3 py-2 rounded-lg text-sm text-left hover:bg-bg-main transition-colors ${theme === 'blue' ? 'text-brand font-bold' : 'text-text-main'}`}>Azul</button>
+                <button onClick={() => handleThemeChange('gold')} className={`px-3 py-2 rounded-lg text-sm text-left hover:bg-bg-main transition-colors ${theme === 'gold' ? 'text-brand font-bold' : 'text-text-main'}`}>Dourado</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      {/* Main Content */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
+        {error && (
+          <div className="max-w-2xl mx-auto mb-8 bg-red-500/10 border border-red-500/20 text-red-500 px-4 py-3 rounded-xl text-center font-medium">
+            {error}
+          </div>
+        )}
+
+        {appState === 'landing' && (
+          <LandingPage 
+            onStart={async () => {
+              if (user) {
+                setAppState('form');
+              } else {
+                try {
+                  await signInWithPopup(auth, googleProvider);
+                  setAppState('form');
+                } catch (err: any) {
+                  console.error("Login error:", err);
+                  if (err.code !== 'auth/popup-closed-by-user' && err.code !== 'auth/cancelled-popup-request') {
+                    alert("Você precisa fazer login para criar um treino.");
+                  }
+                }
+              }
+            }} 
+            hasPlan={!!plan}
+            onContinue={() => setAppState('plan')}
+          />
+        )}
+
+        {appState === 'form' && (
+          <AnamnesisForm onSubmit={handleAnamnesisSubmit} isLoading={isLoading} />
+        )}
+
+        {appState === 'plan' && plan && userData && (
+          <WorkoutPlanView 
+            plan={plan} 
+            user={userData} 
+            onReset={handleReset} 
+            onUpdatePlan={handleUpdatePlan}
+          />
+        )}
+
+        {appState === 'admin' && user?.email === 'calepi@gmail.com' && (
+          <AdminDashboard />
+        )}
+
+        {appState === 'library' && (
+          <ExerciseLibrary />
+        )}
+      </main>
+    </div>
+  );
+}

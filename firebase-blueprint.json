@@ -1,0 +1,87 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "A registered user of the SpeltaFit app.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "name": { "type": "string" },
+        "role": { "type": "string", "enum": ["user", "admin"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "name", "role", "createdAt"]
+    },
+    "Anamnesis": {
+      "title": "Anamnesis",
+      "description": "User's physical profile and goals.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "age": { "type": "number" },
+        "gender": { "type": "string" },
+        "weight": { "type": "number" },
+        "height": { "type": "number" },
+        "goal": { "type": "string" },
+        "secondaryGoal": { "type": "string" },
+        "experience": { "type": "string" },
+        "daysPerWeek": { "type": "number" },
+        "duration": { "type": "number" },
+        "limitations": { "type": "string" },
+        "cardioPreference": { "type": "string" },
+        "equipment": { "type": "string" },
+        "sleepQuality": { "type": "string" },
+        "stressLevel": { "type": "string" },
+        "dietType": { "type": "string" },
+        "hormonalStatus": { "type": "string" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "age", "gender", "weight", "height", "goal", "experience", "daysPerWeek", "duration", "equipment", "sleepQuality", "stressLevel", "dietType", "hormonalStatus"]
+    },
+    "WorkoutPlan": {
+      "title": "WorkoutPlan",
+      "description": "The generated workout plan.",
+      "type": "object",
+      "properties": {
+        "phaseName": { "type": "string" },
+        "durationWeeks": { "type": "number" },
+        "strategySummary": { "type": "string" },
+        "progressiveOverloadPlan": { "type": "string" },
+        "monitoringGuidelines": { "type": "string" },
+        "weeklyRoutine": { "type": "array" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["phaseName", "durationWeeks", "strategySummary", "progressiveOverloadPlan", "monitoringGuidelines", "weeklyRoutine"]
+    },
+    "WorkoutProgress": {
+      "title": "WorkoutProgress",
+      "description": "User's tracked progress.",
+      "type": "object",
+      "properties": {
+        "completedSets": { "type": "object" },
+        "actualLoads": { "type": "object" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["completedSets", "actualLoads", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "User profile data."
+    },
+    "/users/{userId}/data/anamnesis": {
+      "schema": { "$ref": "#/entities/Anamnesis" },
+      "description": "User's current anamnesis."
+    },
+    "/users/{userId}/data/workoutPlan": {
+      "schema": { "$ref": "#/entities/WorkoutPlan" },
+      "description": "User's current workout plan."
+    },
+    "/users/{userId}/data/progress": {
+      "schema": { "$ref": "#/entities/WorkoutProgress" },
+      "description": "User's current workout progress."
+    }
+  }
+}
