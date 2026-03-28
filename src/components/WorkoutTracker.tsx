@@ -562,7 +562,6 @@ export function WorkoutTracker({ plan, user, onUpdatePlan, readOnly = false, stu
         animate={{ opacity: 1, x: 0 }}
         className="space-y-6"
       >
-        <>
           {/* Daily Progress Bar */}
             {totalSetsForDay > 0 && (
               <div className="bg-surface border border-border/50 rounded-2xl p-4 shadow-sm mb-4">
@@ -1127,7 +1126,6 @@ export function WorkoutTracker({ plan, user, onUpdatePlan, readOnly = false, stu
                 )}
               </div>
             )}
-          </>
       </motion.div>
 
       {/* Monthly Re-evaluation Button (Only visible when plan is complete) */}
