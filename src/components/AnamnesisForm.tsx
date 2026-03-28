@@ -68,25 +68,88 @@ export function AnamnesisForm({ onSubmit, isLoading }: Props) {
     });
   };
 
-  // Update secondary and tertiary goals when primary goal changes
-  useEffect(() => {
-    const availableGoals = GOALS_MAP[formData.goal] || [];
+  const getSecondaryOptions = () => {
+    const primaryRelated = GOALS_MAP[formData.goal] || [];
+    const otherMain = Object.keys(GOALS_MAP).filter(g => g !== formData.goal);
+    const all = Array.from(new Set([...primaryRelated, ...otherMain]));
+    return all.filter(g => g !== formData.tertiaryGoal);
+  };
+
+  const getTertiaryOptions = () => {
+    const options = new Set<string>();
     
-    // Check if secondary goal is still valid
-    if (!availableGoals.includes(formData.secondaryGoal)) {
-      setFormData(prev => ({ 
-        ...prev, 
-        secondaryGoal: availableGoals[0] || '',
-        tertiaryGoal: availableGoals[1] || availableGoals[0] || ''
-      }));
-    } else {
-      // If secondary is valid, check if tertiary is valid and different from secondary
-      if (!availableGoals.includes(formData.tertiaryGoal || '') || formData.tertiaryGoal === formData.secondaryGoal) {
-        const otherGoal = availableGoals.find(g => g !== formData.secondaryGoal);
-        setFormData(prev => ({ ...prev, tertiaryGoal: otherGoal || availableGoals[0] || '' }));
-      }
+    // 1. Contexto do Objetivo Primário
+    if (GOALS_MAP[formData.goal]) {
+      GOALS_MAP[formData.goal].forEach(g => options.add(g));
     }
-  }, [formData.goal, formData.secondaryGoal]);
+    
+    // 2. Contexto do Objetivo Secundário
+    if (GOALS_MAP[formData.secondaryGoal]) {
+      // Se o secundário for um objetivo principal, trazemos os sub-objetivos dele
+      GOALS_MAP[formData.secondaryGoal].forEach(g => options.add(g));
+    } else {
+      // Se o secundário for um sub-objetivo, encontramos a qual grupo principal ele pertence
+      Object.entries(GOALS_MAP).forEach(([mainGoal, subGoals]) => {
+        if (subGoals.includes(formData.secondaryGoal)) {
+          options.add(mainGoal);
+          subGoals.forEach(g => options.add(g));
+        }
+      });
+    }
+
+    // Removemos o que já foi selecionado
+    options.delete(formData.goal);
+    options.delete(formData.secondaryGoal);
+
+    return Array.from(options);
+  };
+
+  // Validação em tempo real para garantir que os objetivos sejam válidos e não se repitam
+  useEffect(() => {
+    setFormData(prev => {
+      let newSecondary = prev.secondaryGoal;
+      let newTertiary = prev.tertiaryGoal;
+      let changed = false;
+
+      // 1. Validar Secundário
+      const primaryRelated = GOALS_MAP[prev.goal] || [];
+      const otherMain = Object.keys(GOALS_MAP).filter(g => g !== prev.goal);
+      const secondaryOpts = Array.from(new Set([...primaryRelated, ...otherMain])).filter(g => g !== prev.tertiaryGoal);
+
+      if (!secondaryOpts.includes(newSecondary)) {
+        newSecondary = secondaryOpts[0] || '';
+        changed = true;
+      }
+
+      // 2. Validar Terciário baseado no Primário e no (potencialmente novo) Secundário
+      const tertiarySet = new Set<string>();
+      if (GOALS_MAP[prev.goal]) GOALS_MAP[prev.goal].forEach(g => tertiarySet.add(g));
+      
+      if (GOALS_MAP[newSecondary]) {
+        GOALS_MAP[newSecondary].forEach(g => tertiarySet.add(g));
+      } else {
+        Object.entries(GOALS_MAP).forEach(([mainGoal, subGoals]) => {
+          if (subGoals.includes(newSecondary)) {
+            tertiarySet.add(mainGoal);
+            subGoals.forEach(g => tertiarySet.add(g));
+          }
+        });
+      }
+      tertiarySet.delete(prev.goal);
+      tertiarySet.delete(newSecondary);
+      const tertiaryOpts = Array.from(tertiarySet);
+
+      if (newTertiary && !tertiaryOpts.includes(newTertiary)) {
+        newTertiary = ''; // Reseta para 'Nenhum' se for inválido no novo contexto
+        changed = true;
+      }
+
+      if (changed) {
+        return { ...prev, secondaryGoal: newSecondary, tertiaryGoal: newTertiary };
+      }
+      return prev;
+    });
+  }, [formData.goal, formData.secondaryGoal, formData.tertiaryGoal]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target;
@@ -203,7 +266,7 @@ export function AnamnesisForm({ onSubmit, isLoading }: Props) {
               <label className="block text-sm font-medium text-text-muted mb-1">Objetivo Secundário</label>
               <select name="secondaryGoal" value={formData.secondaryGoal} onChange={handleChange}
                 className="w-full bg-surface border border-border rounded-xl px-4 py-3 text-text-main focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand transition-colors">
-                {(GOALS_MAP[formData.goal] || []).map(goal => (
+                {getSecondaryOptions().map(goal => (
                   <option key={goal} value={goal}>{goal}</option>
                 ))}
               </select>
@@ -212,7 +275,8 @@ export function AnamnesisForm({ onSubmit, isLoading }: Props) {
               <label className="block text-sm font-medium text-text-muted mb-1">Objetivo Terciário</label>
               <select name="tertiaryGoal" value={formData.tertiaryGoal} onChange={handleChange}
                 className="w-full bg-surface border border-border rounded-xl px-4 py-3 text-text-main focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand transition-colors">
-                {(GOALS_MAP[formData.goal] || []).map(goal => (
+                <option value="">Nenhum</option>
+                {getTertiaryOptions().map(goal => (
                   <option key={goal} value={goal}>{goal}</option>
                 ))}
               </select>

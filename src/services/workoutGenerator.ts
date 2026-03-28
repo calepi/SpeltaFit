@@ -41,6 +41,7 @@ export interface WorkoutPlan {
     exercises?: {
       id: string;
       name: string;
+      group: string;
       method: string;
       sets: number;
       reps: string;
@@ -69,8 +70,60 @@ export interface AdjustmentResponse {
 
 // --- FUNÇÕES AUXILIARES ---
 
-function filterExercises(group: keyof typeof EXERCISE_DB, equipment: string, count: number) {
+function getAdvancedTechnique(experience: string, allGoals: string, isCompound: boolean, isLastExercise: boolean) {
+  const exp = experience.toLowerCase();
+  const isHypertrophy = allGoals.includes('hipertrofia') || allGoals.includes('estética') || allGoals.includes('definição');
+  
+  if (exp.includes('iniciante') || exp.includes('sedentário')) {
+    // Keep it simple for beginners, maybe "Duas Cargas" as it's safe
+    if (Math.random() > 0.8 && !isCompound) {
+      return {
+        method: 'Duas Cargas (Drop 50%)',
+        notes: 'Técnica Avançada: Na última série, após a falha, reduza a carga pela metade e faça o máximo de repetições possíveis sem descanso.'
+      };
+    }
+    return { method: 'Série Normal', notes: 'Série Normal: Execute as repetições indicadas com uma carga que seja desafiadora, mas que permita manter a postura correta. Descanse o tempo prescrito entre as séries.' };
+  }
+
+  if (exp.includes('intermediário')) {
+    if (Math.random() > 0.7) {
+      const techniques = [
+        { method: 'Pirâmide Crescente', notes: 'Técnica Avançada: Aumente a carga e diminua as repetições a cada série (ex: 12, 10, 8, 6).' },
+        { method: 'Ponto Zero', notes: 'Técnica Avançada: Faça uma pausa de 3 a 5 segundos no ponto de maior alongamento do músculo (fase excêntrica) em cada repetição.' }
+      ];
+      return techniques[Math.floor(Math.random() * techniques.length)];
+    }
+    return { method: 'Série Normal', notes: 'Série Normal: Execute as repetições indicadas com uma carga que seja desafiadora, mas que permita manter a postura correta. Descanse o tempo prescrito entre as séries.' };
+  }
+
+  // Avançado / Atleta
+  if (Math.random() > 0.5) {
+    const techniques = [];
+    if (isLastExercise && isHypertrophy) {
+      techniques.push({ method: 'FST-7', notes: 'Técnica FST-7: Na última série do exercício, faça 7 mini-séries de 8-12 repetições com apenas 30 segundos de descanso entre elas. Alongue o músculo durante o descanso.' });
+      techniques.push({ method: 'GVT (Adaptação)', notes: 'Técnica GVT: Reduza a carga em 40% e tente realizar 10 séries de 10 repetições com apenas 60 segundos de descanso. Foco total no volume e pump muscular.' });
+    }
+    if (!isCompound) {
+      techniques.push({ method: 'Drop-set', notes: 'Técnica Drop-set: Na última série, após a falha, reduza a carga em 20% e vá até a falha novamente. Repita mais 1 ou 2 vezes sem descanso.' });
+      techniques.push({ method: 'SST', notes: 'Técnica SST: Faça 1 série até a falha (8-10 reps). Descanse 45s, falha. Descanse 30s, falha. Descanse 15s, falha. Descanse 5s, falha. Reduza a carga em 20% e repita.' });
+      techniques.push({ method: 'Bi-Set (Mental)', notes: 'Técnica Bi-Set: Imediatamente após terminar este exercício, faça o máximo de repetições de um exercício com peso corporal para o mesmo grupo muscular (ex: flexões para peito, agachamento livre para pernas).' });
+    } else {
+      techniques.push({ method: 'Rest-Pause', notes: 'Técnica Rest-Pause: Vá até a falha. Descanse 10 a 15 segundos. Faça mais repetições até a falha. Repita 2 a 3 vezes na última série.' });
+      techniques.push({ method: 'Cluster Set', notes: 'Técnica Cluster Set: Use uma carga pesada (85% 1RM). Faça mini-séries de 3-4 repetições com 15-20 segundos de descanso entre elas, até totalizar as repetições alvo da série.' });
+      techniques.push({ method: 'Heavy Duty', notes: 'Técnica Heavy Duty: Faça apenas UMA série de trabalho, mas vá até a falha absoluta e além (usando repetições parciais ou isometria no final). A carga deve ser extremamente pesada.' });
+    }
+    
+    if (techniques.length > 0) {
+      return techniques[Math.floor(Math.random() * techniques.length)];
+    }
+  }
+
+  return { method: 'Série Normal', notes: 'Série Normal: Execute as repetições indicadas com uma carga que seja desafiadora, mas que permita manter a postura correta. Descanse o tempo prescrito entre as séries.' };
+}
+
+function filterExercises(group: keyof typeof EXERCISE_DB, equipment: string, count: number, blacklist: string[] = []) {
   let available = EXERCISE_DB[group].filter(ex => {
+    if (blacklist.includes(ex.id)) return false;
     if (equipment === 'Academia Completa') return true;
     if (equipment === 'Apenas Halteres') return ex.equipment === 'Apenas Halteres' || ex.equipment === 'Nenhum';
     return ex.equipment === 'Nenhum';
@@ -78,16 +131,19 @@ function filterExercises(group: keyof typeof EXERCISE_DB, equipment: string, cou
 
   // Fallback if not enough exercises found for the equipment
   if (available.length < count) {
-    available = EXERCISE_DB[group];
+    available = EXERCISE_DB[group].filter(ex => !blacklist.includes(ex.id));
+    if (available.length < count) {
+      available = EXERCISE_DB[group]; // Ultimate fallback
+    }
   }
 
   // Shuffle and pick 'count' exercises
   return available.sort(() => 0.5 - Math.random()).slice(0, count);
 }
 
-function getTrainingParameters(hormonalStatus: string, goal: string) {
+function getTrainingParameters(hormonalStatus: string, allGoals: string) {
   const isHormonized = hormonalStatus.toLowerCase().includes('hormonizado') || hormonalStatus.toLowerCase().includes('sim');
-  const isWeightLoss = goal.toLowerCase().includes('emagrecimento') || goal.toLowerCase().includes('perder');
+  const isWeightLoss = allGoals.includes('emagrecimento') || allGoals.includes('perder') || allGoals.includes('definição');
 
   if (isHormonized) {
     return {
@@ -112,13 +168,13 @@ function getTrainingParameters(hormonalStatus: string, goal: string) {
 
 // --- GERADOR PRINCIPAL ---
 
-export async function generateWorkoutPlanRuleBased(data: AnamnesisData): Promise<WorkoutPlan> {
-  const params = getTrainingParameters(data.hormonalStatus, data.goal);
+export async function generateWorkoutPlanRuleBased(data: AnamnesisData, blacklist: string[] = []): Promise<WorkoutPlan> {
   const allGoals = [data.goal, data.secondaryGoal, data.tertiaryGoal || ''].join(' ').toLowerCase();
-  const isWeightLoss = allGoals.includes('emagrecimento');
+  const params = getTrainingParameters(data.hormonalStatus, allGoals);
+  const isWeightLoss = allGoals.includes('emagrecimento') || allGoals.includes('definição');
   const isStrength = allGoals.includes('força');
   const isHypertrophy = allGoals.includes('hipertrofia');
-  const isEndurance = allGoals.includes('resistência');
+  const isEndurance = allGoals.includes('resistência') || allGoals.includes('condicionamento');
   const isHealth = allGoals.includes('saúde') || allGoals.includes('bem-estar');
   const isRehab = allGoals.includes('reabilitação') || allGoals.includes('postural');
   
@@ -198,13 +254,16 @@ export async function generateWorkoutPlanRuleBased(data: AnamnesisData): Promise
     const exercises: any[] = [];
     
     daySplit.groups.forEach(group => {
-      const selected = filterExercises(group.name, data.equipment, group.count);
-      selected.forEach(ex => {
+      const selected = filterExercises(group.name, data.equipment, group.count, blacklist);
+      selected.forEach((ex, index) => {
+        const isLastExercise = index === selected.length - 1;
         // Ajustar parâmetros por exercício baseado no objetivo
         let exReps = params.reps;
         let exSets = params.sets;
         let exRest = params.rest;
         let exRir = params.rir;
+        let exMethod = params.method;
+        let exNotes = `Músculos: ${(ex as any).musclesWorked?.join(', ') || ''}. ${(ex as any).description || ''}`;
 
         if (isStrength && ex.mechanics === 'Composto') {
           exReps = '4-6';
@@ -215,17 +274,25 @@ export async function generateWorkoutPlanRuleBased(data: AnamnesisData): Promise
           exRest = '45 segundos';
         }
 
+        // Aplicar técnicas avançadas do E-book
+        const advancedTech = getAdvancedTechnique(data.experience, allGoals, ex.mechanics === 'Composto', isLastExercise);
+        if (advancedTech.method !== 'Série Normal') {
+          exMethod = advancedTech.method;
+          exNotes += `\n\n${advancedTech.notes}`;
+        }
+
         exercises.push({
           id: ex.id + '_' + Math.random().toString(36).substr(2, 5),
           name: ex.name,
-          method: params.method,
+          group: ex.group,
+          method: exMethod,
           sets: exSets,
           reps: exReps,
           rir: exRir,
           suggestedLoad: params.load,
           setup: `Semana 1 (Calibração): Comece com uma carga leve (aprox. 30-40% do que acha que aguenta). Faça 1 série de teste. Se estiver muito fácil, suba o peso até que as últimas repetições da série fiquem difíceis, mantendo a postura.`,
           rest: exRest,
-          notes: `Músculos: ${(ex as any).musclesWorked?.join(', ') || ''}. ${(ex as any).description || ''}`,
+          notes: exNotes,
           executionDetails: (ex as any).execution || `1. Posicione-se corretamente.\n2. Execute o movimento de forma controlada.\n3. Retorne à posição inicial resistindo ao peso.`,
           videoUrl: (ex as any).videoUrl
         });
@@ -234,12 +301,16 @@ export async function generateWorkoutPlanRuleBased(data: AnamnesisData): Promise
 
     let cardio = undefined;
     if (isWeightLoss || allGoals.includes('condicionamento') || data.cardioPreference !== 'Não gosto de cardio') {
+      const isHIIT = isWeightLoss;
       cardio = {
         type: data.cardioPreference !== 'Não gosto de cardio' ? data.cardioPreference : 'Esteira/Caminhada Rápida',
-        method: isWeightLoss ? 'HIIT ou LISS Pós-treino' : 'LISS Moderado',
-        duration: isWeightLoss ? '20-30 min' : '15 min',
-        intensity: isWeightLoss ? 'Alta/Moderada' : 'Leve',
+        method: isHIIT ? 'HIIT (Treino Intervalado de Alta Intensidade)' : 'LISS (Cardio de Baixa Intensidade)',
+        duration: isHIIT ? '20-30 min' : '15-45 min',
+        intensity: isHIIT ? 'Alta/Moderada' : 'Leve',
         setup: `Semana 1 (Calibração): Comece em um ritmo confortável (ex: Esteira a 5km/h ou Bike no nível 2). Aumente gradativamente até atingir a intensidade alvo.`,
+        notes: isHIIT 
+          ? 'Técnica HIIT: Alterne entre períodos curtos de esforço máximo (ex: 1 min correndo rápido) e períodos de recuperação ativa (ex: 1 a 2 min caminhando). Isso acelera o metabolismo e a queima de gordura.'
+          : 'Técnica LISS: Mantenha um ritmo constante e confortável onde você consiga manter uma conversa sem perder o fôlego (ex: caminhada rápida, bicicleta leve). Ideal para recuperação e queima de gordura sem sobrecarregar as articulações.'
       };
     }
 
@@ -284,15 +355,75 @@ export async function adjustWorkoutPlanRuleBased(
   completedSets: Record<string, boolean>,
   actualLoads: Record<string, string>,
   checkins: Record<string, any>,
-  monthlyFeedback: string
+  monthlyFeedback: string,
+  exerciseFeedback: Record<string, any> = {}
 ): Promise<AdjustmentResponse> {
-  // Para o ajuste baseado em regras, vamos simplesmente gerar um novo plano
-  // mas com uma mensagem de análise simulada.
-  const newPlan = await generateWorkoutPlanRuleBased(userData);
-  newPlan.phaseName = "Mesociclo 2 - Progressão Contínua";
+  // 1. Analisar o feedback dos exercícios para criar uma blacklist
+  const blacklist: string[] = [];
+  let painCount = 0;
+  let badExecutionCount = 0;
+
+  Object.entries(exerciseFeedback).forEach(([key, feedback]) => {
+    // key is like w1-d0-exId
+    const parts = key.split('-');
+    const exId = parts.slice(2).join('-'); // Reconstruct exercise ID
+    
+    if (feedback.pain) {
+      blacklist.push(exId);
+      painCount++;
+    } else if (feedback.execution === 'Ruim') {
+      blacklist.push(exId);
+      badExecutionCount++;
+    }
+  });
+
+  // 2. Analisar checkins para ajustar volume (simulado via userData temporário)
+  let highEffortCount = 0;
+  Object.values(checkins).forEach(checkin => {
+    if (checkin.effort === 'Máximo (10)' || checkin.effort === 'Muito Difícil (8-9)') {
+      highEffortCount++;
+    }
+  });
+
+  // Se o aluno relatou muito esforço máximo, podemos reduzir os dias ou mudar a experiência para gerar um treino mais leve
+  const adjustedUserData = { ...userData };
+  let volumeMessage = "O volume de treino foi mantido para continuar a progressão.";
   
+  if (highEffortCount > 5 || monthlyFeedback.includes('Exausto') || monthlyFeedback.includes('Não recuperei')) {
+    volumeMessage = "Notamos um alto nível de fadiga nos seus check-ins diários. O volume/intensidade foi levemente ajustado para permitir melhor recuperação.";
+    // Reduzir dias se for muito alto, ou mudar experiência para gerar menos técnicas avançadas
+    if (adjustedUserData.experience.includes('Avançado')) {
+      adjustedUserData.experience = 'Intermediário'; // Reduz técnicas avançadas
+    }
+  } else if (highEffortCount === 0 && (monthlyFeedback.includes('Muito fácil') || monthlyFeedback.includes('Sobrou energia'))) {
+    volumeMessage = "Como você relatou boa recuperação e energia, aumentamos a intensidade/técnicas do treino.";
+    if (adjustedUserData.experience.includes('Iniciante')) {
+      adjustedUserData.experience = 'Intermediário';
+    } else if (adjustedUserData.experience.includes('Intermediário')) {
+      adjustedUserData.experience = 'Avançado';
+    }
+  }
+
+  // 3. Gerar o novo plano com a blacklist e dados ajustados
+  const newPlan = await generateWorkoutPlanRuleBased(adjustedUserData, [...new Set(blacklist)]);
+  
+  // Extrair o número do mesociclo atual
+  const currentMesoMatch = originalPlan.phaseName.match(/Mesociclo (\d+)/);
+  const nextMeso = currentMesoMatch ? parseInt(currentMesoMatch[1]) + 1 : 2;
+  newPlan.phaseName = `Mesociclo ${nextMeso} - Evolução Contínua`;
+  
+  let analysis = `Análise concluída com sucesso! \n\n`;
+  analysis += `${volumeMessage}\n`;
+  
+  if (painCount > 0) {
+    analysis += `\nIdentificamos ${painCount} exercício(s) que causaram dor articular e eles foram substituídos por variações mais seguras. `;
+  }
+  if (badExecutionCount > 0) {
+    analysis += `\nSubstituímos ${badExecutionCount} exercício(s) onde você relatou dificuldade de execução para melhorar sua biomecânica. `;
+  }
+
   return {
-    analysis: "Análise concluída pelo Algoritmo SpeltaFit. Baseado no seu feedback mensal, ajustamos a seleção de exercícios para continuar gerando estímulos novos. Mantenha o foco na progressão de cargas!",
+    analysis: analysis.trim(),
     updatedPlan: newPlan
   };
 }

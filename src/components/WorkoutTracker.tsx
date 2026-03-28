@@ -1,39 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { WorkoutPlan, AnamnesisData } from '../services/workoutGenerator';
 import { adjustWorkoutPlanRuleBased } from '../services/workoutGenerator';
-import { CheckCircle2, Circle, Dumbbell, Timer, Flame, Zap, Activity, Trophy, Brain, X, Loader2, ClipboardList, Lock, CalendarDays, Info, Play } from 'lucide-react';
+import { CheckCircle2, Circle, Dumbbell, Timer, Flame, Zap, Activity, Trophy, Brain, X, Loader2, ClipboardList, Lock, CalendarDays, Info, ChevronDown, ChevronUp, MessageSquare, Sparkles, TrendingUp, Target, Quote, Edit3, Save, Plus, Trash2, ArrowUp, ArrowDown, LayoutGrid } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { auth, db } from '../firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
-
-function getEmbedUrl(url: string) {
-  try {
-    const urlObj = new URL(url);
-    if (urlObj.hostname.includes('youtube.com')) {
-      if (urlObj.pathname === '/watch') {
-        const videoId = urlObj.searchParams.get('v');
-        if (videoId) {
-          return `https://www.youtube.com/embed/${videoId}`;
-        }
-      } else if (urlObj.pathname.startsWith('/shorts/')) {
-        const videoId = urlObj.pathname.split('/')[2];
-        if (videoId) {
-          return `https://www.youtube.com/embed/${videoId}`;
-        }
-      } else if (urlObj.pathname.startsWith('/embed/')) {
-        return url;
-      }
-    } else if (urlObj.hostname === 'youtu.be') {
-      const videoId = urlObj.pathname.substring(1);
-      if (videoId) {
-        return `https://www.youtube.com/embed/${videoId}`;
-      }
-    }
-  } catch (e) {
-    // ignore invalid URLs
-  }
-  return url;
-}
+import { EXERCISE_DB } from '../data/exerciseDatabase';
 
 interface Props {
   plan: WorkoutPlan;
@@ -65,7 +37,12 @@ export function WorkoutTracker({ plan, user, onUpdatePlan, readOnly = false, stu
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isAdjusting, setIsAdjusting] = useState(false);
   const [analysisMessage, setAnalysisMessage] = useState<string | null>(null);
-  const [activeVideo, setActiveVideo] = useState<{ name: string, url: string } | null>(null);
+
+  // Edit Mode State
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedPlan, setEditedPlan] = useState<WorkoutPlan | null>(null);
+  const [showAddExerciseModal, setShowAddExerciseModal] = useState<{ dayIdx: number, group?: string } | null>(null);
+  const [exerciseSearch, setExerciseSearch] = useState('');
 
   // Structured Feedback State (Monthly)
   const [feedbackForm, setFeedbackForm] = useState<{
@@ -77,6 +54,19 @@ export function WorkoutTracker({ plan, user, onUpdatePlan, readOnly = false, stu
     adherence: { value: '', comment: '' },
     dietSleep: { value: '', comment: '' },
   });
+
+  // UI State
+  const [expandedDetails, setExpandedDetails] = useState<Record<string, boolean>>({});
+  const [expandedFeedback, setExpandedFeedback] = useState<Record<string, boolean>>({});
+  const [showGlossary, setShowGlossary] = useState(false);
+
+  const toggleDetails = (exId: string) => {
+    setExpandedDetails(prev => ({ ...prev, [exId]: !prev[exId] }));
+  };
+
+  const toggleFeedback = (exId: string) => {
+    setExpandedFeedback(prev => ({ ...prev, [exId]: !prev[exId] }));
+  };
 
   // Load saved progress
   useEffect(() => {
@@ -138,27 +128,99 @@ export function WorkoutTracker({ plan, user, onUpdatePlan, readOnly = false, stu
     };
     
     // Only save if there's actual data to avoid overwriting with empty initial state
-    if (Object.keys(completedSets).length > 0 || Object.keys(actualLoads).length > 0 || Object.keys(exerciseFeedback).length > 0 || Object.keys(checkins).length > 0) {
+    if (Object.keys(completedSets || {}).length > 0 || Object.keys(actualLoads || {}).length > 0 || Object.keys(exerciseFeedback || {}).length > 0 || Object.keys(checkins || {}).length > 0) {
       saveProgress();
     }
   }, [completedSets, actualLoads, exerciseFeedback, checkins, readOnly]);
 
   // Derived State
   const totalWeeks = plan.durationWeeks || 4;
-  const routineLength = plan.weeklyRoutine.length;
+  const routineLength = plan.weeklyRoutine?.length || 0;
   const totalDays = totalWeeks * routineLength;
   
   const getAbsoluteIndex = (w: number, d: number) => (w - 1) * routineLength + d;
   const currentAbsoluteIndex = getAbsoluteIndex(selectedWeek, selectedDay);
-  const checkedInCount = Object.keys(checkins).length;
+  const checkedInCount = Object.keys(checkins || {}).length;
   
-  const isUnlocked = currentAbsoluteIndex <= checkedInCount;
-  const isCheckedIn = currentAbsoluteIndex < checkedInCount;
-  const isPlanComplete = checkedInCount >= totalDays;
-
   const getSetKey = (exId: string, setIdx: number) => `w${selectedWeek}-d${selectedDay}-${exId}-${setIdx}`;
   const getLoadKey = (exId: string) => `w${selectedWeek}-d${selectedDay}-${exId}`;
+  const getSetLoadKey = (exId: string, setIdx: number) => `w${selectedWeek}-d${selectedDay}-${exId}-${setIdx}`;
   const getCheckinKey = (w: number, d: number) => `w${w}-d${d}`;
+
+  const isUnlocked = true;
+  const isCheckedIn = !!(checkins && checkins[getCheckinKey(selectedWeek, selectedDay)]);
+  const isPlanComplete = checkedInCount >= totalDays;
+
+  const toggleEditMode = () => {
+    if (isEditing) {
+      // Save changes
+      if (editedPlan) {
+        onUpdatePlan(editedPlan);
+      }
+      setIsEditing(false);
+    } else {
+      // Enter edit mode
+      setEditedPlan(JSON.parse(JSON.stringify(plan)));
+      setIsEditing(true);
+    }
+  };
+
+  const updateEditedExercise = (dayIdx: number, exIdx: number, field: string, value: any) => {
+    if (!editedPlan) return;
+    const newPlan = { ...editedPlan };
+    if (newPlan.weeklyRoutine[dayIdx].exercises) {
+      (newPlan.weeklyRoutine[dayIdx].exercises![exIdx] as any)[field] = value;
+    }
+    setEditedPlan(newPlan);
+  };
+
+  const removeExercise = (dayIdx: number, exIdx: number) => {
+    if (!editedPlan) return;
+    const newPlan = { ...editedPlan };
+    newPlan.weeklyRoutine[dayIdx].exercises?.splice(exIdx, 1);
+    setEditedPlan(newPlan);
+  };
+
+  const addExercise = (dayIdx: number, exercise: any) => {
+    if (!editedPlan) return;
+    const newPlan = { ...editedPlan };
+    const newEx = {
+      id: exercise.id + '_' + Math.random().toString(36).substr(2, 5),
+      name: exercise.name,
+      group: exercise.group,
+      method: 'Série Normal',
+      sets: 3,
+      reps: '10-12',
+      rir: 'RIR 1-2',
+      suggestedLoad: 'Carga Moderada',
+      rest: '60-90 segundos',
+      notes: exercise.description,
+      executionDetails: exercise.execution,
+      videoUrl: exercise.videoUrl
+    };
+    if (!newPlan.weeklyRoutine[dayIdx].exercises) {
+      newPlan.weeklyRoutine[dayIdx].exercises = [];
+    }
+    newPlan.weeklyRoutine[dayIdx].exercises!.push(newEx);
+    setEditedPlan(newPlan);
+    setShowAddExerciseModal(null);
+  };
+
+  const moveExercise = (dayIdx: number, exIdx: number, direction: 'up' | 'down') => {
+    if (!editedPlan) return;
+    const newPlan = { ...editedPlan };
+    const exercises = newPlan.weeklyRoutine[dayIdx].exercises;
+    if (!exercises) return;
+    
+    const targetIdx = direction === 'up' ? exIdx - 1 : exIdx + 1;
+    if (targetIdx < 0 || targetIdx >= exercises.length) return;
+    
+    const temp = exercises[exIdx];
+    exercises[exIdx] = exercises[targetIdx];
+    exercises[targetIdx] = temp;
+    
+    setEditedPlan(newPlan);
+  };
 
   const toggleSet = (exerciseId: string, setIndex: number) => {
     if (readOnly || !isUnlocked || isCheckedIn) return;
@@ -169,6 +231,12 @@ export function WorkoutTracker({ plan, user, onUpdatePlan, readOnly = false, stu
   const updateLoad = (exerciseId: string, load: string) => {
     if (readOnly || !isUnlocked || isCheckedIn) return;
     const key = getLoadKey(exerciseId);
+    setActualLoads(prev => ({ ...prev, [key]: load }));
+  };
+
+  const updateSetLoad = (exerciseId: string, setIndex: number, load: string) => {
+    if (readOnly || !isUnlocked || isCheckedIn) return;
+    const key = getSetLoadKey(exerciseId, setIndex);
     setActualLoads(prev => ({ ...prev, [key]: load }));
   };
 
@@ -225,7 +293,7 @@ export function WorkoutTracker({ plan, user, onUpdatePlan, readOnly = false, stu
     `;
 
     try {
-      const response = await adjustWorkoutPlanRuleBased(plan, user, completedSets, actualLoads, checkins, compiledFeedback);
+      const response = await adjustWorkoutPlanRuleBased(plan, user, completedSets, actualLoads, checkins, compiledFeedback, exerciseFeedback);
       setAnalysisMessage(response.analysis);
       onUpdatePlan(response.updatedPlan);
       
@@ -249,104 +317,192 @@ export function WorkoutTracker({ plan, user, onUpdatePlan, readOnly = false, stu
     }
   };
 
-  const dayData = plan.weeklyRoutine[selectedDay];
+  const activePlan = isEditing ? editedPlan : plan;
+  const dayData = activePlan?.weeklyRoutine?.[selectedDay];
 
   // Calculate progress for the selected day
-  const totalSetsForDay = dayData.exercises?.reduce((acc, ex) => acc + ex.sets, 0) || 0;
-  const completedSetsForDay = dayData.exercises?.reduce((acc, ex) => {
+  const totalSetsForDay = Array.isArray(dayData?.exercises) ? dayData.exercises.reduce((acc, ex) => acc + ex.sets, 0) : 0;
+  const completedSetsForDay = Array.isArray(dayData?.exercises) ? dayData.exercises.reduce((acc, ex) => {
     let completed = 0;
     for (let i = 0; i < ex.sets; i++) {
-      if (completedSets[getSetKey(ex.id, i)]) completed++;
+      if (completedSets && completedSets[getSetKey(ex.id, i)]) completed++;
     }
     return acc + completed;
-  }, 0) || 0;
+  }, 0) : 0;
 
   const dailyProgressPercentage = totalSetsForDay > 0 ? Math.round((completedSetsForDay / totalSetsForDay) * 100) : 0;
   const overallProgressPercentage = Math.round((checkedInCount / totalDays) * 100);
 
+  // Group exercises by muscle group for display
+  const groupExercises = (exercises: any[]) => {
+    const groups: Record<string, any[]> = {};
+    exercises.forEach(ex => {
+      const group = ex.group || 'Outros';
+      if (!groups[group]) groups[group] = [];
+      groups[group].push(ex);
+    });
+    return groups;
+  };
+
+  const groupedExercises = dayData?.exercises ? groupExercises(dayData.exercises) : {};
+
   return (
     <div className="space-y-6">
-      {/* AI Analysis Message */}
+      {/* Header with Edit Button */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="bg-brand/10 p-2.5 rounded-2xl">
+            <LayoutGrid className="w-6 h-6 text-brand" />
+          </div>
+          <div>
+            <h1 className="text-xl font-black text-text-main uppercase tracking-tight">Seu Treino</h1>
+            <p className="text-xs text-text-muted font-medium">{activePlan?.phaseName}</p>
+          </div>
+        </div>
+        
+        {!readOnly && (
+          <div className="flex items-center gap-2">
+            {isEditing && (
+              <button
+                onClick={() => setIsEditing(false)}
+                className="flex items-center gap-2 px-5 py-2.5 rounded-2xl font-black text-xs uppercase tracking-widest transition-all bg-bg-main border-2 border-border/50 text-text-muted hover:text-red-500 hover:border-red-500/30"
+              >
+                <X className="w-4 h-4" />
+                Cancelar
+              </button>
+            )}
+            <button
+              onClick={toggleEditMode}
+              className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-sm ${
+                isEditing 
+                  ? 'bg-emerald-500 text-white hover:bg-emerald-600 shadow-emerald-500/20' 
+                  : 'bg-surface border-2 border-border/50 text-text-muted hover:text-brand hover:border-brand/30'
+              }`}
+            >
+              {isEditing ? (
+                <>
+                  <Save className="w-4 h-4" />
+                  Salvar Alterações
+                </>
+              ) : (
+                <>
+                  <Edit3 className="w-4 h-4" />
+                  Editar Treino
+                </>
+              )}
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* AI Analysis Message - More Prominent and Premium */}
       {analysisMessage && (
         <motion.div 
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-brand/10 border border-brand/30 rounded-3xl p-6 shadow-lg relative"
+          className="bg-brand/5 border-2 border-brand/20 rounded-[2.5rem] p-6 relative overflow-hidden group"
         >
-          <button 
-            onClick={() => setAnalysisMessage(null)}
-            className="absolute top-4 right-4 text-brand hover:text-brand-hover"
-          >
-            <X className="w-6 h-6" />
-          </button>
-          <div className="flex gap-4 items-start">
-            <div className="bg-brand p-3 rounded-2xl shrink-0">
-              <Brain className="w-6 h-6 text-bg-main" />
+          <div className="absolute top-0 right-0 p-2 opacity-0 group-hover:opacity-100 transition-opacity">
+            <button 
+              onClick={() => setAnalysisMessage(null)}
+              className="p-2 hover:bg-brand/10 rounded-full transition-colors"
+            >
+              <X className="w-4 h-4 text-brand" />
+            </button>
+          </div>
+          <div className="flex items-start gap-5">
+            <div className="bg-brand p-4 rounded-3xl shadow-lg shadow-brand/20 shrink-0">
+              <Sparkles className="w-8 h-8 text-bg-main" />
             </div>
-            <div>
-              <h3 className="text-xl font-bold text-brand mb-2">Análise do Personal (IA)</h3>
-              <p className="text-text-main leading-relaxed whitespace-pre-wrap">{analysisMessage}</p>
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-2">
+                <h3 className="text-sm font-black text-brand uppercase tracking-[0.2em]">Análise da IA</h3>
+                <div className="h-px flex-1 bg-brand/20"></div>
+              </div>
+              <p className="text-text-main text-base font-medium leading-relaxed italic">
+                "{analysisMessage}"
+              </p>
             </div>
           </div>
         </motion.div>
       )}
 
-      {/* Glossary / Instructions */}
-      <div className="bg-surface border border-border rounded-3xl p-6 shadow-xl mb-6">
-        <h3 className="text-text-main font-bold flex items-center gap-2 mb-4">
-          <Info className="w-5 h-5 text-brand" />
-          Guia de Execução (Glossário)
-        </h3>
-        <div className="space-y-4 text-sm text-text-muted">
-          <div>
-            <span className="font-bold text-text-main">Série Normal:</span> 
-            <span> É a série padrão de trabalho. Você deve executar o número de repetições estipulado mantendo o mesmo peso do início ao fim. O foco deve ser no controle do movimento: uma descida (fase excêntrica) controlada de 2 a 3 segundos, e uma subida (fase concêntrica) explosiva e forte. Não use técnicas avançadas (como drop-set) a menos que esteja especificado.</span>
+      {/* Dashboard Stats Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {/* Overall Progress Card */}
+        <div className="bg-surface border-2 border-border/50 rounded-[2rem] p-6 shadow-sm relative overflow-hidden group">
+          <div className="absolute -right-4 -bottom-4 opacity-5 group-hover:scale-110 transition-transform duration-500">
+            <Trophy className="w-32 h-32 text-brand" />
           </div>
-          <div>
-            <span className="font-bold text-text-main">RIR (Repetições na Reserva):</span> 
-            <span> É a principal ferramenta de controle de intensidade. RIR significa quantas repetições você ainda conseguiria fazer com boa forma antes de travar (falhar) completamente.</span>
-            <ul className="list-disc pl-5 mt-2 space-y-2">
-              <li><strong>Exemplo RIR 2:</strong> Se a ficha pede 10 repetições com RIR 2, você deve escolher um peso com o qual você falharia na 12ª repetição. Você para na 10ª repetição sentindo que "daria para fazer só mais duas chorando".</li>
-              <li><strong>Exemplo RIR 0:</strong> Significa que não há repetições na reserva. Você deve ir até a falha total, onde é fisicamente impossível fazer mais uma repetição.</li>
-              <li><strong>Por que usar?</strong> Treinar até a falha em todas as séries destrói seu Sistema Nervoso Central e prejudica a recuperação. O RIR permite que você treine pesado (próximo à falha) acumulando volume sem entrar em overtraining.</li>
-            </ul>
+          <div className="relative z-10">
+            <div className="flex items-center justify-between mb-4">
+              <div className="bg-brand/10 p-2 rounded-xl">
+                <TrendingUp className="w-5 h-5 text-brand" />
+              </div>
+              <span className="text-2xl font-black text-brand">{overallProgressPercentage}%</span>
+            </div>
+            <h3 className="text-sm font-black text-text-main uppercase tracking-widest mb-1">Progresso Geral</h3>
+            <p className="text-[10px] text-text-muted uppercase font-bold mb-4 tracking-tighter">
+              {checkedInCount} de {totalDays} dias de check-in
+            </p>
+            <div className="h-3 bg-bg-main rounded-full overflow-hidden border border-border/30">
+              <motion.div 
+                initial={{ width: 0 }}
+                animate={{ width: `${overallProgressPercentage}%` }}
+                className="h-full bg-brand shadow-[0_0_10px_rgba(var(--brand-rgb),0.5)]"
+              />
+            </div>
           </div>
-          <div>
-            <span className="font-bold text-text-main">Falha Concêntrica:</span> 
-            <span> É o momento exato em que você tenta subir o peso (fase concêntrica) e o músculo simplesmente não responde mais, travando no meio do caminho, mesmo você fazendo força máxima. 
-            <br/><strong>Atenção:</strong> Iniciantes devem evitar a falha em exercícios complexos (Agachamento, Supino, Terra) pelo risco de lesão ao perder a postura. Deixe a falha para exercícios em máquinas ou cabos.</span>
+        </div>
+
+        {/* Daily Target Card */}
+        <div className="bg-surface border-2 border-border/50 rounded-[2rem] p-6 shadow-sm relative overflow-hidden group">
+          <div className="absolute -right-4 -bottom-4 opacity-5 group-hover:scale-110 transition-transform duration-500">
+            <Target className="w-32 h-32 text-brand" />
           </div>
-          <div>
-            <span className="font-bold text-text-main">PSE (Percepção Subjetiva de Esforço):</span> 
-            <span> Uma nota de 1 a 10 que você dá para o quão difícil foi a série ou o treino. 1 é estar deitado no sofá, 10 é o esforço máximo da sua vida (falha total). Um treino de hipertrofia ideal geralmente orbita entre PSE 7 e 9.</span>
+          <div className="relative z-10">
+            <div className="flex items-center justify-between mb-4">
+              <div className="bg-brand/10 p-2 rounded-xl">
+                <Activity className="w-5 h-5 text-brand" />
+              </div>
+              <span className="text-2xl font-black text-brand">{dailyProgressPercentage}%</span>
+            </div>
+            <h3 className="text-sm font-black text-text-main uppercase tracking-widest mb-1">Meta Diária</h3>
+            <p className="text-[10px] text-text-muted uppercase font-bold mb-4 tracking-tighter">
+              {completedSetsForDay} de {totalSetsForDay} séries concluídas
+            </p>
+            <div className="h-3 bg-bg-main rounded-full overflow-hidden border border-border/30">
+              <motion.div 
+                initial={{ width: 0 }}
+                animate={{ width: `${dailyProgressPercentage}%` }}
+                className="h-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]"
+              />
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Overall Progress Bar */}
-      <div className="bg-surface border border-border rounded-3xl p-6 shadow-xl">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-text-main font-bold flex items-center gap-2">
-            <CalendarDays className="w-5 h-5 text-brand" />
-            Progresso do Ciclo
-          </h3>
-          <span className="text-brand font-black text-xl">{overallProgressPercentage}%</span>
+      {/* Execution Guide - Always Visible and Compact */}
+      <div className="bg-surface border-2 border-border/50 rounded-[2rem] p-5 shadow-sm">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="bg-brand/10 p-2 rounded-xl">
+            <Info className="w-5 h-5 text-brand" />
+          </div>
+          <h3 className="text-sm font-black text-text-main uppercase tracking-widest">Guia Rápido</h3>
         </div>
-        <div className="h-4 bg-bg-main rounded-full overflow-hidden border border-border">
-          <motion.div 
-            initial={{ width: 0 }}
-            animate={{ width: `${overallProgressPercentage}%` }}
-            transition={{ duration: 0.5, ease: "easeOut" }}
-            className="h-full bg-brand rounded-full"
-          />
-        </div>
-        <div className="flex justify-between items-center mt-3">
-          <p className="text-text-muted text-xs">
-            * Atualizado ao salvar o check-in diário
-          </p>
-          <p className="text-text-muted text-sm text-right">
-            {checkedInCount} de {totalDays} dias concluídos
-          </p>
+        
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          {[
+            { title: 'Série Normal', desc: 'Carga constante.' },
+            { title: 'RIR', desc: 'Reps em reserva.' },
+            { title: 'Falha', desc: 'Até o limite.' },
+            { title: 'PSE', desc: 'Esforço 1-10.' }
+          ].map((item, i) => (
+            <div key={i} className="bg-bg-main p-3 rounded-2xl border border-border/30 text-center">
+              <p className="text-[10px] font-black text-brand uppercase tracking-tighter mb-1 leading-none">{item.title}</p>
+              <p className="text-[9px] text-text-muted leading-tight">{item.desc}</p>
+            </div>
+          ))}
         </div>
       </div>
 
@@ -358,9 +514,9 @@ export function WorkoutTracker({ plan, user, onUpdatePlan, readOnly = false, stu
             <button
               key={weekNum}
               onClick={() => setSelectedWeek(weekNum)}
-              className={`snap-start shrink-0 px-5 py-2 rounded-xl font-bold text-sm transition-all ${
+              className={`snap-start shrink-0 px-4 py-1.5 rounded-full font-bold text-sm transition-all ${
                 selectedWeek === weekNum 
-                  ? 'bg-text-main text-bg-main shadow-md' 
+                  ? 'bg-text-main text-bg-main shadow-sm' 
                   : 'bg-surface border border-border text-text-muted hover:text-text-main'
               }`}
             >
@@ -371,34 +527,27 @@ export function WorkoutTracker({ plan, user, onUpdatePlan, readOnly = false, stu
       </div>
 
       {/* Day Selector */}
-      <div className="flex overflow-x-auto pb-4 gap-3 snap-x scrollbar-hide">
-        {plan.weeklyRoutine.map((day, idx) => {
-          const absIdx = getAbsoluteIndex(selectedWeek, idx);
-          const isDayCheckedIn = absIdx < checkedInCount;
-          const isDayUnlocked = absIdx <= checkedInCount;
+      <div className="flex overflow-x-auto pb-4 gap-2 snap-x scrollbar-hide">
+        {Array.isArray(plan.weeklyRoutine) && plan.weeklyRoutine.map((day, idx) => {
+          const isDayCheckedIn = !!(checkins && checkins[getCheckinKey(selectedWeek, idx)]);
           
           return (
             <button
               key={idx}
               onClick={() => setSelectedDay(idx)}
-              className={`snap-start shrink-0 px-6 py-4 rounded-2xl border transition-all relative ${
+              className={`snap-start shrink-0 px-4 py-3 rounded-2xl border transition-all relative min-w-[100px] text-left ${
                 selectedDay === idx 
-                  ? 'bg-brand border-brand text-text-inverse shadow-lg' 
+                  ? 'bg-brand border-brand text-text-inverse shadow-md' 
                   : 'bg-surface border-border text-text-muted hover:bg-surface-hover hover:text-text-main'
-              } ${!isDayUnlocked ? 'opacity-50' : ''}`}
+              }`}
             >
               {isDayCheckedIn && (
-                <div className="absolute -top-2 -right-2 bg-emerald-500 text-white rounded-full p-1 shadow-sm">
-                  <CheckCircle2 className="w-4 h-4" />
+                <div className="absolute -top-1.5 -right-1.5 bg-emerald-500 text-white rounded-full p-0.5 shadow-sm">
+                  <CheckCircle2 className="w-3.5 h-3.5" />
                 </div>
               )}
-              {!isDayUnlocked && (
-                <div className="absolute -top-2 -right-2 bg-surface border border-border text-text-muted rounded-full p-1 shadow-sm">
-                  <Lock className="w-4 h-4" />
-                </div>
-              )}
-              <div className="font-bold text-lg mb-1">{day.day}</div>
-              <div className={`text-sm font-medium ${selectedDay === idx ? 'text-text-inverse/80' : 'text-text-muted'}`}>
+              <div className="font-bold text-sm mb-0.5">{day.day}</div>
+              <div className={`text-[11px] font-medium leading-tight ${selectedDay === idx ? 'text-text-inverse/80' : 'text-text-muted'}`}>
                 {day.focus}
               </div>
             </button>
@@ -413,27 +562,18 @@ export function WorkoutTracker({ plan, user, onUpdatePlan, readOnly = false, stu
         animate={{ opacity: 1, x: 0 }}
         className="space-y-6"
       >
-        {!isUnlocked ? (
-          <div className="text-center p-12 bg-surface border border-border rounded-3xl shadow-xl">
-            <Lock className="w-16 h-16 mx-auto mb-4 text-text-muted opacity-50" />
-            <h3 className="text-2xl font-bold text-text-main mb-2">Treino Bloqueado</h3>
-            <p className="text-text-muted max-w-md mx-auto">
-              Você precisa fazer o check-in dos dias anteriores antes de acessar e preencher este treino.
-            </p>
-          </div>
-        ) : (
-          <>
-            {/* Daily Progress Bar */}
+        <>
+          {/* Daily Progress Bar */}
             {totalSetsForDay > 0 && (
-              <div className="bg-surface border border-border rounded-3xl p-6 shadow-md">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-text-main font-bold flex items-center gap-2">
-                    <Trophy className="w-5 h-5 text-brand" />
+              <div className="bg-surface border border-border/50 rounded-2xl p-4 shadow-sm mb-4">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-text-main font-bold text-sm flex items-center gap-1.5">
+                    <Trophy className="w-4 h-4 text-brand" />
                     Progresso do Dia
                   </h3>
-                  <span className="text-brand font-black text-xl">{dailyProgressPercentage}%</span>
+                  <span className="text-brand font-black text-lg">{dailyProgressPercentage}%</span>
                 </div>
-                <div className="h-4 bg-bg-main rounded-full overflow-hidden border border-border">
+                <div className="h-2.5 bg-bg-main rounded-full overflow-hidden border border-border/50">
                   <motion.div 
                     initial={{ width: 0 }}
                     animate={{ width: `${dailyProgressPercentage}%` }}
@@ -441,250 +581,429 @@ export function WorkoutTracker({ plan, user, onUpdatePlan, readOnly = false, stu
                     className="h-full bg-brand rounded-full"
                   />
                 </div>
-                <p className="text-text-muted text-sm mt-3 text-right">
+                <p className="text-text-muted text-[11px] mt-2 text-right font-medium">
                   {completedSetsForDay} de {totalSetsForDay} séries concluídas
                 </p>
               </div>
             )}
 
-            {dayData.exercises && dayData.exercises.length > 0 ? (
-              <div className="space-y-4">
-                {dayData.exercises.map((ex, i) => (
-                  <div key={ex.id} className={`bg-surface border border-border rounded-3xl p-6 shadow-xl ${isCheckedIn ? 'opacity-80' : ''}`}>
-                    {/* Exercise Header */}
-                    <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 mb-6">
-                      <div>
-                        <div className="flex items-center gap-3 mb-2">
-                          <span className="bg-bg-main text-brand w-8 h-8 flex items-center justify-center rounded-full font-bold shrink-0 border border-border">
-                            {i + 1}
-                          </span>
-                          <h3 className="text-xl font-bold text-text-main">{ex.name}</h3>
-                          {ex.videoUrl && (
-                            <button 
-                              onClick={() => setActiveVideo({ name: ex.name, url: getEmbedUrl(ex.videoUrl!) })}
-                              className="flex items-center gap-1.5 bg-brand/10 text-brand px-2.5 py-1 rounded-lg text-xs font-bold border border-brand/20 hover:bg-brand/20 transition-colors"
-                            >
-                              <Play className="w-3 h-3 fill-current" />
-                              VER VÍDEO
-                            </button>
-                          )}
-                        </div>
-                        <div className="flex flex-wrap items-center gap-2 ml-11">
-                          <span className="bg-bg-main text-text-main px-3 py-1 rounded-lg text-sm font-medium border border-border flex items-center gap-1" title="Método de execução">
-                            <Info className="w-3 h-3 text-brand" />
-                            {ex.method}
-                          </span>
-                          <span className="bg-amber-500/10 text-amber-500 px-3 py-1 rounded-lg text-sm font-bold border border-amber-500/20 flex items-center gap-1" title="Repetições na Reserva (não vá até a falha)">
-                            <Info className="w-3 h-3" />
-                            {ex.rir}
-                          </span>
-                        </div>
+            {Array.isArray(dayData?.exercises) && dayData.exercises.length > 0 ? (
+              <div className="space-y-12">
+                {Object.entries(groupedExercises).map(([group, exercises]) => (
+                  <div key={group} className="space-y-6">
+                    <div className="flex items-center gap-3 px-2">
+                      <div className="bg-brand/10 p-2 rounded-xl">
+                        <Dumbbell className="w-5 h-5 text-brand" />
                       </div>
-
-                      <div className="flex flex-wrap gap-3 ml-11 md:ml-0">
-                        <div className="flex items-center gap-2 bg-brand/10 text-brand px-4 py-2 rounded-xl border border-brand/20">
-                          <Activity className="w-5 h-5" />
-                          <span className="font-bold">{ex.sets} Séries de {ex.reps}</span>
-                        </div>
-                        <div className="flex items-center gap-2 bg-bg-main text-text-main px-4 py-2 rounded-xl border border-border">
-                          <Timer className="w-5 h-5" />
-                          <span className="font-bold">Pausa: {ex.rest}</span>
-                        </div>
-                      </div>
+                      <h3 className="text-lg font-black text-text-main uppercase tracking-tight">{group}</h3>
+                      <div className="h-px flex-1 bg-border/50"></div>
+                      {isEditing && (
+                        <button
+                          onClick={() => setShowAddExerciseModal({ dayIdx: selectedDay, group })}
+                          className="flex items-center gap-1.5 bg-brand/10 text-brand px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-brand/20 transition-all"
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                          Adicionar
+                        </button>
+                      )}
                     </div>
 
-                    {/* Setup / Initial Load */}
-                    {ex.setup && (
-                      <div className="ml-11 mb-6 bg-brand/10 p-4 rounded-2xl border border-brand/20">
-                        <p className="text-sm font-bold text-brand mb-1">Setup / Carga Inicial:</p>
-                        <p className="text-sm text-brand/80 leading-relaxed">{ex.setup}</p>
-                      </div>
-                    )}
+                    <div className="space-y-8">
+                      {exercises.map((ex) => {
+                        const exIdx = dayData.exercises!.findIndex(e => e.id === ex.id);
+                        return (
+                          <div key={ex.id} className={`bg-surface rounded-[2.5rem] p-6 shadow-sm border-2 border-border/50 transition-all group ${isCheckedIn ? 'opacity-80' : ''} relative`}>
+                            {isEditing && (
+                              <div className="absolute -top-3 -right-3 flex gap-2 z-10">
+                                <button
+                                  onClick={() => moveExercise(selectedDay, exIdx, 'up')}
+                                  className="p-2 bg-bg-main border-2 border-border/50 rounded-full text-text-muted hover:text-brand transition-all shadow-sm"
+                                >
+                                  <ArrowUp className="w-4 h-4" />
+                                </button>
+                                <button
+                                  onClick={() => moveExercise(selectedDay, exIdx, 'down')}
+                                  className="p-2 bg-bg-main border-2 border-border/50 rounded-full text-text-muted hover:text-brand transition-all shadow-sm"
+                                >
+                                  <ArrowDown className="w-4 h-4" />
+                                </button>
+                                <button
+                                  onClick={() => removeExercise(selectedDay, exIdx)}
+                                  className="p-2 bg-red-500 text-white rounded-full hover:bg-red-600 transition-all shadow-lg shadow-red-500/20"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </div>
+                            )}
 
-                    {/* Execution Details */}
-                    {ex.executionDetails && (
-                      <div className="ml-11 mb-6 bg-surface-hover p-4 rounded-2xl border border-border">
-                        <p className="text-sm font-bold text-text-main mb-2">Como executar:</p>
-                        <p className="text-sm text-text-muted leading-relaxed whitespace-pre-wrap">{ex.executionDetails}</p>
-                      </div>
-                    )}
-
-                    {/* Load Tracking */}
-                    <div className="ml-11 mb-6 bg-bg-main p-4 rounded-2xl border border-border flex flex-col sm:flex-row sm:items-center gap-4">
-                      <div className="flex-1">
-                        <p className="text-sm text-text-muted mb-1">Carga Sugerida</p>
-                        <p className="font-medium text-text-main">{ex.suggestedLoad}</p>
-                      </div>
-                      <div className="flex-1">
-                        <p className="text-sm text-text-muted mb-1">Carga Utilizada (kg/placa)</p>
-                        <input 
-                          type="text" 
-                          placeholder="Ex: 15kg"
-                          value={actualLoads[getLoadKey(ex.id)] || ''}
-                          onChange={(e) => updateLoad(ex.id, e.target.value)}
-                          disabled={isCheckedIn}
-                          className="w-full bg-surface border border-border rounded-lg px-3 py-2 text-text-main focus:outline-none focus:border-brand transition-colors disabled:opacity-50"
-                        />
-                      </div>
-                    </div>
-
-                    {/* Sets Tracker */}
-                    <div className="ml-11 mb-6">
-                      <p className="text-sm text-text-muted mb-3">Marque as séries concluídas:</p>
-                      <div className="flex flex-wrap gap-3">
-                        {Array.from({ length: ex.sets }).map((_, setIdx) => {
-                          const isCompleted = completedSets[getSetKey(ex.id, setIdx)];
-                          return (
-                            <button
-                              key={setIdx}
-                              onClick={() => toggleSet(ex.id, setIdx)}
-                              disabled={isCheckedIn}
-                              className={`flex items-center gap-2 px-4 py-3 rounded-xl border transition-all ${
-                                isCompleted 
-                                  ? 'bg-brand/20 border-brand/50 text-brand' 
-                                  : 'bg-bg-main border-border text-text-muted hover:border-text-muted'
-                              } ${isCheckedIn ? 'cursor-default' : ''}`}
-                            >
-                              {isCompleted ? <CheckCircle2 className="w-5 h-5" /> : <Circle className="w-5 h-5" />}
-                              <span className="font-bold">Série {setIdx + 1}</span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-
-                    {/* Notes/Tips */}
-                    {ex.notes && (
-                      <div className="ml-11 mb-6 bg-brand/5 p-4 rounded-2xl border border-brand/20 flex gap-3 items-start">
-                        <Zap className="w-5 h-5 text-brand shrink-0 mt-0.5" />
-                        <p className="text-text-main text-sm leading-relaxed">{ex.notes}</p>
-                      </div>
-                    )}
-
-                    {/* Exercise Feedback (Granular Tracking) */}
-                    <div className="ml-11 bg-surface-hover p-5 rounded-2xl border border-border">
-                      <h4 className="text-sm font-bold text-text-main mb-4 flex items-center gap-2">
-                        <Activity className="w-4 h-4 text-brand" /> Avaliação do Exercício
-                      </h4>
-                      
-                      <div className="space-y-4">
-                        {/* PSE */}
-                        <div>
-                          <div className="flex justify-between items-center mb-2">
-                            <label className="text-xs font-bold text-text-muted uppercase tracking-wider">Esforço (PSE)</label>
-                            <span className="text-xs font-bold text-brand">{exerciseFeedback[getLoadKey(ex.id)]?.pse || 5}/10</span>
-                          </div>
-                          <input 
-                            type="range" 
-                            min="1" max="10" 
-                            value={exerciseFeedback[getLoadKey(ex.id)]?.pse || 5}
-                            onChange={(e) => updateExerciseFeedback(ex.id, 'pse', parseInt(e.target.value))}
-                            disabled={isCheckedIn}
-                            className="w-full accent-brand"
-                          />
-                          <div className="flex justify-between text-[10px] text-text-muted mt-1 font-medium">
-                            <span>1 (Leve)</span>
-                            <span>5 (Moderado)</span>
-                            <span>10 (Máximo)</span>
-                          </div>
-                        </div>
-
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                          {/* Qualidade */}
-                          <div>
-                            <label className="block text-xs font-bold text-text-muted uppercase tracking-wider mb-2">Qualidade da Execução</label>
-                            <select 
-                              value={exerciseFeedback[getLoadKey(ex.id)]?.execution || 'Boa'}
-                              onChange={(e) => updateExerciseFeedback(ex.id, 'execution', e.target.value)}
-                              disabled={isCheckedIn}
-                              className="w-full bg-bg-main border border-border rounded-lg px-3 py-2 text-sm text-text-main focus:outline-none focus:border-brand transition-colors disabled:opacity-50"
-                            >
-                              <option value="Perfeita">🟢 Perfeita (Controle total)</option>
-                              <option value="Boa">🟡 Boa (Pequenas falhas)</option>
-                              <option value="Ruim">🔴 Ruim (Perdeu a postura)</option>
-                            </select>
-                          </div>
-
-                          {/* Dor Articular */}
-                          <div>
-                            <label className="block text-xs font-bold text-text-muted uppercase tracking-wider mb-2">Dor Articular?</label>
-                            <div className="flex gap-2">
-                              {['Não', 'Sim'].map(opt => {
-                                const isPain = opt === 'Sim';
-                                const currentPain = exerciseFeedback[getLoadKey(ex.id)]?.pain || false;
-                                const isSelected = currentPain === isPain;
-                                return (
-                                  <button
-                                    key={opt}
-                                    onClick={() => updateExerciseFeedback(ex.id, 'pain', isPain)}
-                                    disabled={isCheckedIn}
-                                    className={`flex-1 py-2 rounded-lg border text-sm font-medium transition-colors ${
-                                      isSelected 
-                                        ? (isPain ? 'bg-red-500/10 border-red-500 text-red-500' : 'bg-green-500/10 border-green-500 text-green-500')
-                                        : 'bg-bg-main border-border text-text-muted hover:border-brand/50'
-                                    } disabled:opacity-50`}
-                                  >
-                                    {opt}
-                                  </button>
-                                );
-                              })}
+                            {/* Exercise Header */}
+                            <div className="flex flex-col gap-5 mb-8">
+                              <div className="flex items-center gap-5">
+                                <div className="bg-brand text-text-inverse w-14 h-14 rounded-[1.5rem] flex items-center justify-center font-black text-2xl shadow-xl shadow-brand/20 shrink-0 group-hover:scale-105 transition-transform">
+                                  {exIdx + 1}
+                                </div>
+                                <div className="flex-1">
+                                  {isEditing ? (
+                                    <input 
+                                      type="text" 
+                                      value={ex.name}
+                                      onChange={(e) => updateEditedExercise(selectedDay, exIdx, 'name', e.target.value)}
+                                      className="w-full bg-bg-main border-2 border-border/50 rounded-xl px-4 py-2 text-lg font-black text-text-main focus:outline-none focus:border-brand uppercase tracking-tighter"
+                                    />
+                                  ) : (
+                                    <h3 className="text-2xl font-black text-text-main leading-tight uppercase tracking-tighter">{ex.name}</h3>
+                                  )}
+                                  <div className="flex flex-wrap gap-2 mt-2">
+                                    <div className="flex items-center gap-1 bg-brand/10 text-brand text-[10px] font-black px-3 py-1.5 rounded-xl uppercase tracking-widest border border-brand/20">
+                                      <Activity className="w-3 h-3" />
+                                      {ex.sets} Séries
+                                    </div>
+                                    {!isEditing && ex.notes && (
+                                      <div className="flex items-center gap-1 bg-bg-main text-text-muted text-[10px] font-bold px-3 py-1.5 rounded-xl uppercase tracking-widest border border-border/50">
+                                        <Info className="w-3 h-3" />
+                                        {ex.notes.substring(0, 30)}...
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                              
+                              <div className="bg-brand/5 border border-brand/10 rounded-2xl p-4 flex items-center gap-3">
+                                <div className="bg-brand p-2 rounded-xl">
+                                  <Zap className="w-4 h-4 text-bg-main" />
+                                </div>
+                                <div className="flex-1">
+                                  <p className="text-[10px] font-black text-brand uppercase tracking-widest leading-none mb-1">Sugestão de Carga</p>
+                                  {isEditing ? (
+                                    <input 
+                                      type="text" 
+                                      value={ex.suggestedLoad}
+                                      onChange={(e) => updateEditedExercise(selectedDay, exIdx, 'suggestedLoad', e.target.value)}
+                                      className="w-full bg-transparent border-none p-0 text-sm font-bold text-text-main focus:outline-none"
+                                    />
+                                  ) : (
+                                    <p className="text-sm font-bold text-text-main">{ex.suggestedLoad}</p>
+                                  )}
+                                </div>
+                              </div>
                             </div>
-                          </div>
-                        </div>
 
-                        {/* Notes */}
-                        <div>
-                          <input 
-                            type="text" 
-                            placeholder="Anotações (ex: banco no nível 3, barra escorregando...)"
-                            value={exerciseFeedback[getLoadKey(ex.id)]?.notes || ''}
-                            onChange={(e) => updateExerciseFeedback(ex.id, 'notes', e.target.value)}
-                            disabled={isCheckedIn}
-                            className="w-full bg-bg-main border border-border rounded-lg px-3 py-2 text-sm text-text-main focus:outline-none focus:border-brand transition-colors disabled:opacity-50"
-                          />
-                        </div>
-                      </div>
+                            {/* Exercise Info Tags */}
+                            <div className="flex flex-wrap gap-2 mb-6">
+                              <div className="flex items-center gap-1.5 bg-bg-main border border-border/50 text-text-main px-3 py-1.5 rounded-xl text-[11px] font-bold shadow-sm">
+                                <Activity className="w-3.5 h-3.5 text-brand" /> 
+                                {isEditing ? (
+                                  <div className="flex items-center gap-1">
+                                    <input type="number" value={ex.sets} onChange={(e) => updateEditedExercise(selectedDay, exIdx, 'sets', parseInt(e.target.value))} className="w-8 bg-transparent text-center" />
+                                    <span>x</span>
+                                    <input type="text" value={ex.reps} onChange={(e) => updateEditedExercise(selectedDay, exIdx, 'reps', e.target.value)} className="w-12 bg-transparent text-center" />
+                                  </div>
+                                ) : (
+                                  <>{ex.sets}x{ex.reps}</>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-1.5 bg-bg-main border border-border/50 text-text-main px-3 py-1.5 rounded-xl text-[11px] font-bold shadow-sm">
+                                <span className="text-brand font-black">RIR</span>
+                                {isEditing ? (
+                                  <input type="text" value={ex.rir} onChange={(e) => updateEditedExercise(selectedDay, exIdx, 'rir', e.target.value)} className="w-16 bg-transparent text-center" />
+                                ) : (
+                                  <span className="text-brand font-black">{ex.rir}</span>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-1.5 bg-bg-main border border-border/50 text-text-main px-3 py-1.5 rounded-xl text-[11px] font-bold shadow-sm">
+                                <Timer className="w-3.5 h-3.5 text-brand" />
+                                {isEditing ? (
+                                  <input type="text" value={ex.rest} onChange={(e) => updateEditedExercise(selectedDay, exIdx, 'rest', e.target.value)} className="w-20 bg-transparent text-center" />
+                                ) : (
+                                  <>{ex.rest}</>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Instructions (Always Visible) */}
+                            {(ex.setup || ex.notes || ex.executionDetails || isEditing) && (
+                              <div className="grid grid-cols-1 gap-3 mb-6">
+                                {(ex.setup || isEditing) && (
+                                  <div className="bg-brand/5 p-3.5 rounded-2xl border border-brand/10">
+                                    <p className="text-[10px] font-black text-brand uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
+                                      <div className="w-1 h-1 bg-brand rounded-full" /> Setup / Carga Inicial
+                                    </p>
+                                    {isEditing ? (
+                                      <textarea 
+                                        value={ex.setup}
+                                        onChange={(e) => updateEditedExercise(selectedDay, exIdx, 'setup', e.target.value)}
+                                        className="w-full bg-transparent border-none p-0 text-xs text-text-main leading-relaxed font-medium focus:outline-none resize-none"
+                                        rows={2}
+                                      />
+                                    ) : (
+                                      <p className="text-xs text-text-main leading-relaxed font-medium">{ex.setup}</p>
+                                    )}
+                                  </div>
+                                )}
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                  {(ex.notes || isEditing) && (
+                                    <div className="bg-bg-main p-3.5 rounded-2xl border border-border/50">
+                                      <p className="text-[10px] font-black text-text-muted uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
+                                        <div className="w-1 h-1 bg-text-muted rounded-full" /> Método / Orientação
+                                      </p>
+                                      {isEditing ? (
+                                        <textarea 
+                                          value={ex.notes}
+                                          onChange={(e) => updateEditedExercise(selectedDay, exIdx, 'notes', e.target.value)}
+                                          className="w-full bg-transparent border-none p-0 text-xs text-text-main leading-relaxed font-medium focus:outline-none resize-none"
+                                          rows={3}
+                                        />
+                                      ) : (
+                                        <p className="text-xs text-text-main leading-relaxed font-medium">{ex.notes}</p>
+                                      )}
+                                    </div>
+                                  )}
+                                  {(ex.executionDetails || isEditing) && (
+                                    <div className="bg-bg-main p-3.5 rounded-2xl border border-border/50">
+                                      <p className="text-[10px] font-black text-text-muted uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
+                                        <div className="w-1 h-1 bg-text-muted rounded-full" /> Como executar
+                                      </p>
+                                      {isEditing ? (
+                                        <textarea 
+                                          value={ex.executionDetails}
+                                          onChange={(e) => updateEditedExercise(selectedDay, exIdx, 'executionDetails', e.target.value)}
+                                          className="w-full bg-transparent border-none p-0 text-xs text-text-main leading-relaxed font-medium focus:outline-none resize-none"
+                                          rows={3}
+                                        />
+                                      ) : (
+                                        <p className="text-xs text-text-main leading-relaxed font-medium whitespace-pre-wrap">{ex.executionDetails}</p>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Sets Table */}
+                            {!isEditing && (
+                              <div className="bg-bg-main/30 rounded-[2rem] p-5 border border-border/30 mb-8">
+                                <div className="flex items-center justify-between mb-5 px-2">
+                                  <h4 className="text-xs font-black text-text-muted uppercase tracking-widest">Séries de Trabalho</h4>
+                                  <div className="text-[10px] font-black text-brand uppercase tracking-widest bg-brand/10 px-3 py-1 rounded-full">Carga (kg)</div>
+                                </div>
+                                <div className="space-y-3">
+                                  {Array.from({ length: ex.sets }).map((_, setIdx) => {
+                                    const isCompleted = completedSets && completedSets[getSetKey(ex.id, setIdx)];
+                                    const loadKey = getSetLoadKey(ex.id, setIdx);
+                                    const currentLoad = (actualLoads && actualLoads[loadKey]) || (actualLoads && actualLoads[getLoadKey(ex.id)]) || '';
+                                    
+                                    return (
+                                      <div key={setIdx} className={`flex items-center gap-4 p-3 rounded-[1.5rem] border-2 transition-all duration-300 ${
+                                        isCompleted 
+                                          ? 'bg-brand/10 border-brand shadow-lg shadow-brand/10 scale-[1.01]' 
+                                          : 'bg-surface border-border/50 shadow-sm'
+                                      }`}>
+                                        <div className={`w-10 h-10 rounded-2xl flex items-center justify-center font-black text-sm shadow-sm ${
+                                          isCompleted ? 'bg-brand text-white' : 'bg-bg-main text-text-muted'
+                                        }`}>
+                                          {setIdx + 1}
+                                        </div>
+                                        
+                                        <div className="flex-1">
+                                          <input 
+                                            type="text" 
+                                            placeholder="0.0"
+                                            value={currentLoad}
+                                            onChange={(e) => updateSetLoad(ex.id, setIdx, e.target.value)}
+                                            disabled={isCheckedIn}
+                                            className="w-full bg-transparent border-none px-2 py-1 text-center font-black text-xl text-text-main focus:outline-none placeholder:text-text-muted/20 disabled:opacity-50"
+                                          />
+                                        </div>
+
+                                        <button
+                                          onClick={() => toggleSet(ex.id, setIdx)}
+                                          disabled={isCheckedIn}
+                                          className={`w-14 h-14 rounded-[1.25rem] flex items-center justify-center transition-all shrink-0 shadow-md ${
+                                            isCompleted 
+                                              ? 'bg-brand text-text-inverse scale-105 shadow-brand/30' 
+                                              : 'bg-bg-main border-2 border-border/50 text-text-muted hover:border-brand hover:text-brand'
+                                          } ${isCheckedIn ? 'cursor-default' : ''}`}
+                                        >
+                                          {isCompleted ? <CheckCircle2 className="w-8 h-8" /> : <div className="w-6 h-6 rounded-xl border-2 border-current opacity-30" />}
+                                        </button>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Exercise Feedback (Always Visible) */}
+                            {!isEditing && (
+                              <div className="bg-amber-500/5 p-6 rounded-[2rem] border-2 border-amber-500/10">
+                                <div className="flex items-center justify-between mb-6">
+                                  <div className="flex items-center gap-3">
+                                    <div className="bg-amber-500 p-2 rounded-xl shadow-lg shadow-amber-500/20">
+                                      <MessageSquare className="w-5 h-5 text-white" />
+                                    </div>
+                                    <h4 className="text-sm font-black text-amber-900 uppercase tracking-widest">Avaliação</h4>
+                                  </div>
+                                  <div className="bg-amber-500 text-white px-4 py-1.5 rounded-full text-xs font-black shadow-lg shadow-amber-500/20">
+                                    {(exerciseFeedback && exerciseFeedback[getLoadKey(ex.id)]?.pse) || 5} / 10 PSE
+                                  </div>
+                                </div>
+                                
+                                <div className="space-y-8">
+                                  {/* PSE Slider */}
+                                  <div className="px-2">
+                                    <input 
+                                      type="range" 
+                                      min="1" max="10" 
+                                      value={exerciseFeedback[getLoadKey(ex.id)]?.pse || 5}
+                                      onChange={(e) => updateExerciseFeedback(ex.id, 'pse', parseInt(e.target.value))}
+                                      disabled={isCheckedIn}
+                                      className="w-full h-3 bg-amber-200 rounded-full appearance-none cursor-pointer accent-amber-600 shadow-inner"
+                                    />
+                                    <div className="flex justify-between text-[10px] text-amber-700/60 mt-3 font-black uppercase tracking-tighter">
+                                      <span>Leve</span>
+                                      <span>Moderado</span>
+                                      <span>Falha</span>
+                                    </div>
+                                  </div>
+
+                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    {/* Qualidade */}
+                                    <div className="space-y-3">
+                                      <p className="text-[10px] font-black text-amber-900 uppercase tracking-widest ml-1">Qualidade da Execução</p>
+                                      <div className="flex gap-2">
+                                        {['Excelente', 'Boa', 'Ruim'].map((opt) => (
+                                          <button
+                                            key={opt}
+                                            onClick={() => updateExerciseFeedback(ex.id, 'execution', opt)}
+                                            disabled={isCheckedIn}
+                                            className={`flex-1 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border-2 ${
+                                              exerciseFeedback[getLoadKey(ex.id)]?.execution === opt
+                                                ? 'bg-amber-500 border-amber-500 text-white shadow-lg shadow-amber-500/20'
+                                                : 'bg-white border-amber-500/10 text-amber-900/40 hover:border-amber-500/30'
+                                            }`}
+                                          >
+                                            {opt}
+                                          </button>
+                                        ))}
+                                      </div>
+                                    </div>
+
+                                    {/* Dor */}
+                                    <div className="space-y-3">
+                                      <p className="text-[10px] font-black text-amber-900 uppercase tracking-widest ml-1">Dor Articular?</p>
+                                      <div className="flex gap-2">
+                                        {[
+                                          { label: 'Sim', value: true },
+                                          { label: 'Não', value: false }
+                                        ].map((opt) => (
+                                          <button
+                                            key={opt.label}
+                                            onClick={() => updateExerciseFeedback(ex.id, 'pain', opt.value)}
+                                            disabled={isCheckedIn}
+                                            className={`flex-1 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border-2 ${
+                                              (exerciseFeedback[getLoadKey(ex.id)]?.pain === opt.value)
+                                                ? 'bg-amber-500 border-amber-500 text-white shadow-lg shadow-amber-500/20'
+                                                : 'bg-white border-amber-500/10 text-amber-900/40 hover:border-amber-500/30'
+                                            }`}
+                                          >
+                                            {opt.label}
+                                          </button>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  {/* Notas */}
+                                  <div className="space-y-3">
+                                    <p className="text-[10px] font-black text-amber-900 uppercase tracking-widest ml-1">Observações do Exercício</p>
+                                    <textarea 
+                                      placeholder="Ex: Senti um leve desconforto na última repetição..."
+                                      value={exerciseFeedback[getLoadKey(ex.id)]?.notes || ''}
+                                      onChange={(e) => updateExerciseFeedback(ex.id, 'notes', e.target.value)}
+                                      disabled={isCheckedIn}
+                                      className="w-full bg-white border-2 border-amber-500/10 rounded-2xl px-4 py-3 text-xs text-amber-900 placeholder:text-amber-900/20 focus:outline-none focus:border-amber-500 transition-all resize-none"
+                                      rows={2}
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 ))}
+
+                {isEditing && (
+                  <div className="flex justify-center pt-4">
+                    <button
+                      onClick={() => setShowAddExerciseModal({ dayIdx: selectedDay })}
+                      className="flex items-center gap-3 bg-bg-main border-2 border-dashed border-border/50 hover:border-brand hover:text-brand text-text-muted px-8 py-6 rounded-[2rem] transition-all group w-full max-w-md"
+                    >
+                      <div className="bg-brand/10 p-3 rounded-2xl group-hover:bg-brand group-hover:text-white transition-all">
+                        <Plus className="w-6 h-6" />
+                      </div>
+                      <div className="text-left">
+                        <p className="font-black uppercase tracking-widest text-sm">Adicionar Exercício</p>
+                        <p className="text-[10px] font-medium opacity-60">Escolha um novo exercício para este dia.</p>
+                      </div>
+                    </button>
+                  </div>
+                )}
               </div>
             ) : (
-              <div className="bg-surface border border-border rounded-3xl p-12 text-center shadow-xl">
-                <Dumbbell className="w-16 h-16 text-text-muted mx-auto mb-4" />
-                <h3 className="text-2xl font-bold text-text-main mb-2">Dia de Descanso</h3>
-                <p className="text-text-muted">Aproveite para focar na recuperação muscular e alongamentos leves.</p>
+              <div className="bg-surface border border-border/50 rounded-2xl p-8 text-center shadow-sm">
+                <Dumbbell className="w-12 h-12 text-text-muted mx-auto mb-3" />
+                <h3 className="text-xl font-bold text-text-main mb-1">Dia de Descanso</h3>
+                <p className="text-text-muted text-sm">Aproveite para focar na recuperação muscular e alongamentos leves.</p>
+                {isEditing && (
+                  <button
+                    onClick={() => setShowAddExerciseModal({ dayIdx: selectedDay })}
+                    className="mt-4 flex items-center gap-2 bg-brand text-white px-4 py-2 rounded-xl text-xs font-bold mx-auto"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Adicionar Exercício
+                  </button>
+                )}
               </div>
             )}
 
             {/* Cardio Section */}
-            {dayData.cardio && (
-              <div className={`bg-surface border border-brand/30 rounded-3xl p-6 shadow-xl relative overflow-hidden ${isCheckedIn ? 'opacity-80' : ''}`}>
+            {dayData?.cardio && (
+              <div className={`bg-surface rounded-2xl p-4 shadow-sm border border-brand/30 relative overflow-hidden ${isCheckedIn ? 'opacity-80' : ''}`}>
                 <div className="absolute top-0 right-0 w-32 h-32 bg-brand/5 rounded-bl-full -z-10" />
-                <div className="flex items-center gap-3 mb-6">
-                  <div className="bg-brand/10 p-3 rounded-xl border border-brand/20">
-                    <Flame className="w-6 h-6 text-brand" />
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="bg-brand/10 p-2 rounded-full">
+                    <Flame className="w-5 h-5 text-brand" />
                   </div>
-                  <h3 className="text-xl font-bold text-text-main">Cardio: {dayData.cardio.type}</h3>
+                  <h3 className="text-lg font-bold text-text-main">Cardio: {dayData.cardio.type}</h3>
                 </div>
                 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <div className="bg-bg-main p-4 rounded-2xl border border-border">
-                    <p className="text-sm text-text-muted mb-1">Método</p>
-                    <p className="font-bold text-text-main">{dayData.cardio.method}</p>
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="bg-bg-main p-3 rounded-xl border border-border/50 text-center">
+                    <p className="text-[10px] text-text-muted uppercase tracking-wider mb-1">Método</p>
+                    <p className="font-bold text-text-main text-sm">{dayData.cardio.method}</p>
                   </div>
-                  <div className="bg-bg-main p-4 rounded-2xl border border-border">
-                    <p className="text-sm text-text-muted mb-1">Duração</p>
-                    <p className="font-bold text-text-main">{dayData.cardio.duration}</p>
+                  <div className="bg-bg-main p-3 rounded-xl border border-border/50 text-center">
+                    <p className="text-[10px] text-text-muted uppercase tracking-wider mb-1">Duração</p>
+                    <p className="font-bold text-text-main text-sm">{dayData.cardio.duration}</p>
                   </div>
-                  <div className="bg-bg-main p-4 rounded-2xl border border-border">
-                    <p className="text-sm text-text-muted mb-1">Intensidade</p>
-                    <p className="font-bold text-text-main">{dayData.cardio.intensity}</p>
+                  <div className="bg-bg-main p-3 rounded-xl border border-border/50 text-center">
+                    <p className="text-[10px] text-text-muted uppercase tracking-wider mb-1">Intensidade</p>
+                    <p className="font-bold text-text-main text-sm">{dayData.cardio.intensity}</p>
                   </div>
                 </div>
                 {dayData.cardio.setup && (
-                  <div className="mt-4 bg-brand/10 p-4 rounded-2xl border border-brand/20">
-                    <p className="text-sm font-bold text-brand mb-1">Setup Inicial:</p>
-                    <p className="text-sm text-brand/80 leading-relaxed">{dayData.cardio.setup}</p>
+                  <div className="mt-3 bg-brand/5 p-3 rounded-xl border border-brand/10">
+                    <p className="text-[11px] font-bold text-brand uppercase tracking-wider mb-1">Setup Inicial</p>
+                    <p className="text-sm text-text-main leading-relaxed">{dayData.cardio.setup}</p>
+                  </div>
+                )}
+                {(dayData.cardio as any).notes && (
+                  <div className="mt-3 bg-bg-main p-3 rounded-xl border border-border/50 flex gap-2 items-start">
+                    <Zap className="w-4 h-4 text-brand shrink-0 mt-0.5" />
+                    <p className="text-text-main text-sm leading-relaxed">{(dayData.cardio as any).notes}</p>
                   </div>
                 )}
               </div>
@@ -692,88 +1011,123 @@ export function WorkoutTracker({ plan, user, onUpdatePlan, readOnly = false, stu
 
             {/* Daily Check-in Form */}
             {!isCheckedIn ? (
-              <div className="bg-surface border-2 border-brand/30 rounded-3xl p-6 md:p-8 shadow-xl mt-8">
-                <h3 className="text-2xl font-black text-text-main mb-2 flex items-center gap-3">
-                  <CheckCircle2 className="w-7 h-7 text-brand" />
-                  Check-in Diário
-                </h3>
-                <p className="text-text-muted mb-6">Finalizou o treino? Registre como foi para a IA acompanhar seu progresso.</p>
+              <div className="bg-surface border-2 border-brand/30 rounded-[2.5rem] p-6 shadow-xl mt-8">
+                <div className="flex items-center gap-4 mb-6">
+                  <div className="bg-brand p-3 rounded-2xl shadow-lg shadow-brand/20">
+                    <CheckCircle2 className="w-7 h-7 text-bg-main" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-black text-text-main leading-none">Check-in Diário</h3>
+                    <p className="text-text-muted text-xs mt-1">Finalize seu treino com chave de ouro</p>
+                  </div>
+                </div>
                 
-                {/* Mini Report */}
-                <div className="bg-bg-main border border-border rounded-2xl p-5 mb-8 flex items-start sm:items-center gap-4 shadow-sm">
-                  <div className="bg-brand/10 p-3 rounded-full shrink-0">
+                <div className="bg-bg-main border border-border/50 rounded-3xl p-5 mb-8 flex items-center gap-5">
+                  <div className="bg-brand/10 p-4 rounded-2xl shrink-0">
                     <Trophy className="w-8 h-8 text-brand" />
                   </div>
                   <div>
-                    <h4 className="text-lg font-bold text-text-main mb-1">Seu Desempenho Hoje</h4>
-                    <p className="text-text-muted">
-                      Você concluiu <strong className="text-text-main">{completedSetsForDay}</strong> de <strong className="text-text-main">{totalSetsForDay}</strong> séries, atingindo <strong className="text-brand">{dailyProgressPercentage}%</strong> da meta do dia.
+                    <h4 className="text-sm font-black text-text-main uppercase tracking-wider">Resumo do Treino</h4>
+                    <p className="text-text-muted text-xs mt-1 leading-relaxed">
+                      Você concluiu <strong className="text-brand">{completedSetsForDay}</strong> de <strong className="text-text-main">{totalSetsForDay}</strong> séries planejadas hoje.
                     </p>
                   </div>
                 </div>
 
-                <div className="space-y-6">
-                  <div className="space-y-3">
-                    <label className="font-bold text-text-main block">Como foi o esforço do treino de hoje?</label>
-                    <div className="flex flex-wrap gap-3">
-                      {['Muito leve', 'Adequado', 'Muito intenso', 'Não treinei'].map((opt) => (
-                        <label key={opt} className="flex items-center gap-2 cursor-pointer bg-bg-main px-4 py-2 rounded-xl border border-border hover:border-brand transition-colors">
+                <div className="space-y-8">
+                  <div className="space-y-4">
+                    <label className="font-black text-text-main text-xs block uppercase tracking-[0.15em] ml-1">Nível de Esforço</label>
+                    <div className="grid grid-cols-2 gap-3">
+                      {[
+                        { label: 'Muito leve', icon: '🌱' },
+                        { label: 'Adequado', icon: '🔥' },
+                        { label: 'Muito intenso', icon: '⚡' },
+                        { label: 'Não treinei', icon: '💤' }
+                      ].map((opt) => (
+                        <label key={opt.label} className={`flex flex-col items-center justify-center gap-2 cursor-pointer p-4 rounded-3xl border-2 transition-all duration-300 ${
+                          dailyEffort === opt.label 
+                            ? 'bg-brand/10 border-brand shadow-lg shadow-brand/10 scale-[1.02]' 
+                            : 'bg-bg-main border-border/50 text-text-muted hover:border-brand/30'
+                        }`}>
                           <input 
                             type="radio" 
                             name="dailyEffort" 
-                            value={opt}
-                            checked={dailyEffort === opt}
+                            value={opt.label}
+                            checked={dailyEffort === opt.label}
                             onChange={(e) => setDailyEffort(e.target.value)}
-                            className="text-brand focus:ring-brand"
+                            className="hidden"
                           />
-                          <span className="text-text-main font-medium">{opt}</span>
+                          <span className="text-2xl">{opt.icon}</span>
+                          <span className={`text-[10px] uppercase font-black tracking-wider ${dailyEffort === opt.label ? 'text-brand' : ''}`}>{opt.label}</span>
                         </label>
                       ))}
                     </div>
                   </div>
 
-                  <div className="space-y-3">
-                    <label className="font-bold text-text-main block">Comentários gerais do dia (opcional)</label>
+                  <div className="space-y-4">
+                    <label className="font-black text-text-main text-xs block uppercase tracking-[0.15em] ml-1">Notas do Dia</label>
                     <textarea 
-                      placeholder="Senti dor no ombro, estava muito cansado, bati PR..."
+                      placeholder="Como você se sentiu? Alguma dor ou recorde pessoal?"
                       value={dailyNotes}
                       onChange={(e) => setDailyNotes(e.target.value)}
-                      className="w-full bg-bg-main border border-border rounded-xl px-4 py-3 text-sm text-text-main focus:outline-none focus:border-brand min-h-[100px] resize-none"
+                      className="w-full bg-bg-main border-2 border-border/50 rounded-3xl px-5 py-4 text-sm text-text-main focus:outline-none focus:border-brand min-h-[120px] transition-all placeholder:text-text-muted/50"
                     />
                   </div>
 
                   <button
                     onClick={handleCheckin}
-                    className="w-full bg-brand hover:bg-brand-hover text-text-inverse font-black text-lg px-6 py-4 rounded-xl shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-2"
+                    className="w-full bg-brand hover:bg-brand-hover text-text-inverse font-black text-base px-8 py-5 rounded-3xl shadow-2xl shadow-brand/30 transition-all flex items-center justify-center gap-4 active:scale-95 group"
                   >
-                    <CheckCircle2 className="w-6 h-6" />
-                    Salvar Check-in do Dia
+                    <CheckCircle2 className="w-6 h-6 group-hover:scale-110 transition-transform" />
+                    FINALIZAR CHECK-IN
                   </button>
                 </div>
               </div>
             ) : (
-              <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-3xl p-6 shadow-md mt-8 flex items-start gap-4">
-                <div className="bg-emerald-500 p-2 rounded-full shrink-0">
-                  <CheckCircle2 className="w-6 h-6 text-white" />
+              <div className="bg-emerald-500/5 border-2 border-emerald-500/20 rounded-[2.5rem] p-8 shadow-sm mt-8 relative overflow-hidden group">
+                <div className="absolute top-0 right-0 p-6">
+                  <div className="bg-emerald-500 text-white text-[10px] font-black px-4 py-1.5 rounded-full shadow-lg shadow-emerald-500/30 animate-pulse">
+                    CONCLUÍDO
+                  </div>
                 </div>
-                <div>
-                  <h3 className="text-lg font-bold text-emerald-500 mb-1">Check-in Concluído</h3>
-                  <p className="text-text-main text-sm">
-                    <strong>Esforço:</strong> {checkins[getCheckinKey(selectedWeek, selectedDay)].effort}
-                  </p>
-                  <p className="text-text-main text-sm">
-                    <strong>PSE (1-10):</strong> {checkins[getCheckinKey(selectedWeek, selectedDay)].rpe || 'N/A'}
-                  </p>
-                  {checkins[getCheckinKey(selectedWeek, selectedDay)].notes && (
-                    <p className="text-text-muted text-sm mt-1 italic">
+                
+                <div className="flex flex-col items-center text-center mb-10">
+                  <motion.div 
+                    initial={{ scale: 0.5, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    className="bg-emerald-500 p-6 rounded-[2.5rem] shadow-2xl shadow-emerald-500/40 mb-6 relative"
+                  >
+                    <CheckCircle2 className="w-12 h-12 text-white" />
+                    <div className="absolute -top-2 -right-2 w-6 h-6 bg-white rounded-full flex items-center justify-center shadow-md">
+                      <Trophy className="w-3.5 h-3.5 text-emerald-500" />
+                    </div>
+                  </motion.div>
+                  <h3 className="text-3xl font-black text-emerald-600 uppercase tracking-tighter mb-2">Treino Finalizado!</h3>
+                  <p className="text-text-muted text-sm font-medium max-w-[250px]">Ótimo trabalho hoje, você está mais perto do seu objetivo.</p>
+                </div>
+ 
+                <div className="grid grid-cols-2 gap-4 mb-8">
+                  <div className="bg-white/80 backdrop-blur-md p-5 rounded-[2rem] border-2 border-emerald-500/10 text-center shadow-sm">
+                    <p className="text-[10px] text-text-muted uppercase font-black tracking-widest mb-2">Esforço</p>
+                    <p className="text-xl font-black text-text-main">{checkins && checkins[getCheckinKey(selectedWeek, selectedDay)]?.effort}</p>
+                  </div>
+                  <div className="bg-white/80 backdrop-blur-md p-5 rounded-[2rem] border-2 border-emerald-500/10 text-center shadow-sm">
+                    <p className="text-[10px] text-text-muted uppercase font-black tracking-widest mb-2">PSE</p>
+                    <p className="text-xl font-black text-text-main">{(checkins && checkins[getCheckinKey(selectedWeek, selectedDay)]?.rpe) || 'N/A'}</p>
+                  </div>
+                </div>
+ 
+                {checkins && checkins[getCheckinKey(selectedWeek, selectedDay)]?.notes && (
+                  <div className="bg-white/60 backdrop-blur-md p-6 rounded-[2rem] border-2 border-emerald-500/5 relative group-hover:border-emerald-500/20 transition-colors">
+                    <Quote className="w-10 h-10 text-emerald-500/10 absolute top-3 left-3" />
+                    <p className="text-text-main text-sm font-bold italic leading-relaxed text-center relative z-10 px-4">
                       "{checkins[getCheckinKey(selectedWeek, selectedDay)].notes}"
                     </p>
-                  )}
-                </div>
+                  </div>
+                )}
               </div>
             )}
           </>
-        )}
       </motion.div>
 
       {/* Monthly Re-evaluation Button (Only visible when plan is complete) */}
@@ -781,85 +1135,23 @@ export function WorkoutTracker({ plan, user, onUpdatePlan, readOnly = false, stu
         <motion.div 
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="mt-12 p-8 bg-gradient-to-br from-brand/20 to-bg-main border-2 border-brand rounded-3xl text-center shadow-2xl"
+          className="mt-6 p-5 bg-gradient-to-br from-brand/10 to-bg-main border border-brand/50 rounded-2xl text-center shadow-sm"
         >
-          <Trophy className="w-16 h-16 text-brand mx-auto mb-4" />
-          <h2 className="text-3xl font-black text-text-main mb-2">Ciclo Concluído! 🎉</h2>
-          <p className="text-text-muted mb-8 max-w-xl mx-auto">
-            Parabéns por completar todos os dias do seu ciclo de treinamento! Agora é o momento de fazer a reavaliação mensal para que a IA possa gerar seu próximo plano.
+          <Trophy className="w-10 h-10 text-brand mx-auto mb-2" />
+          <h2 className="text-lg font-black text-text-main mb-1">Ciclo Concluído! 🎉</h2>
+          <p className="text-text-muted text-xs mb-4 max-w-sm mx-auto">
+            Parabéns por completar todos os dias do seu ciclo! Faça a reavaliação para a IA gerar seu próximo plano.
           </p>
           <button
             onClick={() => setIsModalOpen(true)}
-            className="bg-brand hover:bg-brand-hover text-text-inverse font-black text-lg px-8 py-4 rounded-full shadow-xl hover:shadow-2xl transition-all inline-flex items-center gap-3"
+            className="bg-brand hover:bg-brand-hover text-text-inverse font-bold text-xs px-5 py-2.5 rounded-xl shadow-sm hover:shadow-md transition-all inline-flex items-center gap-2"
           >
-            <Brain className="w-6 h-6" />
-            Gerar Novo Treino (Reavaliação)
+            <Brain className="w-4 h-4" />
+            Gerar Novo Treino
           </button>
         </motion.div>
       )}
 
-      {/* Video Modal */}
-      <AnimatePresence mode="wait">
-        {activeVideo && (
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md"
-          >
-            <motion.div 
-              initial={{ scale: 0.9, opacity: 0, y: 20 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="bg-surface border border-border rounded-[2.5rem] w-full max-w-3xl overflow-hidden shadow-2xl relative"
-            >
-              <div className="p-6 md:p-8 border-b border-border flex items-center justify-between bg-surface/50">
-                <div className="flex items-center gap-4">
-                  <div className="bg-brand/10 p-3 rounded-2xl">
-                    <Play className="w-6 h-6 text-brand fill-current" />
-                  </div>
-                  <div>
-                    <h3 className="text-xl md:text-2xl font-black text-text-main leading-tight">
-                      {activeVideo.name}
-                    </h3>
-                    <p className="text-sm text-text-muted font-medium">Demonstração da Execução</p>
-                  </div>
-                </div>
-                <button 
-                  onClick={() => setActiveVideo(null)}
-                  className="p-3 hover:bg-bg-main rounded-2xl transition-all border border-transparent hover:border-border group"
-                >
-                  <X className="w-6 h-6 text-text-muted group-hover:text-text-main" />
-                </button>
-              </div>
-              
-              <div className="aspect-video bg-black relative group">
-                <iframe 
-                  src={activeVideo.url}
-                  className="w-full h-full"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
-                />
-              </div>
-
-              <div className="p-6 md:p-8 bg-surface/50 flex flex-col sm:flex-row gap-4">
-                <div className="flex-1">
-                  <p className="text-xs font-bold text-brand uppercase tracking-widest mb-1">Dica de Segurança</p>
-                  <p className="text-sm text-text-muted leading-relaxed">
-                    Mantenha sempre a postura correta e o controle do movimento. Se sentir dor aguda, interrompa o exercício.
-                  </p>
-                </div>
-                <button 
-                  onClick={() => setActiveVideo(null)}
-                  className="sm:w-48 py-4 bg-brand text-text-inverse font-black rounded-2xl shadow-lg hover:shadow-brand/20 hover:scale-[1.02] active:scale-[0.98] transition-all"
-                >
-                  ENTENDI
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       {/* Monthly Re-evaluation Modal */}
       <AnimatePresence>
@@ -868,48 +1160,55 @@ export function WorkoutTracker({ plan, user, onUpdatePlan, readOnly = false, stu
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm overflow-y-auto"
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md overflow-y-auto"
           >
             <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              initial={{ opacity: 0, scale: 0.9, y: 40 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="bg-bg-main border border-border rounded-3xl p-6 md:p-8 max-w-2xl w-full shadow-2xl relative my-8"
+              exit={{ opacity: 0, scale: 0.9, y: 40 }}
+              className="bg-surface border-2 border-border/50 rounded-[3rem] p-8 max-w-xl w-full shadow-2xl relative my-8"
             >
               <button 
                 onClick={() => !isAdjusting && setIsModalOpen(false)}
-                className="absolute top-4 right-4 text-text-muted hover:text-text-main disabled:opacity-50"
+                className="absolute top-6 right-6 p-2 bg-bg-main rounded-full text-text-muted hover:text-brand transition-all disabled:opacity-50 shadow-sm"
                 disabled={isAdjusting}
               >
                 <X className="w-6 h-6" />
               </button>
 
-              <div className="flex items-center gap-3 mb-6">
-                <div className="bg-brand/10 p-3 rounded-xl">
-                  <ClipboardList className="w-8 h-8 text-brand" />
+              <div className="flex items-center gap-5 mb-8">
+                <div className="bg-brand p-4 rounded-[1.5rem] shadow-xl shadow-brand/20">
+                  <ClipboardList className="w-8 h-8 text-white" />
                 </div>
                 <div>
-                  <h2 className="text-2xl font-bold text-text-main">Reavaliação Mensal</h2>
-                  <p className="text-sm text-text-muted">Preencha o formulário para a IA ajustar seu próximo ciclo.</p>
+                  <h2 className="text-2xl font-black text-text-main uppercase tracking-tight">Reavaliação Mensal</h2>
+                  <p className="text-text-muted text-sm font-medium">Ajuste seu próximo ciclo com a ajuda da IA.</p>
                 </div>
               </div>
 
-              <div className="space-y-8 mb-8">
+              <div className="space-y-8 mb-10">
                 {/* Question 1 */}
-                <div className="space-y-3">
-                  <label className="font-bold text-text-main block">1. Como está sua recuperação e dores musculares no geral?</label>
-                  <div className="flex flex-wrap gap-3">
+                <div className="space-y-4">
+                  <label className="font-black text-text-main text-xs uppercase tracking-widest ml-1 flex items-center gap-2">
+                    <div className="w-1.5 h-1.5 bg-brand rounded-full" />
+                    1. Recuperação e dores musculares?
+                  </label>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     {['Recuperação rápida', 'Dores normais', 'Dores excessivas'].map((opt) => (
-                      <label key={opt} className="flex items-center gap-2 cursor-pointer">
+                      <label key={opt} className={`flex items-center justify-center text-center cursor-pointer px-4 py-3 rounded-2xl border-2 transition-all ${
+                        feedbackForm.recovery.value === opt 
+                          ? 'bg-brand/10 border-brand text-brand font-black shadow-lg shadow-brand/10' 
+                          : 'bg-bg-main border-border/50 text-text-muted hover:border-brand/30'
+                      }`}>
                         <input 
                           type="radio" 
                           name="recovery" 
                           value={opt}
                           checked={feedbackForm.recovery.value === opt}
                           onChange={(e) => setFeedbackForm(prev => ({ ...prev, recovery: { ...prev.recovery, value: e.target.value } }))}
-                          className="text-brand focus:ring-brand"
+                          className="hidden"
                         />
-                        <span className="text-text-main">{opt}</span>
+                        <span className="text-[11px] uppercase tracking-tighter leading-tight">{opt}</span>
                       </label>
                     ))}
                   </div>
@@ -918,25 +1217,32 @@ export function WorkoutTracker({ plan, user, onUpdatePlan, readOnly = false, stu
                     placeholder="Comentário opcional..."
                     value={feedbackForm.recovery.comment}
                     onChange={(e) => setFeedbackForm(prev => ({ ...prev, recovery: { ...prev.recovery, comment: e.target.value } }))}
-                    className="w-full bg-surface border border-border rounded-xl px-4 py-2 text-sm text-text-main focus:outline-none focus:border-brand"
+                    className="w-full bg-bg-main border-2 border-border/50 rounded-2xl px-5 py-3 text-sm text-text-main focus:outline-none focus:border-brand transition-all placeholder:text-text-muted/30"
                   />
                 </div>
 
                 {/* Question 2 */}
-                <div className="space-y-3">
-                  <label className="font-bold text-text-main block">2. Aderência ao plano (Frequência)?</label>
-                  <div className="flex flex-wrap gap-3">
+                <div className="space-y-4">
+                  <label className="font-black text-text-main text-xs uppercase tracking-widest ml-1 flex items-center gap-2">
+                    <div className="w-1.5 h-1.5 bg-brand rounded-full" />
+                    2. Aderência ao plano (Frequência)?
+                  </label>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     {['Segui 100%', 'Faltei alguns dias', 'Tive muita dificuldade'].map((opt) => (
-                      <label key={opt} className="flex items-center gap-2 cursor-pointer">
+                      <label key={opt} className={`flex items-center justify-center text-center cursor-pointer px-4 py-3 rounded-2xl border-2 transition-all ${
+                        feedbackForm.adherence.value === opt 
+                          ? 'bg-brand/10 border-brand text-brand font-black shadow-lg shadow-brand/10' 
+                          : 'bg-bg-main border-border/50 text-text-muted hover:border-brand/30'
+                      }`}>
                         <input 
                           type="radio" 
                           name="adherence" 
                           value={opt}
                           checked={feedbackForm.adherence.value === opt}
                           onChange={(e) => setFeedbackForm(prev => ({ ...prev, adherence: { ...prev.adherence, value: e.target.value } }))}
-                          className="text-brand focus:ring-brand"
+                          className="hidden"
                         />
-                        <span className="text-text-main">{opt}</span>
+                        <span className="text-[11px] uppercase tracking-tighter leading-tight">{opt}</span>
                       </label>
                     ))}
                   </div>
@@ -945,25 +1251,32 @@ export function WorkoutTracker({ plan, user, onUpdatePlan, readOnly = false, stu
                     placeholder="Comentário opcional..."
                     value={feedbackForm.adherence.comment}
                     onChange={(e) => setFeedbackForm(prev => ({ ...prev, adherence: { ...prev.adherence, comment: e.target.value } }))}
-                    className="w-full bg-surface border border-border rounded-xl px-4 py-2 text-sm text-text-main focus:outline-none focus:border-brand"
+                    className="w-full bg-bg-main border-2 border-border/50 rounded-2xl px-5 py-3 text-sm text-text-main focus:outline-none focus:border-brand transition-all placeholder:text-text-muted/30"
                   />
                 </div>
 
                 {/* Question 3 */}
-                <div className="space-y-3">
-                  <label className="font-bold text-text-main block">3. Dieta e Qualidade do Sono?</label>
-                  <div className="flex flex-wrap gap-3">
+                <div className="space-y-4">
+                  <label className="font-black text-text-main text-xs uppercase tracking-widest ml-1 flex items-center gap-2">
+                    <div className="w-1.5 h-1.5 bg-brand rounded-full" />
+                    3. Dieta e Qualidade do Sono?
+                  </label>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     {['Mantive o foco', 'Alguns deslizes', 'Perdi o controle'].map((opt) => (
-                      <label key={opt} className="flex items-center gap-2 cursor-pointer">
+                      <label key={opt} className={`flex items-center justify-center text-center cursor-pointer px-4 py-3 rounded-2xl border-2 transition-all ${
+                        feedbackForm.dietSleep.value === opt 
+                          ? 'bg-brand/10 border-brand text-brand font-black shadow-lg shadow-brand/10' 
+                          : 'bg-bg-main border-border/50 text-text-muted hover:border-brand/30'
+                      }`}>
                         <input 
                           type="radio" 
                           name="dietSleep" 
                           value={opt}
                           checked={feedbackForm.dietSleep.value === opt}
                           onChange={(e) => setFeedbackForm(prev => ({ ...prev, dietSleep: { ...prev.dietSleep, value: e.target.value } }))}
-                          className="text-brand focus:ring-brand"
+                          className="hidden"
                         />
-                        <span className="text-text-main">{opt}</span>
+                        <span className="text-[11px] uppercase tracking-tighter leading-tight">{opt}</span>
                       </label>
                     ))}
                   </div>
@@ -972,23 +1285,23 @@ export function WorkoutTracker({ plan, user, onUpdatePlan, readOnly = false, stu
                     placeholder="Comentário opcional..."
                     value={feedbackForm.dietSleep.comment}
                     onChange={(e) => setFeedbackForm(prev => ({ ...prev, dietSleep: { ...prev.dietSleep, comment: e.target.value } }))}
-                    className="w-full bg-surface border border-border rounded-xl px-4 py-2 text-sm text-text-main focus:outline-none focus:border-brand"
+                    className="w-full bg-bg-main border-2 border-border/50 rounded-2xl px-5 py-3 text-sm text-text-main focus:outline-none focus:border-brand transition-all placeholder:text-text-muted/30"
                   />
                 </div>
               </div>
 
-              <div className="flex justify-end gap-3 pt-6 border-t border-border">
+              <div className="flex gap-4 pt-8 border-t-2 border-border/30">
                 <button
                   onClick={() => setIsModalOpen(false)}
                   disabled={isAdjusting}
-                  className="px-6 py-3 rounded-xl font-bold text-text-muted hover:text-text-main transition-colors disabled:opacity-50"
+                  className="flex-1 px-6 py-4 rounded-2xl font-black text-sm text-text-muted bg-bg-main hover:bg-border transition-all disabled:opacity-50 uppercase tracking-widest"
                 >
                   Cancelar
                 </button>
                 <button
                   onClick={handleAdjustPlan}
                   disabled={isAdjusting}
-                  className="bg-brand hover:bg-brand-hover text-text-inverse font-bold px-6 py-3 rounded-xl transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex-[2] bg-brand hover:bg-brand-hover text-text-inverse font-black text-sm px-6 py-4 rounded-2xl shadow-xl shadow-brand/30 transition-all flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed uppercase tracking-widest"
                 >
                   {isAdjusting ? (
                     <>
@@ -1002,6 +1315,82 @@ export function WorkoutTracker({ plan, user, onUpdatePlan, readOnly = false, stu
                     </>
                   )}
                 </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+        {/* Add Exercise Modal */}
+        {showAddExerciseModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-bg-main/90 backdrop-blur-xl z-[60] flex items-center justify-center p-4 sm:p-6 overflow-y-auto"
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 20 }}
+              className="bg-surface w-full max-w-2xl rounded-[3rem] shadow-2xl border-2 border-border/50 overflow-hidden flex flex-col max-h-[90vh]"
+            >
+              <div className="p-8 border-b-2 border-border/30 flex items-center justify-between bg-surface sticky top-0 z-10">
+                <div className="flex items-center gap-4">
+                  <div className="bg-brand/10 p-3 rounded-2xl">
+                    <Plus className="w-6 h-6 text-brand" />
+                  </div>
+                  <div>
+                    <h2 className="text-2xl font-black text-text-main uppercase tracking-tighter leading-tight">Adicionar Exercício</h2>
+                    <p className="text-xs text-text-muted font-bold uppercase tracking-widest">{showAddExerciseModal.group || 'Todos os Grupos'}</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setShowAddExerciseModal(null)}
+                  className="bg-bg-main p-3 rounded-2xl text-text-muted hover:text-brand transition-all border-2 border-border/50 hover:border-brand/30"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+
+              <div className="p-8 space-y-6 overflow-y-auto flex-1 scrollbar-hide">
+                <div className="relative">
+                  <Activity className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-text-muted/40" />
+                  <input 
+                    type="text" 
+                    placeholder="Buscar exercício pelo nome..."
+                    value={exerciseSearch}
+                    onChange={(e) => setExerciseSearch(e.target.value)}
+                    className="w-full bg-bg-main border-2 border-border/50 rounded-2xl pl-14 pr-6 py-4 text-sm text-text-main focus:outline-none focus:border-brand transition-all placeholder:text-text-muted/30 font-bold"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 gap-3">
+                  {Object.values(EXERCISE_DB)
+                    .flat()
+                    .filter(ex => {
+                      const matchesSearch = ex.name.toLowerCase().includes(exerciseSearch.toLowerCase());
+                      const matchesGroup = !showAddExerciseModal.group || ex.group === showAddExerciseModal.group;
+                      return matchesSearch && matchesGroup;
+                    })
+                    .slice(0, 50)
+                    .map(ex => (
+                      <button
+                        key={ex.id}
+                        onClick={() => addExercise(showAddExerciseModal.dayIdx, ex)}
+                        className="flex items-center justify-between p-5 rounded-2xl border-2 border-border/50 hover:border-brand hover:bg-brand/5 transition-all group text-left"
+                      >
+                        <div className="flex items-center gap-4">
+                          <div className="bg-bg-main p-2.5 rounded-xl group-hover:bg-brand/10 transition-all">
+                            <Dumbbell className="w-5 h-5 text-text-muted group-hover:text-brand" />
+                          </div>
+                          <div>
+                            <p className="font-black text-text-main uppercase tracking-tight leading-none mb-1">{ex.name}</p>
+                            <p className="text-[10px] font-bold text-text-muted uppercase tracking-widest">{ex.group}</p>
+                          </div>
+                        </div>
+                        <Plus className="w-5 h-5 text-text-muted group-hover:text-brand opacity-0 group-hover:opacity-100 transition-all" />
+                      </button>
+                    ))}
+                </div>
               </div>
             </motion.div>
           </motion.div>

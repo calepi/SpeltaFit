@@ -117,7 +117,7 @@ export const WorkoutSheetExport = forwardRef<HTMLDivElement, Props>(({ plan, use
       </div>
 
       {/* Pages 2+: Days / Tables */}
-      {plan.weeklyRoutine.map((day, idx) => (
+      {Array.isArray(plan.weeklyRoutine) && plan.weeklyRoutine.map((day, idx) => (
         <div key={idx} className="p-8 min-h-[1123px] box-border flex flex-col bg-white" style={{ pageBreakAfter: 'always' }}>
           {/* Header for Day Page */}
           <div className="flex items-center justify-between border-b-2 border-black pb-4 mb-6">
@@ -150,7 +150,7 @@ export const WorkoutSheetExport = forwardRef<HTMLDivElement, Props>(({ plan, use
               </div>
             )}
             
-            {day.exercises && day.exercises.length > 0 ? (
+            {Array.isArray(day.exercises) && day.exercises.length > 0 ? (
               <table className="w-full text-sm border-collapse border border-gray-300">
                 <thead>
                   <tr className="bg-gray-50 text-left">
