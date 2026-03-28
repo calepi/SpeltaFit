@@ -167,23 +167,30 @@ export function WorkoutTracker({ plan, user, onUpdatePlan, readOnly = false, stu
 
   const updateEditedExercise = (dayIdx: number, exIdx: number, field: string, value: any) => {
     if (!editedPlan) return;
-    const newPlan = { ...editedPlan };
+    const newPlan = { ...editedPlan, weeklyRoutine: [...editedPlan.weeklyRoutine] };
+    newPlan.weeklyRoutine[dayIdx] = { ...newPlan.weeklyRoutine[dayIdx] };
     if (newPlan.weeklyRoutine[dayIdx].exercises) {
-      (newPlan.weeklyRoutine[dayIdx].exercises![exIdx] as any)[field] = value;
+      newPlan.weeklyRoutine[dayIdx].exercises = [...newPlan.weeklyRoutine[dayIdx].exercises!];
+      newPlan.weeklyRoutine[dayIdx].exercises![exIdx] = { ...newPlan.weeklyRoutine[dayIdx].exercises![exIdx], [field]: value };
     }
     setEditedPlan(newPlan);
   };
 
   const removeExercise = (dayIdx: number, exIdx: number) => {
     if (!editedPlan) return;
-    const newPlan = { ...editedPlan };
-    newPlan.weeklyRoutine[dayIdx].exercises?.splice(exIdx, 1);
+    const newPlan = { ...editedPlan, weeklyRoutine: [...editedPlan.weeklyRoutine] };
+    newPlan.weeklyRoutine[dayIdx] = { ...newPlan.weeklyRoutine[dayIdx] };
+    if (newPlan.weeklyRoutine[dayIdx].exercises) {
+      newPlan.weeklyRoutine[dayIdx].exercises = [...newPlan.weeklyRoutine[dayIdx].exercises!];
+      newPlan.weeklyRoutine[dayIdx].exercises!.splice(exIdx, 1);
+    }
     setEditedPlan(newPlan);
   };
 
   const addExercise = (dayIdx: number, exercise: any) => {
     if (!editedPlan) return;
-    const newPlan = { ...editedPlan };
+    const newPlan = { ...editedPlan, weeklyRoutine: [...editedPlan.weeklyRoutine] };
+    newPlan.weeklyRoutine[dayIdx] = { ...newPlan.weeklyRoutine[dayIdx] };
     const newEx = {
       id: exercise.id + '_' + Math.random().toString(36).substr(2, 5),
       name: exercise.name,
@@ -200,6 +207,8 @@ export function WorkoutTracker({ plan, user, onUpdatePlan, readOnly = false, stu
     };
     if (!newPlan.weeklyRoutine[dayIdx].exercises) {
       newPlan.weeklyRoutine[dayIdx].exercises = [];
+    } else {
+      newPlan.weeklyRoutine[dayIdx].exercises = [...newPlan.weeklyRoutine[dayIdx].exercises!];
     }
     newPlan.weeklyRoutine[dayIdx].exercises!.push(newEx);
     setEditedPlan(newPlan);
@@ -208,9 +217,12 @@ export function WorkoutTracker({ plan, user, onUpdatePlan, readOnly = false, stu
 
   const moveExercise = (dayIdx: number, exIdx: number, direction: 'up' | 'down') => {
     if (!editedPlan) return;
-    const newPlan = { ...editedPlan };
-    const exercises = newPlan.weeklyRoutine[dayIdx].exercises;
-    if (!exercises) return;
+    const newPlan = { ...editedPlan, weeklyRoutine: [...editedPlan.weeklyRoutine] };
+    newPlan.weeklyRoutine[dayIdx] = { ...newPlan.weeklyRoutine[dayIdx] };
+    if (!newPlan.weeklyRoutine[dayIdx].exercises) return;
+    
+    newPlan.weeklyRoutine[dayIdx].exercises = [...newPlan.weeklyRoutine[dayIdx].exercises!];
+    const exercises = newPlan.weeklyRoutine[dayIdx].exercises!;
     
     const targetIdx = direction === 'up' ? exIdx - 1 : exIdx + 1;
     if (targetIdx < 0 || targetIdx >= exercises.length) return;
@@ -321,10 +333,12 @@ export function WorkoutTracker({ plan, user, onUpdatePlan, readOnly = false, stu
   const dayData = activePlan?.weeklyRoutine?.[selectedDay];
 
   // Calculate progress for the selected day
-  const totalSetsForDay = Array.isArray(dayData?.exercises) ? dayData.exercises.reduce((acc, ex) => acc + ex.sets, 0) : 0;
+  const totalSetsForDay = Array.isArray(dayData?.exercises) ? dayData.exercises.reduce((acc, ex) => acc + (ex ? (Number(ex.sets) || 0) : 0), 0) : 0;
   const completedSetsForDay = Array.isArray(dayData?.exercises) ? dayData.exercises.reduce((acc, ex) => {
+    if (!ex) return acc;
     let completed = 0;
-    for (let i = 0; i < ex.sets; i++) {
+    const setsCount = Number(ex.sets) || 0;
+    for (let i = 0; i < setsCount; i++) {
       if (completedSets && completedSets[getSetKey(ex.id, i)]) completed++;
     }
     return acc + completed;
@@ -337,6 +351,7 @@ export function WorkoutTracker({ plan, user, onUpdatePlan, readOnly = false, stu
   const groupExercises = (exercises: any[]) => {
     const groups: Record<string, any[]> = {};
     exercises.forEach(ex => {
+      if (!ex) return;
       const group = ex.group || 'Outros';
       if (!groups[group]) groups[group] = [];
       groups[group].push(ex);
@@ -609,7 +624,7 @@ export function WorkoutTracker({ plan, user, onUpdatePlan, readOnly = false, stu
 
                     <div className="space-y-8">
                       {exercises.map((ex) => {
-                        const exIdx = dayData.exercises!.findIndex(e => e.id === ex.id);
+                        const exIdx = dayData.exercises!.findIndex(e => e && e.id === ex.id);
                         return (
                           <div key={ex.id} className={`bg-surface rounded-[2.5rem] p-6 shadow-sm border-2 border-border/50 transition-all group ${isCheckedIn ? 'opacity-80' : ''} relative`}>
                             {isEditing && (
@@ -643,12 +658,32 @@ export function WorkoutTracker({ plan, user, onUpdatePlan, readOnly = false, stu
                                 </div>
                                 <div className="flex-1">
                                   {isEditing ? (
-                                    <input 
-                                      type="text" 
+                                    <select 
                                       value={ex.name}
-                                      onChange={(e) => updateEditedExercise(selectedDay, exIdx, 'name', e.target.value)}
-                                      className="w-full bg-bg-main border-2 border-border/50 rounded-xl px-4 py-2 text-lg font-black text-text-main focus:outline-none focus:border-brand uppercase tracking-tighter"
-                                    />
+                                      onChange={(e) => {
+                                        const selectedEx = Object.values(EXERCISE_DB).flat().find(x => x.name === e.target.value);
+                                        if (selectedEx) {
+                                          updateEditedExercise(selectedDay, exIdx, 'name', selectedEx.name);
+                                          updateEditedExercise(selectedDay, exIdx, 'group', selectedEx.group);
+                                          updateEditedExercise(selectedDay, exIdx, 'notes', selectedEx.description);
+                                          updateEditedExercise(selectedDay, exIdx, 'executionDetails', selectedEx.execution);
+                                          updateEditedExercise(selectedDay, exIdx, 'videoUrl', selectedEx.videoUrl);
+                                        } else {
+                                          updateEditedExercise(selectedDay, exIdx, 'name', e.target.value);
+                                        }
+                                      }}
+                                      className="w-full bg-bg-main border-2 border-border/50 rounded-xl px-4 py-2 text-lg font-black text-text-main focus:outline-none focus:border-brand uppercase tracking-tighter appearance-none"
+                                    >
+                                      <option value={ex.name}>{ex.name}</option>
+                                      {(() => {
+                                        const allExs = Object.values(EXERCISE_DB).flat();
+                                        const sameGroup = allExs.filter(x => x.group === ex.group && x.name !== ex.name);
+                                        const options = sameGroup.length > 0 ? sameGroup : allExs.filter(x => x.name !== ex.name);
+                                        return options.map(x => (
+                                          <option key={x.id} value={x.name}>{x.name}</option>
+                                        ));
+                                      })()}
+                                    </select>
                                   ) : (
                                     <h3 className="text-2xl font-black text-text-main leading-tight uppercase tracking-tighter">{ex.name}</h3>
                                   )}
@@ -657,10 +692,14 @@ export function WorkoutTracker({ plan, user, onUpdatePlan, readOnly = false, stu
                                       <Activity className="w-3 h-3" />
                                       {ex.sets} Séries
                                     </div>
+                                    <div className="flex items-center gap-1 bg-blue-500/10 text-blue-500 text-[10px] font-black px-3 py-1.5 rounded-xl uppercase tracking-widest border border-blue-500/20">
+                                      <Dumbbell className="w-3 h-3" />
+                                      {ex.group ? ex.group.replace(/_/g, ' ') : 'Outros'}
+                                    </div>
                                     {!isEditing && ex.notes && (
-                                      <div className="flex items-center gap-1 bg-bg-main text-text-muted text-[10px] font-bold px-3 py-1.5 rounded-xl uppercase tracking-widest border border-border/50">
-                                        <Info className="w-3 h-3" />
-                                        {ex.notes.substring(0, 30)}...
+                                      <div className="flex items-center gap-1 bg-bg-main text-text-muted text-[10px] font-bold px-3 py-1.5 rounded-xl uppercase tracking-widest border border-border/50 max-w-full">
+                                        <Info className="w-3 h-3 flex-shrink-0" />
+                                        <span className="truncate">{ex.notes}</span>
                                       </div>
                                     )}
                                   </div>
@@ -693,7 +732,15 @@ export function WorkoutTracker({ plan, user, onUpdatePlan, readOnly = false, stu
                                 <Activity className="w-3.5 h-3.5 text-brand" /> 
                                 {isEditing ? (
                                   <div className="flex items-center gap-1">
-                                    <input type="number" value={ex.sets} onChange={(e) => updateEditedExercise(selectedDay, exIdx, 'sets', parseInt(e.target.value))} className="w-8 bg-transparent text-center" />
+                                    <select 
+                                      value={ex.sets} 
+                                      onChange={(e) => updateEditedExercise(selectedDay, exIdx, 'sets', parseInt(e.target.value))} 
+                                      className="w-10 bg-transparent text-center appearance-none cursor-pointer focus:outline-none"
+                                    >
+                                      {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(num => (
+                                        <option key={num} value={num}>{num}</option>
+                                      ))}
+                                    </select>
                                     <span>x</span>
                                     <input type="text" value={ex.reps} onChange={(e) => updateEditedExercise(selectedDay, exIdx, 'reps', e.target.value)} className="w-12 bg-transparent text-center" />
                                   </div>
@@ -712,7 +759,18 @@ export function WorkoutTracker({ plan, user, onUpdatePlan, readOnly = false, stu
                               <div className="flex items-center gap-1.5 bg-bg-main border border-border/50 text-text-main px-3 py-1.5 rounded-xl text-[11px] font-bold shadow-sm">
                                 <Timer className="w-3.5 h-3.5 text-brand" />
                                 {isEditing ? (
-                                  <input type="text" value={ex.rest} onChange={(e) => updateEditedExercise(selectedDay, exIdx, 'rest', e.target.value)} className="w-20 bg-transparent text-center" />
+                                  <select 
+                                    value={ex.rest} 
+                                    onChange={(e) => updateEditedExercise(selectedDay, exIdx, 'rest', e.target.value)} 
+                                    className="bg-transparent text-center appearance-none cursor-pointer focus:outline-none"
+                                  >
+                                    {['30s', '45s', '60s', '90s', '2m', '3m', '4m', '5m'].map(rest => (
+                                      <option key={rest} value={rest}>{rest}</option>
+                                    ))}
+                                    {!['30s', '45s', '60s', '90s', '2m', '3m', '4m', '5m'].includes(ex.rest) && (
+                                      <option value={ex.rest}>{ex.rest}</option>
+                                    )}
+                                  </select>
                                 ) : (
                                   <>{ex.rest}</>
                                 )}
@@ -781,53 +839,43 @@ export function WorkoutTracker({ plan, user, onUpdatePlan, readOnly = false, stu
                             {/* Sets Table */}
                             {!isEditing && (
                               <div className="bg-bg-main/30 rounded-[2rem] p-5 border border-border/30 mb-8">
-                                <div className="flex items-center justify-between mb-5 px-2">
+                                <div className="flex items-center justify-between mb-4 px-2">
                                   <h4 className="text-xs font-black text-text-muted uppercase tracking-widest">Séries de Trabalho</h4>
-                                  <div className="text-[10px] font-black text-brand uppercase tracking-widest bg-brand/10 px-3 py-1 rounded-full">Carga (kg)</div>
                                 </div>
-                                <div className="space-y-3">
-                                  {Array.from({ length: ex.sets }).map((_, setIdx) => {
+                                
+                                <div className="flex flex-wrap gap-3 mb-5">
+                                  {Array.from({ length: Number(ex.sets) || 0 }).map((_, setIdx) => {
                                     const isCompleted = completedSets && completedSets[getSetKey(ex.id, setIdx)];
-                                    const loadKey = getSetLoadKey(ex.id, setIdx);
-                                    const currentLoad = (actualLoads && actualLoads[loadKey]) || (actualLoads && actualLoads[getLoadKey(ex.id)]) || '';
-                                    
                                     return (
-                                      <div key={setIdx} className={`flex items-center gap-4 p-3 rounded-[1.5rem] border-2 transition-all duration-300 ${
-                                        isCompleted 
-                                          ? 'bg-brand/10 border-brand shadow-lg shadow-brand/10 scale-[1.01]' 
-                                          : 'bg-surface border-border/50 shadow-sm'
-                                      }`}>
-                                        <div className={`w-10 h-10 rounded-2xl flex items-center justify-center font-black text-sm shadow-sm ${
-                                          isCompleted ? 'bg-brand text-white' : 'bg-bg-main text-text-muted'
-                                        }`}>
-                                          {setIdx + 1}
-                                        </div>
-                                        
-                                        <div className="flex-1">
-                                          <input 
-                                            type="text" 
-                                            placeholder="0.0"
-                                            value={currentLoad}
-                                            onChange={(e) => updateSetLoad(ex.id, setIdx, e.target.value)}
-                                            disabled={isCheckedIn}
-                                            className="w-full bg-transparent border-none px-2 py-1 text-center font-black text-xl text-text-main focus:outline-none placeholder:text-text-muted/20 disabled:opacity-50"
-                                          />
-                                        </div>
-
-                                        <button
-                                          onClick={() => toggleSet(ex.id, setIdx)}
-                                          disabled={isCheckedIn}
-                                          className={`w-14 h-14 rounded-[1.25rem] flex items-center justify-center transition-all shrink-0 shadow-md ${
-                                            isCompleted 
-                                              ? 'bg-brand text-text-inverse scale-105 shadow-brand/30' 
-                                              : 'bg-bg-main border-2 border-border/50 text-text-muted hover:border-brand hover:text-brand'
-                                          } ${isCheckedIn ? 'cursor-default' : ''}`}
-                                        >
-                                          {isCompleted ? <CheckCircle2 className="w-8 h-8" /> : <div className="w-6 h-6 rounded-xl border-2 border-current opacity-30" />}
-                                        </button>
-                                      </div>
+                                      <button
+                                        key={setIdx}
+                                        onClick={() => toggleSet(ex.id, setIdx)}
+                                        disabled={isCheckedIn}
+                                        className={`w-12 h-12 rounded-2xl flex items-center justify-center font-black text-lg transition-all shadow-sm ${
+                                          isCompleted 
+                                            ? 'bg-brand text-white shadow-brand/30 scale-105' 
+                                            : 'bg-surface border-2 border-border/50 text-text-muted hover:border-brand/50'
+                                        } ${isCheckedIn ? 'cursor-default' : ''}`}
+                                      >
+                                        {setIdx + 1}
+                                      </button>
                                     );
                                   })}
+                                </div>
+
+                                <div className="flex items-center gap-3 bg-surface p-3 rounded-2xl border border-border/50">
+                                  <div className="bg-brand/10 p-2 rounded-xl">
+                                    <Dumbbell className="w-4 h-4 text-brand" />
+                                  </div>
+                                  <span className="text-xs font-black text-text-main uppercase tracking-widest flex-1">Carga Utilizada (kg)</span>
+                                  <input 
+                                    type="text" 
+                                    placeholder="0.0"
+                                    value={(actualLoads && actualLoads[getLoadKey(ex.id)]) || ''}
+                                    onChange={(e) => updateLoad(ex.id, e.target.value)}
+                                    disabled={isCheckedIn}
+                                    className="w-24 bg-bg-main border-2 border-border/50 rounded-xl px-3 py-2 text-center font-black text-lg text-text-main focus:outline-none focus:border-brand placeholder:text-text-muted/30 disabled:opacity-50"
+                                  />
                                 </div>
                               </div>
                             )}
@@ -1382,7 +1430,7 @@ export function WorkoutTracker({ plan, user, onUpdatePlan, readOnly = false, stu
                           </div>
                           <div>
                             <p className="font-black text-text-main uppercase tracking-tight leading-none mb-1">{ex.name}</p>
-                            <p className="text-[10px] font-bold text-text-muted uppercase tracking-widest">{ex.group}</p>
+                            <p className="text-[10px] font-bold text-text-muted uppercase tracking-widest">{ex.group ? ex.group.replace(/_/g, ' ') : 'Outros'}</p>
                           </div>
                         </div>
                         <Plus className="w-5 h-5 text-text-muted group-hover:text-brand opacity-0 group-hover:opacity-100 transition-all" />

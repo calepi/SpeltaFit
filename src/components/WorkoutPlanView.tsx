@@ -49,7 +49,7 @@ export function WorkoutPlanView({ plan, user, onReset, onUpdatePlan, readOnly = 
             <style>
               @media print {
                 body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-                @page { margin: 0; size: A4 portrait; }
+                @page { margin: 15mm; size: A4 portrait; }
               }
             </style>
           </head>
