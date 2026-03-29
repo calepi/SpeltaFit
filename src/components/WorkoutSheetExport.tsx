@@ -5,11 +5,13 @@ import { Dumbbell } from 'lucide-react';
 interface Props {
   plan: WorkoutPlan;
   user: AnamnesisData;
+  selectedWeek?: number;
+  actualLoads?: Record<string, string>;
 }
 
-export const WorkoutSheetExport = forwardRef<HTMLDivElement, Props>(({ plan, user }, ref) => {
+export const WorkoutSheetExport = forwardRef<HTMLDivElement, Props>(({ plan, user, selectedWeek = 1, actualLoads = {} }, ref) => {
   return (
-    <div ref={ref} className="bg-white text-black font-sans w-full max-w-[794px] mx-auto box-border" style={{ color: '#000' }}>
+    <div ref={ref} className="bg-white text-black font-sans w-full max-w-[1123px] mx-auto box-border" style={{ color: '#000' }}>
       {/* Page 1: Overview */}
       <div className="box-border flex flex-col bg-white" style={{ pageBreakAfter: 'always' }}>
         {/* Header */}
@@ -20,7 +22,7 @@ export const WorkoutSheetExport = forwardRef<HTMLDivElement, Props>(({ plan, use
             </div>
             <div>
               <h1 className="text-3xl font-black tracking-tight uppercase">SpeltaFit</h1>
-              <p className="text-sm font-bold text-gray-600 uppercase tracking-widest">Ficha de Treino Oficial</p>
+              <p className="text-sm font-bold text-gray-600 uppercase tracking-widest">Ficha de Treino Oficial - Semana {selectedWeek}</p>
             </div>
           </div>
           <div className="text-right">
@@ -145,7 +147,7 @@ export const WorkoutSheetExport = forwardRef<HTMLDivElement, Props>(({ plan, use
                   <span className="text-gray-600 italic">{day.cardio.method}</span>
                 </p>
                 {day.cardio.setup && (
-                  <div className="mt-1 text-xs text-gray-800"><span className="font-bold">Setup Inicial:</span> {day.cardio.setup}</div>
+                  <div className="mt-1 text-xs text-gray-800"><span className="font-bold">Progressão:</span> {day.cardio.setup}</div>
                 )}
               </div>
             )}
@@ -154,34 +156,38 @@ export const WorkoutSheetExport = forwardRef<HTMLDivElement, Props>(({ plan, use
               <table className="w-full text-sm border-collapse border border-gray-300">
                 <thead>
                   <tr className="bg-gray-50 text-left text-xs">
-                    <th className="border border-gray-300 px-2 py-1.5 w-8 text-center">#</th>
-                    <th className="border border-gray-300 px-2 py-1.5 w-[20%]">Exercício</th>
-                    <th className="border border-gray-300 px-2 py-1.5 w-20 text-center whitespace-nowrap">Séries x Reps</th>
-                    <th className="border border-gray-300 px-2 py-1.5 w-16 text-center">Pausa</th>
-                    <th className="border border-gray-300 px-2 py-1.5 w-20 text-center">Carga Sug.</th>
-                    <th className="border border-gray-300 px-2 py-1.5 w-20 text-center">Carga Real</th>
-                    <th className="border border-gray-300 px-2 py-1.5 w-auto">Observações / Método</th>
+                    <th className="border border-gray-300 px-3 py-2 w-8 text-center">#</th>
+                    <th className="border border-gray-300 px-3 py-2 w-[25%]">Exercício</th>
+                    <th className="border border-gray-300 px-3 py-2 w-24 text-center whitespace-nowrap">Séries x Reps</th>
+                    <th className="border border-gray-300 px-3 py-2 w-20 text-center">Pausa</th>
+                    <th className="border border-gray-300 px-3 py-2 w-24 text-center">Carga Sug.</th>
+                    <th className="border border-gray-300 px-3 py-2 w-24 text-center">Carga Real</th>
+                    <th className="border border-gray-300 px-3 py-2 w-auto">Observações / Método</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {day.exercises.map((ex, i) => (
+                  {day.exercises.map((ex, i) => {
+                    const loadKey = `w${selectedWeek}-d${idx}-${ex.id}`;
+                    const actualLoad = actualLoads[loadKey] || '';
+                    return (
                     <tr key={i} className="border-b border-gray-300 break-inside-avoid" style={{ pageBreakInside: 'avoid' }}>
-                      <td className="border border-gray-300 px-2 py-1.5 text-center font-bold">{i + 1}</td>
-                      <td className="border border-gray-300 px-2 py-1.5 font-bold">
+                      <td className="border border-gray-300 px-3 py-2 text-center font-bold">{i + 1}</td>
+                      <td className="border border-gray-300 px-3 py-2 font-bold">
                         {ex.name}
-                        {ex.videoUrl && <div className="text-[8px] text-gray-400 mt-0.5 uppercase tracking-tighter">Vídeo disponível no App</div>}
+                        {ex.videoUrl && <div className="text-[9px] text-gray-400 mt-0.5 uppercase tracking-tighter">Vídeo disponível no App</div>}
                       </td>
-                      <td className="border border-gray-300 px-2 py-1.5 text-center font-bold whitespace-nowrap">{ex.sets} x {ex.reps}</td>
-                      <td className="border border-gray-300 px-2 py-1.5 text-center">{ex.rest}</td>
-                      <td className="border border-gray-300 px-2 py-1.5 text-center">{ex.suggestedLoad}</td>
-                      <td className="border border-gray-300 px-2 py-1.5 text-center"></td>
-                      <td className="border border-gray-300 px-2 py-1.5 text-[11px] leading-tight">
+                      <td className="border border-gray-300 px-3 py-2 text-center font-bold whitespace-nowrap">{ex.sets} x {ex.reps}</td>
+                      <td className="border border-gray-300 px-3 py-2 text-center">{ex.rest}</td>
+                      <td className="border border-gray-300 px-3 py-2 text-center">{ex.suggestedLoad}</td>
+                      <td className="border border-gray-300 px-3 py-2 text-center font-bold text-brand">{actualLoad}</td>
+                      <td className="border border-gray-300 px-3 py-2 text-xs leading-tight">
                         <div className="font-bold uppercase mb-0.5">{ex.method} {ex.rir && <span className="text-gray-600">({ex.rir})</span>}</div>
-                        {ex.setup && <div className="mt-0.5 text-gray-800"><span className="font-bold">Setup:</span> {ex.setup}</div>}
+                        {ex.setup && <div className="mt-0.5 text-gray-800"><span className="font-bold">Progressão:</span> {ex.setup}</div>}
                         {ex.notes && <div className="mt-0.5 text-gray-600 italic break-words whitespace-pre-wrap">{ex.notes}</div>}
                       </td>
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
             ) : (

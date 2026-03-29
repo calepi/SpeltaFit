@@ -290,7 +290,7 @@ export async function generateWorkoutPlanRuleBased(data: AnamnesisData, blacklis
           reps: exReps,
           rir: exRir,
           suggestedLoad: params.load,
-          setup: `Semana 1 (Calibração): Comece com uma carga leve (aprox. 30-40% do que acha que aguenta). Faça 1 série de teste. Se estiver muito fácil, suba o peso até que as últimas repetições da série fiquem difíceis, mantendo a postura.`,
+          setup: `Estratégia de Progressão: Inicie o bloco (Semana 1) descobrindo sua carga base. Nas semanas seguintes, tente progredir: adicione 1-2kg de cada lado OU tente fazer 1-2 repetições a mais com a mesma carga, sempre respeitando o RIR.`,
           rest: exRest,
           notes: exNotes,
           executionDetails: (ex as any).execution || `1. Posicione-se corretamente.\n2. Execute o movimento de forma controlada.\n3. Retorne à posição inicial resistindo ao peso.`,
@@ -307,7 +307,7 @@ export async function generateWorkoutPlanRuleBased(data: AnamnesisData, blacklis
         method: isHIIT ? 'HIIT (Treino Intervalado de Alta Intensidade)' : 'LISS (Cardio de Baixa Intensidade)',
         duration: isHIIT ? '20-30 min' : '15-45 min',
         intensity: isHIIT ? 'Alta/Moderada' : 'Leve',
-        setup: `Semana 1 (Calibração): Comece em um ritmo confortável (ex: Esteira a 5km/h ou Bike no nível 2). Aumente gradativamente até atingir a intensidade alvo.`,
+        setup: `Estratégia de Progressão: Inicie o bloco com um ritmo confortável. Nas semanas seguintes, tente aumentar levemente a velocidade ou a inclinação/resistência para continuar desafiando o corpo.`,
         notes: isHIIT 
           ? 'Técnica HIIT: Alterne entre períodos curtos de esforço máximo (ex: 1 min correndo rápido) e períodos de recuperação ativa (ex: 1 a 2 min caminhando). Isso acelera o metabolismo e a queima de gordura.'
           : 'Técnica LISS: Mantenha um ritmo constante e confortável onde você consiga manter uma conversa sem perder o fôlego (ex: caminhada rápida, bicicleta leve). Ideal para recuperação e queima de gordura sem sobrecarregar as articulações.'

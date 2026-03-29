@@ -19,6 +19,7 @@ export function WorkoutPlanView({ plan, user, onReset, onUpdatePlan, readOnly = 
   const [isExporting, setIsExporting] = useState(false);
   const [activeTab, setActiveTab] = useState<'overview' | 'tracker' | 'dashboard'>('tracker');
   const [showResetModal, setShowResetModal] = useState(false);
+  const [trackerState, setTrackerState] = useState<{ selectedWeek: number, actualLoads: Record<string, string> }>({ selectedWeek: 1, actualLoads: {} });
 
   const handleExport = async () => {
     if (!exportRef.current) return;
@@ -49,7 +50,7 @@ export function WorkoutPlanView({ plan, user, onReset, onUpdatePlan, readOnly = 
             <style>
               @media print {
                 body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-                @page { margin: 15mm; size: A4 portrait; }
+                @page { margin: 15mm; size: A4 landscape; }
               }
             </style>
           </head>
@@ -262,7 +263,14 @@ export function WorkoutPlanView({ plan, user, onReset, onUpdatePlan, readOnly = 
           </div>
         </motion.div>
       ) : (
-        <WorkoutTracker plan={plan} user={user} onUpdatePlan={onUpdatePlan} readOnly={readOnly} studentUid={studentUid} />
+        <WorkoutTracker 
+          plan={plan} 
+          user={user} 
+          onUpdatePlan={onUpdatePlan} 
+          readOnly={readOnly} 
+          studentUid={studentUid} 
+          onStateChange={setTrackerState}
+        />
       )}
       </motion.div>
 
@@ -271,7 +279,13 @@ export function WorkoutPlanView({ plan, user, onReset, onUpdatePlan, readOnly = 
         className="absolute top-0 left-0 -z-50 pointer-events-none" 
         style={{ opacity: isExporting ? 1 : 0 }}
       >
-        <WorkoutSheetExport ref={exportRef} plan={plan} user={user} />
+        <WorkoutSheetExport 
+          ref={exportRef} 
+          plan={plan} 
+          user={user} 
+          selectedWeek={trackerState.selectedWeek} 
+          actualLoads={trackerState.actualLoads} 
+        />
       </div>
 
       {/* Reset Confirmation Modal */}

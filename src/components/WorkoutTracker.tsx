@@ -13,6 +13,7 @@ interface Props {
   onUpdatePlan: (newPlan: WorkoutPlan) => void;
   readOnly?: boolean;
   studentUid?: string;
+  onStateChange?: (state: { selectedWeek: number, actualLoads: Record<string, string> }) => void;
 }
 
 interface FeedbackField {
@@ -20,7 +21,7 @@ interface FeedbackField {
   comment: string;
 }
 
-export function WorkoutTracker({ plan, user, onUpdatePlan, readOnly = false, studentUid }: Props) {
+export function WorkoutTracker({ plan, user, onUpdatePlan, readOnly = false, studentUid, onStateChange }: Props) {
   const [selectedWeek, setSelectedWeek] = useState<number>(1);
   const [selectedDay, setSelectedDay] = useState<number>(0);
   
@@ -67,6 +68,12 @@ export function WorkoutTracker({ plan, user, onUpdatePlan, readOnly = false, stu
   const toggleFeedback = (exId: string) => {
     setExpandedFeedback(prev => ({ ...prev, [exId]: !prev[exId] }));
   };
+
+  useEffect(() => {
+    if (onStateChange) {
+      onStateChange({ selectedWeek, actualLoads });
+    }
+  }, [selectedWeek, actualLoads, onStateChange]);
 
   // Load saved progress
   useEffect(() => {
@@ -783,7 +790,7 @@ export function WorkoutTracker({ plan, user, onUpdatePlan, readOnly = false, stu
                                 {(ex.setup || isEditing) && (
                                   <div className="bg-brand/5 p-3.5 rounded-2xl border border-brand/10">
                                     <p className="text-[10px] font-black text-brand uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
-                                      <div className="w-1 h-1 bg-brand rounded-full" /> Setup / Carga Inicial
+                                      <div className="w-1 h-1 bg-brand rounded-full" /> Progressão
                                     </p>
                                     {isEditing ? (
                                       <textarea 
