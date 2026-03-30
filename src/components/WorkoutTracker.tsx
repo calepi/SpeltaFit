@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { WorkoutPlan, AnamnesisData } from '../services/workoutGenerator';
+import { WorkoutPlan, AnamnesisData, formatProgressionText } from '../services/workoutGenerator';
 import { adjustWorkoutPlanRuleBased } from '../services/workoutGenerator';
 import { CheckCircle2, Circle, Dumbbell, Timer, Flame, Zap, Activity, Trophy, Brain, X, Loader2, ClipboardList, Lock, CalendarDays, Info, ChevronDown, ChevronUp, MessageSquare, Sparkles, TrendingUp, Target, Quote, Edit3, Save, Plus, Trash2, ArrowUp, ArrowDown, LayoutGrid } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -298,14 +298,14 @@ export function WorkoutTracker({ plan, user, onUpdatePlan, readOnly = false, stu
   const handleAdjustPlan = async () => {
     if (readOnly) return;
     if (!feedbackForm.recovery.value || !feedbackForm.adherence.value || !feedbackForm.dietSleep.value) {
-      alert('Por favor, selecione uma opção para todas as perguntas da reavaliação mensal.');
+      alert('Por favor, selecione uma opção para todas as perguntas da reavaliação de ciclo.');
       return;
     }
 
     setIsAdjusting(true);
     
     const compiledFeedback = `
-      Reavaliação Mensal (Fim de Ciclo):
+      Reavaliação de Ciclo (Fim de Ciclo):
       Recuperação e Dores: ${feedbackForm.recovery.value}. Comentário: ${feedbackForm.recovery.comment || 'Nenhum'}
       Aderência ao Plano: ${feedbackForm.adherence.value}. Comentário: ${feedbackForm.adherence.comment || 'Nenhum'}
       Dieta e Sono: ${feedbackForm.dietSleep.value}. Comentário: ${feedbackForm.dietSleep.comment || 'Nenhum'}
@@ -703,12 +703,6 @@ export function WorkoutTracker({ plan, user, onUpdatePlan, readOnly = false, stu
                                       <Dumbbell className="w-3 h-3" />
                                       {ex.group ? ex.group.replace(/_/g, ' ') : 'Outros'}
                                     </div>
-                                    {!isEditing && ex.notes && (
-                                      <div className="flex items-center gap-1 bg-bg-main text-text-muted text-[10px] font-bold px-3 py-1.5 rounded-xl uppercase tracking-widest border border-border/50 max-w-full">
-                                        <Info className="w-3 h-3 flex-shrink-0" />
-                                        <span className="truncate">{ex.notes}</span>
-                                      </div>
-                                    )}
                                   </div>
                                 </div>
                               </div>
@@ -789,9 +783,9 @@ export function WorkoutTracker({ plan, user, onUpdatePlan, readOnly = false, stu
                               <div className="grid grid-cols-1 gap-3 mb-6">
                                 {(ex.setup || isEditing) && (
                                   <div className="bg-brand/5 p-3.5 rounded-2xl border border-brand/10">
-                                    <p className="text-[10px] font-black text-brand uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
+                                    <div className="text-[10px] font-black text-brand uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
                                       <div className="w-1 h-1 bg-brand rounded-full" /> Progressão
-                                    </p>
+                                    </div>
                                     {isEditing ? (
                                       <textarea 
                                         value={ex.setup}
@@ -800,16 +794,16 @@ export function WorkoutTracker({ plan, user, onUpdatePlan, readOnly = false, stu
                                         rows={2}
                                       />
                                     ) : (
-                                      <p className="text-xs text-text-main leading-relaxed font-medium">{ex.setup}</p>
+                                      <p className="text-xs text-text-main leading-relaxed font-medium">{formatProgressionText(ex.setup, selectedWeek, plan, user, ex.name, ex.group)}</p>
                                     )}
                                   </div>
                                 )}
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                   {(ex.notes || isEditing) && (
                                     <div className="bg-bg-main p-3.5 rounded-2xl border border-border/50">
-                                      <p className="text-[10px] font-black text-text-muted uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
+                                      <div className="text-[10px] font-black text-text-muted uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
                                         <div className="w-1 h-1 bg-text-muted rounded-full" /> Método / Orientação
-                                      </p>
+                                      </div>
                                       {isEditing ? (
                                         <textarea 
                                           value={ex.notes}
@@ -824,9 +818,9 @@ export function WorkoutTracker({ plan, user, onUpdatePlan, readOnly = false, stu
                                   )}
                                   {(ex.executionDetails || isEditing) && (
                                     <div className="bg-bg-main p-3.5 rounded-2xl border border-border/50">
-                                      <p className="text-[10px] font-black text-text-muted uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
+                                      <div className="text-[10px] font-black text-text-muted uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
                                         <div className="w-1 h-1 bg-text-muted rounded-full" /> Como executar
-                                      </p>
+                                      </div>
                                       {isEditing ? (
                                         <textarea 
                                           value={ex.executionDetails}
@@ -1051,7 +1045,7 @@ export function WorkoutTracker({ plan, user, onUpdatePlan, readOnly = false, stu
                 {dayData.cardio.setup && (
                   <div className="mt-3 bg-brand/5 p-3 rounded-xl border border-brand/10">
                     <p className="text-[11px] font-bold text-brand uppercase tracking-wider mb-1">Setup Inicial</p>
-                    <p className="text-sm text-text-main leading-relaxed">{dayData.cardio.setup}</p>
+                    <p className="text-sm text-text-main leading-relaxed">{formatProgressionText(dayData.cardio.setup, selectedWeek, plan, user, 'Cardio', 'Cardio')}</p>
                   </div>
                 )}
                 {(dayData.cardio as any).notes && (
@@ -1234,7 +1228,7 @@ export function WorkoutTracker({ plan, user, onUpdatePlan, readOnly = false, stu
                   <ClipboardList className="w-8 h-8 text-white" />
                 </div>
                 <div>
-                  <h2 className="text-2xl font-black text-text-main uppercase tracking-tight">Reavaliação Mensal</h2>
+                  <h2 className="text-2xl font-black text-text-main uppercase tracking-tight">Reavaliação de Ciclo</h2>
                   <p className="text-text-muted text-sm font-medium">Ajuste seu próximo ciclo com a ajuda da IA.</p>
                 </div>
               </div>

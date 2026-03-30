@@ -178,6 +178,22 @@ export async function generateWorkoutPlanRuleBased(data: AnamnesisData, blacklis
   const isHealth = allGoals.includes('saúde') || allGoals.includes('bem-estar');
   const isRehab = allGoals.includes('reabilitação') || allGoals.includes('postural');
   
+  // Determinar a duração do ciclo (em semanas) com base na experiência e objetivos
+  let durationWeeks = 4;
+  const expLower = data.experience.toLowerCase();
+  if (expLower.includes('iniciante')) {
+    durationWeeks = 4; // Iniciantes precisam de reavaliação mais frequente (Mensal)
+  } else if (expLower.includes('intermediário')) {
+    durationWeeks = 8; // Intermediários podem sustentar ciclos um pouco mais longos (Bimestral)
+  } else if (expLower.includes('avançado')) {
+    durationWeeks = 12; // Avançados se beneficiam de periodizações mais longas (Trimestral)
+  }
+  
+  // Ajustes finos na duração baseados no objetivo
+  if (isWeightLoss && durationWeeks > 8) {
+    durationWeeks = 8; // Emagrecimento precisa de ajustes mais rápidos na dieta/treino
+  }
+
   const weeklyRoutine: WorkoutPlan['weeklyRoutine'] = [];
   const days = data.daysPerWeek || 3;
 
@@ -341,12 +357,120 @@ export async function generateWorkoutPlanRuleBased(data: AnamnesisData, blacklis
 
   return {
     phaseName: `Mesociclo 1 - ${data.goal} + ${data.secondaryGoal}${data.tertiaryGoal ? ' + ' + data.tertiaryGoal : ''}`,
-    durationWeeks: 4,
+    durationWeeks: durationWeeks,
     strategySummary: `${strategySummary} Este plano combina ${data.goal} com ${data.secondaryGoal}${data.tertiaryGoal ? ' e ' + data.tertiaryGoal : ''} para um resultado otimizado.`,
     progressiveOverloadPlan,
     monitoringGuidelines,
     weeklyRoutine
   };
+}
+
+export function formatProgressionText(
+  text: string | undefined, 
+  week: number, 
+  plan: WorkoutPlan,
+  user: AnamnesisData,
+  exerciseName?: string, 
+  exerciseGroup?: string
+): string {
+  if (!text) return '';
+  if (week === 1) return text;
+
+  const durationWeeks = plan.durationWeeks || 4;
+  const expLower = user.experience.toLowerCase();
+  const isBeginner = expLower.includes('iniciante');
+  const isAdvanced = expLower.includes('avançado');
+  
+  const isHormonized = user.hormonalStatus && user.hormonalStatus.toLowerCase().includes('hormonizado');
+  const isWeightLoss = user.goal.toLowerCase().includes('emagrecimento') || user.goal.toLowerCase().includes('definição');
+  const isStrength = user.goal.toLowerCase().includes('força');
+
+  const isCompound = exerciseName && (
+    exerciseName.toLowerCase().includes('supino') ||
+    exerciseName.toLowerCase().includes('agachamento') ||
+    exerciseName.toLowerCase().includes('terra') ||
+    exerciseName.toLowerCase().includes('desenvolvimento') ||
+    exerciseName.toLowerCase().includes('leg press') ||
+    exerciseName.toLowerCase().includes('remada') ||
+    exerciseName.toLowerCase().includes('puxada')
+  );
+
+  const isIsolation = !isCompound;
+
+  // Determinar a fase do bloco com base na semana atual e duração total
+  const progressRatio = week / durationWeeks;
+  let phase = 'progressao'; // default
+  if (progressRatio <= 0.25) phase = 'calibracao';
+  else if (progressRatio >= 0.85) phase = 'pico';
+  else if (progressRatio >= 0.6) phase = 'sobrecarga';
+
+  let dynamicText = '';
+  
+  // Lógica de progressão de carga baseada no perfil
+  let loadIncrease = '1-2kg';
+  if (isHormonized && isCompound) {
+    loadIncrease = '2-5kg'; // Hormonizados recuperam e progridem força mais rápido em compostos
+  } else if (isBeginner) {
+    loadIncrease = '1kg'; // Iniciantes focam mais na técnica
+  } else if (isAdvanced && isIsolation) {
+    loadIncrease = '0.5-1kg'; // Avançados em isolados progridem carga muito lentamente (micro-loads)
+  }
+
+  if (phase === 'calibracao') {
+    dynamicText = `Semana ${week} (Base): Mantenha o foco na execução perfeita. Se a carga da semana anterior esteve leve, suba sutilmente.`;
+  } else if (phase === 'progressao') {
+    if (isBeginner) {
+      dynamicText = `Semana ${week} (Evolução): Tente fazer 1 a 2 repetições a mais com a mesma carga do treino anterior. Foque no aprendizado motor.`;
+    } else if (isAdvanced) {
+      dynamicText = `Semana ${week} (Progressão): Aumente a carga (micro-load de ${loadIncrease}) ou extraia mais repetições mantendo o RIR alvo.`;
+    } else {
+      dynamicText = `Semana ${week} (Progressão): Tente aumentar a carga em ${loadIncrease} de cada lado ou fazer 1-2 repetições a mais que na semana anterior.`;
+    }
+    
+    if (isCompound && !isBeginner) {
+      if (isStrength) {
+        dynamicText = `Semana ${week} (Força): Foco total em aumentar o peso (${loadIncrease} de cada lado). Se necessário, descanse mais entre as séries.`;
+      } else {
+        dynamicText = `Semana ${week} (Progressão de Carga): Foco em aumentar o peso (ex: ${loadIncrease} de cada lado) mantendo o mesmo número de repetições.`;
+      }
+    } else if (isIsolation && !isBeginner) {
+      dynamicText = `Semana ${week} (Progressão de Repetições): Como é um exercício isolado, tente fazer 1 a 2 repetições a mais com a mesma carga. Só suba o peso se atingir o teto de repetições.`;
+    }
+  } else if (phase === 'sobrecarga') {
+    if (isHormonized) {
+      dynamicText = `Semana ${week} (Sobrecarga): Fase de intensificação. O esforço deve ser máximo, chegando à falha total na última série. Tente superar as marcas anteriores.`;
+    } else {
+      dynamicText = `Semana ${week} (Sobrecarga): Fase de intensificação. O esforço deve ser alto, chegando muito próximo à falha (RIR 0-1). Tente superar as marcas anteriores.`;
+    }
+  } else if (phase === 'pico') {
+    if (isWeightLoss) {
+      dynamicText = `Semana ${week} (Pico de Gasto): Dê o seu máximo nesta reta final do ciclo. Mantenha as cargas altas para preservar massa magra, mesmo com o cansaço da dieta.`;
+    } else {
+      dynamicText = `Semana ${week} (Pico de Performance): Dê o seu máximo nesta reta final do ciclo. Tente bater seus recordes mantendo a boa execução.`;
+    }
+  }
+
+  if (exerciseGroup === 'Cardio' || (!exerciseGroup && text.toLowerCase().includes('ritmo'))) {
+    if (phase === 'calibracao') dynamicText = `Semana ${week} (Base): Mantenha o ritmo da semana anterior, focando na consistência.`;
+    else if (phase === 'progressao') {
+      if (isWeightLoss) dynamicText = `Semana ${week} (Progressão): Tente aumentar a velocidade ou adicionar 5-10 minutos ao tempo total para maior gasto calórico.`;
+      else dynamicText = `Semana ${week} (Progressão): Tente aumentar levemente a velocidade ou a inclinação/resistência em relação à semana anterior.`;
+    }
+    else if (phase === 'sobrecarga') dynamicText = `Semana ${week} (Sobrecarga): Busque um ritmo um pouco mais intenso ou adicione 5 minutos ao tempo total.`;
+    else dynamicText = `Semana ${week} (Pico): Dê o seu máximo no cardio esta semana, mantendo a frequência cardíaca no alvo.`;
+  }
+
+  // Handle AI generated text
+  if (text.includes('Semana 1 (Calibração)')) {
+    return text.replace(/Semana 1 \(Calibração\).*?(?=(\n|$))/g, dynamicText);
+  }
+
+  // Handle rule-based generator text
+  if (text.includes('Inicie o bloco (Semana 1)')) {
+    return text.replace(/Inicie o bloco \(Semana 1\).*?(?=(\n|$))/g, dynamicText);
+  }
+
+  return text;
 }
 
 export async function adjustWorkoutPlanRuleBased(
@@ -404,9 +528,64 @@ export async function adjustWorkoutPlanRuleBased(
     }
   }
 
-  // 3. Gerar o novo plano com a blacklist e dados ajustados
+  // 3. Analisar progressão de carga
+  const exerciseLoadsByWeek: Record<string, Record<number, number>> = {};
+
+  Object.entries(actualLoads).forEach(([key, loadStr]) => {
+    const parts = key.split('-');
+    if (parts.length >= 3) {
+      const week = parseInt(parts[0].replace('w', ''));
+      const exId = parts.slice(2).join('-');
+      
+      // Extract number from load string (e.g. "20kg" -> 20, "20" -> 20)
+      const match = loadStr.match(/(\d+[\.,]?\d*)/);
+      if (match) {
+        const load = parseFloat(match[1].replace(',', '.'));
+        if (!isNaN(load)) {
+          if (!exerciseLoadsByWeek[exId]) exerciseLoadsByWeek[exId] = {};
+          exerciseLoadsByWeek[exId][week] = load;
+        }
+      }
+    }
+  });
+
+  let progressedCount = 0;
+  let stagnantCount = 0;
+
+  Object.values(exerciseLoadsByWeek).forEach(weeks => {
+    const weekNumbers = Object.keys(weeks).map(Number).sort((a, b) => a - b);
+    if (weekNumbers.length >= 2) {
+      const firstLoad = weeks[weekNumbers[0]];
+      const lastLoad = weeks[weekNumbers[weekNumbers.length - 1]];
+      if (lastLoad > firstLoad) {
+        progressedCount++;
+      } else {
+        stagnantCount++;
+      }
+    }
+  });
+
+  let progressionMessage = "";
+  if (progressedCount > 0) {
+    progressionMessage = `Você progrediu carga em ${progressedCount} exercício(s) ao longo do mês! Excelente trabalho de sobrecarga progressiva. `;
+  } else if (stagnantCount > 0) {
+    progressionMessage = `Notamos que a carga estagnou na maioria dos exercícios. O novo treino trará estímulos diferentes para quebrar esse platô. `;
+  }
+
+  // 4. Gerar o novo plano com a blacklist e dados ajustados
   const newPlan = await generateWorkoutPlanRuleBased(adjustedUserData, [...new Set(blacklist)]);
   
+  // Ajustar duração do novo plano com base na estagnação
+  if (stagnantCount > progressedCount && newPlan.durationWeeks > 4) {
+    newPlan.durationWeeks = 4; // Ciclo de choque mais curto para quebrar platô
+    progressionMessage += ` Como houve estagnação, o próximo ciclo será mais curto (${newPlan.durationWeeks} semanas) para gerar um choque metabólico.`;
+  } else if (progressedCount > stagnantCount && newPlan.durationWeeks < 12) {
+    if (adjustedUserData.experience.includes('Intermediário') || adjustedUserData.experience.includes('Avançado')) {
+       newPlan.durationWeeks = 8; // Estender o ciclo se estiver progredindo bem
+       progressionMessage += ` Como você está progredindo bem, o próximo ciclo terá ${newPlan.durationWeeks} semanas para aproveitarmos essa fase.`;
+    }
+  }
+
   // Extrair o número do mesociclo atual
   const currentMesoMatch = originalPlan.phaseName.match(/Mesociclo (\d+)/);
   const nextMeso = currentMesoMatch ? parseInt(currentMesoMatch[1]) + 1 : 2;
@@ -414,6 +593,9 @@ export async function adjustWorkoutPlanRuleBased(
   
   let analysis = `Análise concluída com sucesso! \n\n`;
   analysis += `${volumeMessage}\n`;
+  if (progressionMessage) {
+    analysis += `\n${progressionMessage}`;
+  }
   
   if (painCount > 0) {
     analysis += `\nIdentificamos ${painCount} exercício(s) que causaram dor articular e eles foram substituídos por variações mais seguras. `;

@@ -1,5 +1,5 @@
 import React, { forwardRef } from 'react';
-import { WorkoutPlan, AnamnesisData } from '../services/workoutGenerator';
+import { WorkoutPlan, AnamnesisData, formatProgressionText } from '../services/workoutGenerator';
 import { Dumbbell } from 'lucide-react';
 
 interface Props {
@@ -147,7 +147,7 @@ export const WorkoutSheetExport = forwardRef<HTMLDivElement, Props>(({ plan, use
                   <span className="text-gray-600 italic">{day.cardio.method}</span>
                 </p>
                 {day.cardio.setup && (
-                  <div className="mt-1 text-xs text-gray-800"><span className="font-bold">Progressão:</span> {day.cardio.setup}</div>
+                  <div className="mt-1 text-xs text-gray-800"><span className="font-bold">Progressão:</span> {formatProgressionText(day.cardio.setup, selectedWeek, plan, user, 'Cardio', 'Cardio')}</div>
                 )}
               </div>
             )}
@@ -181,8 +181,8 @@ export const WorkoutSheetExport = forwardRef<HTMLDivElement, Props>(({ plan, use
                       <td className="border border-gray-300 px-3 py-2 text-center">{ex.suggestedLoad}</td>
                       <td className="border border-gray-300 px-3 py-2 text-center font-bold text-brand">{actualLoad}</td>
                       <td className="border border-gray-300 px-3 py-2 text-xs leading-tight">
-                        <div className="font-bold uppercase mb-0.5">{ex.method} {ex.rir && <span className="text-gray-600">({ex.rir})</span>}</div>
-                        {ex.setup && <div className="mt-0.5 text-gray-800"><span className="font-bold">Progressão:</span> {ex.setup}</div>}
+                        {ex.rir && <div className="font-bold uppercase mb-0.5 text-gray-600">RIR: {ex.rir}</div>}
+                        {ex.setup && <div className="mt-0.5 text-gray-800"><span className="font-bold">Progressão:</span> {formatProgressionText(ex.setup, selectedWeek, plan, user, ex.name, ex.group)}</div>}
                         {ex.notes && <div className="mt-0.5 text-gray-600 italic break-words whitespace-pre-wrap">{ex.notes}</div>}
                       </td>
                     </tr>
