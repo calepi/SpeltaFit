@@ -60,6 +60,7 @@ export function WorkoutTracker({ plan, user, onUpdatePlan, readOnly = false, stu
   const [expandedDetails, setExpandedDetails] = useState<Record<string, boolean>>({});
   const [expandedFeedback, setExpandedFeedback] = useState<Record<string, boolean>>({});
   const [showGlossary, setShowGlossary] = useState(false);
+  const [isSimulatingReevaluation, setIsSimulatingReevaluation] = useState(false);
 
   const toggleDetails = (exId: string) => {
     setExpandedDetails(prev => ({ ...prev, [exId]: !prev[exId] }));
@@ -156,7 +157,7 @@ export function WorkoutTracker({ plan, user, onUpdatePlan, readOnly = false, stu
 
   const isUnlocked = true;
   const isCheckedIn = !!(checkins && checkins[getCheckinKey(selectedWeek, selectedDay)]);
-  const isPlanComplete = checkedInCount >= totalDays;
+  const isPlanComplete = checkedInCount >= totalDays || isSimulatingReevaluation;
 
   const toggleEditMode = () => {
     if (isEditing) {
@@ -328,6 +329,7 @@ export function WorkoutTracker({ plan, user, onUpdatePlan, readOnly = false, stu
         dietSleep: { value: '', comment: '' },
       });
       setIsModalOpen(false);
+      setIsSimulatingReevaluation(false);
     } catch (error) {
       console.error(error);
       alert('Erro ao analisar o treino. Tente novamente.');
@@ -383,7 +385,17 @@ export function WorkoutTracker({ plan, user, onUpdatePlan, readOnly = false, stu
         </div>
         
         {!readOnly && (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap justify-end">
+            {auth.currentUser?.email === 'calepi@gmail.com' && !isPlanComplete && (
+              <button
+                onClick={() => setIsSimulatingReevaluation(true)}
+                className="flex items-center gap-2 px-4 py-2.5 rounded-2xl font-black text-xs uppercase tracking-widest transition-all bg-purple-500/10 border-2 border-purple-500/30 text-purple-500 hover:bg-purple-500 hover:text-white"
+                title="Apenas visível para calepi@gmail.com"
+              >
+                <Sparkles className="w-4 h-4" />
+                <span className="hidden sm:inline">Simular Reavaliação</span>
+              </button>
+            )}
             {isEditing && (
               <button
                 onClick={() => setIsEditing(false)}
@@ -1189,13 +1201,24 @@ export function WorkoutTracker({ plan, user, onUpdatePlan, readOnly = false, stu
           <p className="text-text-muted text-xs mb-4 max-w-sm mx-auto">
             Parabéns por completar todos os dias do seu ciclo! Faça a reavaliação para a IA gerar seu próximo plano.
           </p>
-          <button
-            onClick={() => setIsModalOpen(true)}
-            className="bg-brand hover:bg-brand-hover text-text-inverse font-bold text-xs px-5 py-2.5 rounded-xl shadow-sm hover:shadow-md transition-all inline-flex items-center gap-2"
-          >
-            <Brain className="w-4 h-4" />
-            Gerar Novo Treino
-          </button>
+          <div className="flex items-center justify-center gap-3">
+            <button
+              onClick={() => setIsModalOpen(true)}
+              className="bg-brand hover:bg-brand-hover text-text-inverse font-bold text-xs px-5 py-2.5 rounded-xl shadow-sm hover:shadow-md transition-all inline-flex items-center gap-2"
+            >
+              <Brain className="w-4 h-4" />
+              Gerar Novo Treino
+            </button>
+            {isSimulatingReevaluation && (
+              <button
+                onClick={() => setIsSimulatingReevaluation(false)}
+                className="bg-bg-main border border-border text-text-muted hover:text-red-500 hover:border-red-500/30 font-bold text-xs px-5 py-2.5 rounded-xl shadow-sm transition-all inline-flex items-center gap-2"
+              >
+                <X className="w-4 h-4" />
+                Cancelar Simulação
+              </button>
+            )}
+          </div>
         </motion.div>
       )}
 
