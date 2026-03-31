@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { WorkoutPlan, AnamnesisData, formatProgressionText } from '../services/workoutGenerator';
-import { adjustWorkoutPlanRuleBased } from '../services/workoutGenerator';
+import { WorkoutPlan, AnamnesisData, formatProgressionText, adjustWorkoutPlanRuleBased } from '../services/workoutGenerator';
 import { CheckCircle2, Circle, Dumbbell, Timer, Flame, Zap, Activity, Trophy, Brain, X, Loader2, ClipboardList, Lock, CalendarDays, Info, ChevronDown, ChevronUp, MessageSquare, Sparkles, TrendingUp, Target, Quote, Edit3, Save, Plus, Trash2, ArrowUp, ArrowDown, LayoutGrid } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { auth, db } from '../firebase';
@@ -1221,7 +1220,7 @@ export function WorkoutTracker({ plan, user, onUpdatePlan, readOnly = false, stu
           </p>
           <div className="flex items-center justify-center gap-3">
             <button
-              onClick={() => setIsModalOpen(true)}
+              onClick={handleAdjustPlan}
               className="bg-brand hover:bg-brand-hover text-text-inverse font-bold text-xs px-5 py-2.5 rounded-xl shadow-sm hover:shadow-md transition-all inline-flex items-center gap-2"
             >
               <Brain className="w-4 h-4" />

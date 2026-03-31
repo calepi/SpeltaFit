@@ -484,8 +484,8 @@ export async function adjustWorkoutPlanRuleBased(
 ): Promise<AdjustmentResponse> {
   // 1. Analisar o feedback dos exercícios para criar uma blacklist
   const blacklist: string[] = [];
-  let painCount = 0;
-  let badExecutionCount = 0;
+  const painExercises: string[] = [];
+  const badExecutionExercises: string[] = [];
 
   Object.entries(exerciseFeedback).forEach(([key, feedback]) => {
     // key is like w1-d0-exId
@@ -494,33 +494,33 @@ export async function adjustWorkoutPlanRuleBased(
     
     if (feedback.pain) {
       blacklist.push(exId);
-      painCount++;
+      if (!painExercises.includes(exId)) painExercises.push(exId);
     } else if (feedback.execution === 'Ruim') {
       blacklist.push(exId);
-      badExecutionCount++;
+      if (!badExecutionExercises.includes(exId)) badExecutionExercises.push(exId);
     }
   });
 
-  // 2. Analisar checkins para ajustar volume (simulado via userData temporário)
+  // 2. Analisar checkins para ajustar volume
   let highEffortCount = 0;
+  let totalCheckins = 0;
   Object.values(checkins).forEach(checkin => {
+    totalCheckins++;
     if (checkin.effort === 'Máximo (10)' || checkin.effort === 'Muito Difícil (8-9)') {
       highEffortCount++;
     }
   });
 
-  // Se o aluno relatou muito esforço máximo, podemos reduzir os dias ou mudar a experiência para gerar um treino mais leve
   const adjustedUserData = { ...userData };
-  let volumeMessage = "O volume de treino foi mantido para continuar a progressão.";
+  let volumeMessage = "O volume de treino foi mantido para continuar a progressão constante.";
   
-  if (highEffortCount > 5 || monthlyFeedback.includes('Exausto') || monthlyFeedback.includes('Não recuperei')) {
-    volumeMessage = "Notamos um alto nível de fadiga nos seus check-ins diários. O volume/intensidade foi levemente ajustado para permitir melhor recuperação.";
-    // Reduzir dias se for muito alto, ou mudar experiência para gerar menos técnicas avançadas
+  if (highEffortCount > (totalCheckins * 0.4) || monthlyFeedback.includes('Exausto') || monthlyFeedback.includes('Não recuperei')) {
+    volumeMessage = "⚠️ **Fadiga Elevada Detectada:** Notamos um alto nível de esforço nos seus check-ins diários. O volume e a intensidade foram levemente ajustados para baixo neste novo ciclo para permitir uma supercompensação e melhor recuperação do seu Sistema Nervoso Central.";
     if (adjustedUserData.experience.includes('Avançado')) {
       adjustedUserData.experience = 'Intermediário'; // Reduz técnicas avançadas
     }
   } else if (highEffortCount === 0 && (monthlyFeedback.includes('Muito fácil') || monthlyFeedback.includes('Sobrou energia'))) {
-    volumeMessage = "Como você relatou boa recuperação e energia, aumentamos a intensidade/técnicas do treino.";
+    volumeMessage = "🔥 **Energia em Alta:** Como você relatou ótima recuperação e energia sobrando, aumentamos a densidade do treino e adicionamos estímulos mais intensos.";
     if (adjustedUserData.experience.includes('Iniciante')) {
       adjustedUserData.experience = 'Intermediário';
     } else if (adjustedUserData.experience.includes('Intermediário')) {
@@ -537,7 +537,6 @@ export async function adjustWorkoutPlanRuleBased(
       const week = parseInt(parts[0].replace('w', ''));
       const exId = parts.slice(2).join('-');
       
-      // Extract number from load string (e.g. "20kg" -> 20, "20" -> 20)
       const match = loadStr.match(/(\d+[\.,]?\d*)/);
       if (match) {
         const load = parseFloat(match[1].replace(',', '.'));
@@ -566,10 +565,12 @@ export async function adjustWorkoutPlanRuleBased(
   });
 
   let progressionMessage = "";
-  if (progressedCount > 0) {
-    progressionMessage = `Você progrediu carga em ${progressedCount} exercício(s) ao longo do mês! Excelente trabalho de sobrecarga progressiva. `;
+  if (progressedCount > stagnantCount) {
+    progressionMessage = `📈 **Sobrecarga Progressiva:** Excelente trabalho! Você progrediu carga em **${progressedCount} exercícios** ao longo do mês. O novo treino vai capitalizar em cima dessa fase de ganho de força.`;
   } else if (stagnantCount > 0) {
-    progressionMessage = `Notamos que a carga estagnou na maioria dos exercícios. O novo treino trará estímulos diferentes para quebrar esse platô. `;
+    progressionMessage = `🔄 **Quebra de Platô:** Notamos que a carga estagnou na maioria dos exercícios. O novo treino trará estímulos diferentes (novas faixas de repetição e variações) para quebrar esse platô neuromuscular.`;
+  } else {
+    progressionMessage = `📊 **Manutenção:** Suas cargas se mantiveram estáveis. Vamos focar em melhorar a qualidade do movimento neste novo ciclo.`;
   }
 
   // 4. Gerar o novo plano com a blacklist e dados ajustados
@@ -577,12 +578,12 @@ export async function adjustWorkoutPlanRuleBased(
   
   // Ajustar duração do novo plano com base na estagnação
   if (stagnantCount > progressedCount && newPlan.durationWeeks > 4) {
-    newPlan.durationWeeks = 4; // Ciclo de choque mais curto para quebrar platô
-    progressionMessage += ` Como houve estagnação, o próximo ciclo será mais curto (${newPlan.durationWeeks} semanas) para gerar um choque metabólico.`;
+    newPlan.durationWeeks = 4;
+    progressionMessage += ` Como houve estagnação, o próximo ciclo será mais curto (${newPlan.durationWeeks} semanas) para gerar um choque metabólico rápido.`;
   } else if (progressedCount > stagnantCount && newPlan.durationWeeks < 12) {
     if (adjustedUserData.experience.includes('Intermediário') || adjustedUserData.experience.includes('Avançado')) {
-       newPlan.durationWeeks = 8; // Estender o ciclo se estiver progredindo bem
-       progressionMessage += ` Como você está progredindo bem, o próximo ciclo terá ${newPlan.durationWeeks} semanas para aproveitarmos essa fase.`;
+       newPlan.durationWeeks = 8;
+       progressionMessage += ` Como você está progredindo bem, o próximo ciclo terá ${newPlan.durationWeeks} semanas para aproveitarmos essa fase anabólica.`;
     }
   }
 
@@ -591,18 +592,21 @@ export async function adjustWorkoutPlanRuleBased(
   const nextMeso = currentMesoMatch ? parseInt(currentMesoMatch[1]) + 1 : 2;
   newPlan.phaseName = `Mesociclo ${nextMeso} - Evolução Contínua`;
   
-  let analysis = `Análise concluída com sucesso! \n\n`;
-  analysis += `${volumeMessage}\n`;
-  if (progressionMessage) {
-    analysis += `\n${progressionMessage}`;
-  }
+  // Construir Análise Final em Markdown
+  let analysis = `### 🧠 Análise do Motor Especialista SpeltaFit\n\n`;
+  analysis += `Baseado no seu histórico de treino, cargas e check-ins diários, aqui está o diagnóstico do seu último ciclo:\n\n`;
   
-  if (painCount > 0) {
-    analysis += `\nIdentificamos ${painCount} exercício(s) que causaram dor articular e eles foram substituídos por variações mais seguras. `;
+  analysis += `${volumeMessage}\n\n`;
+  analysis += `${progressionMessage}\n\n`;
+  
+  if (painExercises.length > 0) {
+    analysis += `🛡️ **Prevenção de Lesões:** Identificamos que você sentiu dor articular em **${painExercises.length} exercício(s)**. Eles foram colocados na "lista negra" e substituídos por variações mais seguras para a sua biomecânica.\n\n`;
   }
-  if (badExecutionCount > 0) {
-    analysis += `\nSubstituímos ${badExecutionCount} exercício(s) onde você relatou dificuldade de execução para melhorar sua biomecânica. `;
+  if (badExecutionExercises.length > 0) {
+    analysis += `🎯 **Foco na Biomecânica:** Substituímos **${badExecutionExercises.length} exercício(s)** onde você relatou dificuldade de execução. O foco agora é em exercícios onde você consiga ter uma melhor conexão mente-músculo.\n\n`;
   }
+
+  analysis += `> *Seu novo treino já está montado e pronto para começar. Bom treino!*`;
 
   return {
     analysis: analysis.trim(),
