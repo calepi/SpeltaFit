@@ -7,12 +7,14 @@ import { ExerciseLibrary } from './components/ExerciseLibrary';
 import { AnamnesisData, WorkoutPlan } from './services/workoutGenerator';
 import { generateWorkoutPlanRuleBased } from './services/workoutGenerator';
 import { Logo } from './components/Logo';
-import { Dumbbell, Palette, LogIn, LogOut, User as UserIcon, Shield, BookOpen } from 'lucide-react';
+import { Dumbbell, Palette, LogIn, LogOut, User as UserIcon, Shield, BookOpen, Apple } from 'lucide-react';
 import { auth, db, googleProvider } from './firebase';
 import { signInWithPopup, signOut, onAuthStateChanged, User } from 'firebase/auth';
 import { doc, getDoc, setDoc, deleteDoc } from 'firebase/firestore';
 
-type AppState = 'landing' | 'form' | 'plan' | 'admin' | 'library';
+import { NutritionalTool } from './components/NutritionalTool';
+
+type AppState = 'landing' | 'form' | 'plan' | 'admin' | 'library' | 'nutrition';
 type Theme = 'default' | 'green' | 'blue' | 'gold';
 
 export default function App() {
@@ -245,7 +247,16 @@ export default function App() {
             <Logo size="sm" />
           </div>
 
-          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2">
+            {user && (
+              <button 
+                onClick={() => setAppState(appState === 'nutrition' ? 'plan' : 'nutrition')}
+                className={`p-2 rounded-xl transition-colors ${appState === 'nutrition' ? 'bg-brand text-text-inverse' : 'bg-brand/10 text-brand hover:bg-brand/20'}`}
+                title="Ferramenta Nutricional"
+              >
+                <Apple className="w-5 h-5" />
+              </button>
+            )}
             {user ? (
               <div className="flex items-center gap-3 mr-2">
                 <div className="hidden sm:flex flex-col items-end">
@@ -358,6 +369,13 @@ export default function App() {
 
         {appState === 'library' && (
           <ExerciseLibrary />
+        )}
+
+        {appState === 'nutrition' && userData && (
+          <NutritionalTool 
+            physicalAnamnesis={userData} 
+            onBack={() => setAppState('plan')} 
+          />
         )}
       </main>
     </div>

@@ -64,6 +64,51 @@
         "updatedAt": { "type": "string", "format": "date-time" }
       },
       "required": ["completedSets", "actualLoads", "updatedAt"]
+    },
+    "NutritionalAnamnesis": {
+      "title": "Nutritional Anamnesis",
+      "description": "User's nutritional profile and preferences.",
+      "type": "object",
+      "properties": {
+        "mealCount": { "type": "number" },
+        "dietType": { "type": "string" },
+        "allergies": { "type": "string" },
+        "dislikes": { "type": "string" },
+        "budget": { "type": "string" },
+        "cookingTime": { "type": "string" },
+        "supplements": { "type": "array" },
+        "waterIntake": { "type": "number" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["mealCount", "dietType", "updatedAt"]
+    },
+    "DietPlan": {
+      "title": "Diet Plan",
+      "description": "The generated nutritional plan.",
+      "type": "object",
+      "properties": {
+        "goal": { "type": "string" },
+        "calories": { "type": "number" },
+        "macros": { "type": "object" },
+        "meals": { "type": "array" },
+        "supplementation": { "type": "string" },
+        "recommendations": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["goal", "calories", "macros", "meals", "createdAt"]
+    },
+    "NutritionalProgress": {
+      "title": "Nutritional Progress",
+      "description": "User's tracked nutritional progress.",
+      "type": "object",
+      "properties": {
+        "weight": { "type": "number" },
+        "adherence": { "type": "number" },
+        "energyLevel": { "type": "string" },
+        "digestion": { "type": "string" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["weight", "adherence", "updatedAt"]
     }
   },
   "firestore": {
@@ -82,6 +127,18 @@
     "/users/{userId}/data/progress": {
       "schema": { "$ref": "#/entities/WorkoutProgress" },
       "description": "User's current workout progress."
+    },
+    "/users/{userId}/data/nutritionalAnamnesis": {
+      "schema": { "$ref": "#/entities/NutritionalAnamnesis" },
+      "description": "User's current nutritional anamnesis."
+    },
+    "/users/{userId}/data/dietPlan": {
+      "schema": { "$ref": "#/entities/DietPlan" },
+      "description": "User's current diet plan."
+    },
+    "/users/{userId}/data/nutritionalProgress": {
+      "schema": { "$ref": "#/entities/NutritionalProgress" },
+      "description": "User's current nutritional progress."
     }
   }
 }

@@ -53,6 +53,36 @@ service cloud.firestore {
     //   - actualLoads: map (required)
     //   - updatedAt: timestamp (required)
     //
+    // Document ID: nutritionalAnamnesis
+    // Fields:
+    //   - mealCount: number (required)
+    //   - dietType: string (required)
+    //   - allergies: string (optional)
+    //   - dislikes: string (optional)
+    //   - budget: string (optional)
+    //   - cookingTime: string (optional)
+    //   - supplements: list (optional)
+    //   - waterIntake: number (optional)
+    //   - updatedAt: timestamp (required)
+    //
+    // Document ID: dietPlan
+    // Fields:
+    //   - goal: string (required)
+    //   - calories: number (required)
+    //   - macros: map (required)
+    //   - meals: list (required)
+    //   - supplementation: string (optional)
+    //   - recommendations: string (optional)
+    //   - createdAt: timestamp (required)
+    //
+    // Document ID: nutritionalProgress
+    // Fields:
+    //   - weight: number (required)
+    //   - adherence: number (required)
+    //   - energyLevel: string (optional)
+    //   - digestion: string (optional)
+    //   - updatedAt: timestamp (required)
+    //
     // ===============================================================
 
     // ===============================================================
@@ -148,6 +178,42 @@ service cloud.firestore {
              data.updatedAt is string;
     }
 
+    function isValidNutritionalAnamnesis() {
+      let data = request.resource.data;
+      return hasRequiredFields(['mealCount', 'dietType', 'updatedAt']) &&
+             data.mealCount is number && data.mealCount > 0 && data.mealCount <= 10 &&
+             data.dietType is string && data.dietType.size() < 100 &&
+             data.updatedAt is string &&
+             (!('allergies' in data) || (data.allergies is string && data.allergies.size() < 500)) &&
+             (!('dislikes' in data) || (data.dislikes is string && data.dislikes.size() < 500)) &&
+             (!('budget' in data) || (data.budget is string && data.budget.size() < 100)) &&
+             (!('cookingTime' in data) || (data.cookingTime is string && data.cookingTime.size() < 100)) &&
+             (!('supplements' in data) || (data.supplements is list && data.supplements.size() < 20)) &&
+             (!('waterIntake' in data) || (data.waterIntake is number && data.waterIntake >= 0));
+    }
+
+    function isValidDietPlan() {
+      let data = request.resource.data;
+      return hasRequiredFields(['goal', 'calories', 'macros', 'meals', 'createdAt']) &&
+             data.goal is string && data.goal.size() < 100 &&
+             data.calories is number && data.calories > 0 &&
+             data.macros is map &&
+             data.meals is list && data.meals.size() <= 10 &&
+             data.createdAt is string &&
+             (!('supplementation' in data) || (data.supplementation is string && data.supplementation.size() < 2000)) &&
+             (!('recommendations' in data) || (data.recommendations is string && data.recommendations.size() < 5000));
+    }
+
+    function isValidNutritionalProgress() {
+      let data = request.resource.data;
+      return hasRequiredFields(['weight', 'adherence', 'updatedAt']) &&
+             data.weight is number && data.weight > 0 &&
+             data.adherence is number && data.adherence >= 0 && data.adherence <= 100 &&
+             data.updatedAt is string &&
+             (!('energyLevel' in data) || (data.energyLevel is string && data.energyLevel.size() < 100)) &&
+             (!('digestion' in data) || (data.digestion is string && data.digestion.size() < 100));
+    }
+
     // ===============================================================
     // Rules
     // ===============================================================
@@ -176,6 +242,27 @@ service cloud.firestore {
         allow read: if isOwner(userId) || isAdmin();
         allow create: if isOwner(userId) && isValidProgress();
         allow update: if isOwner(userId) && isValidProgress();
+        allow delete: if isOwner(userId) || isAdmin();
+      }
+
+      match /data/nutritionalAnamnesis {
+        allow read: if isOwner(userId) || isAdmin();
+        allow create: if isOwner(userId) && isValidNutritionalAnamnesis();
+        allow update: if isOwner(userId) && isValidNutritionalAnamnesis();
+        allow delete: if isOwner(userId) || isAdmin();
+      }
+
+      match /data/dietPlan {
+        allow read: if isOwner(userId) || isAdmin();
+        allow create: if isOwner(userId) && isValidDietPlan();
+        allow update: if isOwner(userId) && isValidDietPlan();
+        allow delete: if isOwner(userId) || isAdmin();
+      }
+
+      match /data/nutritionalProgress {
+        allow read: if isOwner(userId) || isAdmin();
+        allow create: if isOwner(userId) && isValidNutritionalProgress();
+        allow update: if isOwner(userId) && isValidNutritionalProgress();
         allow delete: if isOwner(userId) || isAdmin();
       }
     }

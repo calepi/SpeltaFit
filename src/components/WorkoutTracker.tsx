@@ -298,19 +298,12 @@ export function WorkoutTracker({ plan, user, onUpdatePlan, readOnly = false, stu
 
   const handleAdjustPlan = async () => {
     if (readOnly) return;
-    if (!feedbackForm.recovery.value || !feedbackForm.adherence.value || !feedbackForm.dietSleep.value) {
-      alert('Por favor, selecione uma opção para todas as perguntas da reavaliação de ciclo.');
-      return;
-    }
 
     setIsAdjusting(true);
+    setIsModalOpen(true); // Keep modal open to show loading state
     
-    const compiledFeedback = `
-      Reavaliação de Ciclo (Fim de Ciclo):
-      Recuperação e Dores: ${feedbackForm.recovery.value}. Comentário: ${feedbackForm.recovery.comment || 'Nenhum'}
-      Aderência ao Plano: ${feedbackForm.adherence.value}. Comentário: ${feedbackForm.adherence.comment || 'Nenhum'}
-      Dieta e Sono: ${feedbackForm.dietSleep.value}. Comentário: ${feedbackForm.dietSleep.comment || 'Nenhum'}
-    `;
+    // Auto-generate feedback based on checkins and tracked data
+    const compiledFeedback = `Reavaliação de Ciclo (Fim de Ciclo): Análise automática baseada no histórico de treinos, cargas e check-ins diários.`;
 
     try {
       const response = await adjustWorkoutPlanRuleBased(plan, user, completedSets, actualLoads, checkins, compiledFeedback, exerciseFeedback);
@@ -323,11 +316,6 @@ export function WorkoutTracker({ plan, user, onUpdatePlan, readOnly = false, stu
       setCheckins({});
       setSelectedWeek(1);
       setSelectedDay(0);
-      setFeedbackForm({
-        recovery: { value: '', comment: '' },
-        adherence: { value: '', comment: '' },
-        dietSleep: { value: '', comment: '' },
-      });
       setIsModalOpen(false);
       setIsSimulatingReevaluation(false);
     } catch (error) {
@@ -379,23 +367,25 @@ export function WorkoutTracker({ plan, user, onUpdatePlan, readOnly = false, stu
             <LayoutGrid className="w-6 h-6 text-brand" />
           </div>
           <div>
-            <h1 className="text-xl font-black text-text-main uppercase tracking-tight">Seu Treino</h1>
+            <h1 className="text-xl font-black text-text-main uppercase tracking-tight flex items-center gap-3">
+              Seu Treino
+              {auth.currentUser?.email === 'calepi@gmail.com' && !isPlanComplete && (
+                <button
+                  onClick={() => setIsSimulatingReevaluation(true)}
+                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all bg-purple-500/10 border border-purple-500/30 text-purple-500 hover:bg-purple-500 hover:text-white"
+                  title="Simular conclusão do ciclo (Apenas admin)"
+                >
+                  <Sparkles className="w-3 h-3" />
+                  <span className="hidden sm:inline">Simular Reavaliação</span>
+                </button>
+              )}
+            </h1>
             <p className="text-xs text-text-muted font-medium">{activePlan?.phaseName}</p>
           </div>
         </div>
         
         {!readOnly && (
           <div className="flex items-center gap-2 flex-wrap justify-end">
-            {auth.currentUser?.email === 'calepi@gmail.com' && !isPlanComplete && (
-              <button
-                onClick={() => setIsSimulatingReevaluation(true)}
-                className="flex items-center gap-2 px-4 py-2.5 rounded-2xl font-black text-xs uppercase tracking-widest transition-all bg-purple-500/10 border-2 border-purple-500/30 text-purple-500 hover:bg-purple-500 hover:text-white"
-                title="Apenas visível para calepi@gmail.com"
-              >
-                <Sparkles className="w-4 h-4" />
-                <span className="hidden sm:inline">Simular Reavaliação</span>
-              </button>
-            )}
             {isEditing && (
               <button
                 onClick={() => setIsEditing(false)}
@@ -1246,145 +1236,21 @@ export function WorkoutTracker({ plan, user, onUpdatePlan, readOnly = false, stu
                 <X className="w-6 h-6" />
               </button>
 
-              <div className="flex items-center gap-5 mb-8">
-                <div className="bg-brand p-4 rounded-[1.5rem] shadow-xl shadow-brand/20">
-                  <ClipboardList className="w-8 h-8 text-white" />
+              <div className="flex flex-col items-center justify-center py-10">
+                <div className="bg-brand/10 p-6 rounded-full mb-6 relative">
+                  <div className="absolute inset-0 border-4 border-brand/30 rounded-full animate-ping"></div>
+                  <Brain className="w-12 h-12 text-brand animate-pulse" />
                 </div>
-                <div>
-                  <h2 className="text-2xl font-black text-text-main uppercase tracking-tight">Reavaliação de Ciclo</h2>
-                  <p className="text-text-muted text-sm font-medium">Ajuste seu próximo ciclo com a ajuda da IA.</p>
+                <h2 className="text-2xl font-black text-text-main uppercase tracking-tight mb-4">
+                  Analisando seu Histórico
+                </h2>
+                <p className="text-text-muted text-sm font-medium max-w-md mx-auto leading-relaxed text-center">
+                  O sistema está processando suas cargas, séries concluídas e check-ins diários para gerar um plano perfeitamente adaptado à sua evolução.
+                </p>
+                <div className="mt-8 flex items-center justify-center gap-3 text-brand font-bold text-sm uppercase tracking-widest">
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  Gerando Novo Treino...
                 </div>
-              </div>
-
-              <div className="space-y-8 mb-10">
-                {/* Question 1 */}
-                <div className="space-y-4">
-                  <label className="font-black text-text-main text-xs uppercase tracking-widest ml-1 flex items-center gap-2">
-                    <div className="w-1.5 h-1.5 bg-brand rounded-full" />
-                    1. Recuperação e dores musculares?
-                  </label>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    {['Recuperação rápida', 'Dores normais', 'Dores excessivas'].map((opt) => (
-                      <label key={opt} className={`flex items-center justify-center text-center cursor-pointer px-4 py-3 rounded-2xl border-2 transition-all ${
-                        feedbackForm.recovery.value === opt 
-                          ? 'bg-brand/10 border-brand text-brand font-black shadow-lg shadow-brand/10' 
-                          : 'bg-bg-main border-border/50 text-text-muted hover:border-brand/30'
-                      }`}>
-                        <input 
-                          type="radio" 
-                          name="recovery" 
-                          value={opt}
-                          checked={feedbackForm.recovery.value === opt}
-                          onChange={(e) => setFeedbackForm(prev => ({ ...prev, recovery: { ...prev.recovery, value: e.target.value } }))}
-                          className="hidden"
-                        />
-                        <span className="text-[11px] uppercase tracking-tighter leading-tight">{opt}</span>
-                      </label>
-                    ))}
-                  </div>
-                  <input 
-                    type="text" 
-                    placeholder="Comentário opcional..."
-                    value={feedbackForm.recovery.comment}
-                    onChange={(e) => setFeedbackForm(prev => ({ ...prev, recovery: { ...prev.recovery, comment: e.target.value } }))}
-                    className="w-full bg-bg-main border-2 border-border/50 rounded-2xl px-5 py-3 text-sm text-text-main focus:outline-none focus:border-brand transition-all placeholder:text-text-muted/30"
-                  />
-                </div>
-
-                {/* Question 2 */}
-                <div className="space-y-4">
-                  <label className="font-black text-text-main text-xs uppercase tracking-widest ml-1 flex items-center gap-2">
-                    <div className="w-1.5 h-1.5 bg-brand rounded-full" />
-                    2. Aderência ao plano (Frequência)?
-                  </label>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    {['Segui 100%', 'Faltei alguns dias', 'Tive muita dificuldade'].map((opt) => (
-                      <label key={opt} className={`flex items-center justify-center text-center cursor-pointer px-4 py-3 rounded-2xl border-2 transition-all ${
-                        feedbackForm.adherence.value === opt 
-                          ? 'bg-brand/10 border-brand text-brand font-black shadow-lg shadow-brand/10' 
-                          : 'bg-bg-main border-border/50 text-text-muted hover:border-brand/30'
-                      }`}>
-                        <input 
-                          type="radio" 
-                          name="adherence" 
-                          value={opt}
-                          checked={feedbackForm.adherence.value === opt}
-                          onChange={(e) => setFeedbackForm(prev => ({ ...prev, adherence: { ...prev.adherence, value: e.target.value } }))}
-                          className="hidden"
-                        />
-                        <span className="text-[11px] uppercase tracking-tighter leading-tight">{opt}</span>
-                      </label>
-                    ))}
-                  </div>
-                  <input 
-                    type="text" 
-                    placeholder="Comentário opcional..."
-                    value={feedbackForm.adherence.comment}
-                    onChange={(e) => setFeedbackForm(prev => ({ ...prev, adherence: { ...prev.adherence, comment: e.target.value } }))}
-                    className="w-full bg-bg-main border-2 border-border/50 rounded-2xl px-5 py-3 text-sm text-text-main focus:outline-none focus:border-brand transition-all placeholder:text-text-muted/30"
-                  />
-                </div>
-
-                {/* Question 3 */}
-                <div className="space-y-4">
-                  <label className="font-black text-text-main text-xs uppercase tracking-widest ml-1 flex items-center gap-2">
-                    <div className="w-1.5 h-1.5 bg-brand rounded-full" />
-                    3. Dieta e Qualidade do Sono?
-                  </label>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    {['Mantive o foco', 'Alguns deslizes', 'Perdi o controle'].map((opt) => (
-                      <label key={opt} className={`flex items-center justify-center text-center cursor-pointer px-4 py-3 rounded-2xl border-2 transition-all ${
-                        feedbackForm.dietSleep.value === opt 
-                          ? 'bg-brand/10 border-brand text-brand font-black shadow-lg shadow-brand/10' 
-                          : 'bg-bg-main border-border/50 text-text-muted hover:border-brand/30'
-                      }`}>
-                        <input 
-                          type="radio" 
-                          name="dietSleep" 
-                          value={opt}
-                          checked={feedbackForm.dietSleep.value === opt}
-                          onChange={(e) => setFeedbackForm(prev => ({ ...prev, dietSleep: { ...prev.dietSleep, value: e.target.value } }))}
-                          className="hidden"
-                        />
-                        <span className="text-[11px] uppercase tracking-tighter leading-tight">{opt}</span>
-                      </label>
-                    ))}
-                  </div>
-                  <input 
-                    type="text" 
-                    placeholder="Comentário opcional..."
-                    value={feedbackForm.dietSleep.comment}
-                    onChange={(e) => setFeedbackForm(prev => ({ ...prev, dietSleep: { ...prev.dietSleep, comment: e.target.value } }))}
-                    className="w-full bg-bg-main border-2 border-border/50 rounded-2xl px-5 py-3 text-sm text-text-main focus:outline-none focus:border-brand transition-all placeholder:text-text-muted/30"
-                  />
-                </div>
-              </div>
-
-              <div className="flex gap-4 pt-8 border-t-2 border-border/30">
-                <button
-                  onClick={() => setIsModalOpen(false)}
-                  disabled={isAdjusting}
-                  className="flex-1 px-6 py-4 rounded-2xl font-black text-sm text-text-muted bg-bg-main hover:bg-border transition-all disabled:opacity-50 uppercase tracking-widest"
-                >
-                  Cancelar
-                </button>
-                <button
-                  onClick={handleAdjustPlan}
-                  disabled={isAdjusting}
-                  className="flex-[2] bg-brand hover:bg-brand-hover text-text-inverse font-black text-sm px-6 py-4 rounded-2xl shadow-xl shadow-brand/30 transition-all flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed uppercase tracking-widest"
-                >
-                  {isAdjusting ? (
-                    <>
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                      Analisando...
-                    </>
-                  ) : (
-                    <>
-                      <Brain className="w-5 h-5" />
-                      Gerar Novo Treino
-                    </>
-                  )}
-                </button>
               </div>
             </motion.div>
           </motion.div>

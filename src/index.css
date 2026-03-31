@@ -84,8 +84,25 @@ body {
     print-color-adjust: exact;
   }
   
+  .print-hidden {
+    display: none !important;
+  }
+
+  /* Ensure the diet plan takes full width and looks professional */
+  .max-w-5xl {
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Hide shadows and borders that might look bad in print */
+  .shadow-2xl, .shadow-xl {
+    shadow: none !important;
+    box-shadow: none !important;
+  }
+
   @page {
-    margin: 1cm;
+    margin: 1.5cm;
     size: A4 portrait;
   }
 }
