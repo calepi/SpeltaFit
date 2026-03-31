@@ -37,7 +37,7 @@ export function NutritionalTool({ physicalAnamnesis, onBack }: NutritionalToolPr
         if (anamnesisSnap.exists()) setNutritionalAnamnesis(anamnesisSnap.data() as NutritionalAnamnesis);
         if (planSnap.exists()) {
           setDietPlan(planSnap.data() as DietPlan);
-          setView('plan');
+          // Do not auto-redirect to 'plan' view to allow users to see the dashboard/landing first
         }
       } catch (err) {
         console.error("Error loading nutrition data:", err);
@@ -54,8 +54,26 @@ export function NutritionalTool({ physicalAnamnesis, onBack }: NutritionalToolPr
     setError(null);
     try {
       const generatedPlan = await generateDietPlan(physicalAnamnesis, data);
-      setDietPlan(generatedPlan);
-      setNutritionalAnamnesis(data);
+      
+      // Deep clean undefined values before saving to Firestore
+      const cleanObject = (obj: any): any => {
+        if (Array.isArray(obj)) {
+          return obj.map(cleanObject);
+        } else if (obj !== null && typeof obj === 'object') {
+          return Object.fromEntries(
+            Object.entries(obj)
+              .filter(([_, v]) => v !== undefined)
+              .map(([k, v]) => [k, cleanObject(v)])
+          );
+        }
+        return obj;
+      };
+
+      const cleanData = cleanObject(data);
+      const cleanPlan = cleanObject(generatedPlan);
+
+      setDietPlan(cleanPlan);
+      setNutritionalAnamnesis(cleanData);
       setView('plan');
 
       // Save to Firestore
@@ -63,12 +81,13 @@ export function NutritionalTool({ physicalAnamnesis, onBack }: NutritionalToolPr
       const planRef = doc(db, `users/${auth.currentUser.uid}/data/dietPlan`);
 
       await Promise.all([
-        setDoc(anamnesisRef, data),
-        setDoc(planRef, generatedPlan)
+        setDoc(anamnesisRef, cleanData),
+        setDoc(planRef, cleanPlan)
       ]);
-    } catch (err) {
-      console.error(err);
-      setError("Erro ao gerar plano nutricional. Tente novamente.");
+    } catch (err: any) {
+      console.error("Error generating/saving diet plan:", err);
+      const errorMessage = err?.message || "Erro desconhecido";
+      setError(`Erro ao gerar plano nutricional: ${errorMessage}. Verifique sua conexão e tente novamente.`);
     } finally {
       setIsLoading(false);
     }

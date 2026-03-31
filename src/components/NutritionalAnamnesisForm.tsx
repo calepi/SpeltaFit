@@ -36,6 +36,7 @@ export function NutritionalAnamnesisForm({ onSubmit, isLoading, userGoal }: Nutr
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState<Partial<NutritionalAnamnesis>>({
     dietType: 'equilibrada',
+    mealCount: 4,
     supplements: [],
     waterIntake: 2,
     budget: 'padrão',
@@ -55,7 +56,11 @@ export function NutritionalAnamnesisForm({ onSubmit, isLoading, userGoal }: Nutr
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (formData.dietType) {
+    if (step < 4) {
+      nextStep();
+      return;
+    }
+    if (formData.dietType && formData.mealCount) {
       onSubmit({
         ...formData,
         updatedAt: new Date().toISOString()
@@ -102,7 +107,7 @@ export function NutritionalAnamnesisForm({ onSubmit, isLoading, userGoal }: Nutr
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -20 }}
-                className="space-y-6"
+                className="space-y-8"
               >
                 <div className="space-y-4">
                   <label className="flex items-center gap-2 text-lg font-bold">
@@ -128,6 +133,32 @@ export function NutritionalAnamnesisForm({ onSubmit, isLoading, userGoal }: Nutr
                       </button>
                     ))}
                   </div>
+                </div>
+
+                <div className="space-y-4">
+                  <label className="flex items-center gap-2 text-lg font-bold">
+                    <Utensils className="w-5 h-5 text-brand" />
+                    Quantas refeições você prefere por dia?
+                  </label>
+                  <div className="flex items-center justify-between gap-2">
+                    {[3, 4, 5, 6].map(num => (
+                      <button
+                        key={num}
+                        type="button"
+                        onClick={() => setFormData({ ...formData, mealCount: num })}
+                        className={`flex-1 py-4 rounded-2xl border-2 font-black transition-all ${
+                          formData.mealCount === num 
+                            ? 'bg-brand border-brand text-text-inverse shadow-lg shadow-brand/20' 
+                            : 'bg-bg-main border-border text-text-muted hover:border-brand/30'
+                        }`}
+                      >
+                        {num}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="text-xs text-text-muted text-center italic">
+                    O nutricionista IA ajustará as porções para bater suas metas.
+                  </p>
                 </div>
               </motion.div>
             )}

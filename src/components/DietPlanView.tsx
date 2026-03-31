@@ -9,21 +9,150 @@ interface DietPlanViewProps {
 }
 
 export function DietPlanView({ plan, onReset }: DietPlanViewProps) {
+  const [isPrintMode, setIsPrintMode] = React.useState(false);
+
   const handlePrint = () => {
+    console.log("Triggering print...");
     try {
-      // Ensure we are in a context where print is available
-      if (typeof window !== 'undefined') {
-        window.print();
+      // In some iframe environments, window.print() might be restricted.
+      // We try to focus and print, but also provide a fallback.
+      window.focus();
+      const printResult = window.print();
+      
+      // If we are in an iframe and print didn't open a dialog (some browsers return undefined or false)
+      if (window.self !== window.top) {
+        console.log("App is in an iframe, print might be blocked by browser security.");
       }
     } catch (e) {
-      console.error("Print error:", e);
-      // Fallback for some iframe environments
-      const printButton = document.querySelector('button');
-      if (printButton) {
-        window.print();
-      }
+      console.error("Print failed:", e);
+      alert("O navegador bloqueou a impressão direta no iframe. Clique no botão 'Modo Impressão' e use Ctrl+P ou abra o app em uma nova aba.");
     }
   };
+
+  const handleOpenNewTab = () => {
+    window.open(window.location.origin, '_blank');
+  };
+
+  if (isPrintMode) {
+    return (
+      <div className="bg-white min-h-screen p-4 md:p-8 text-black font-sans">
+        <div className="max-w-4xl mx-auto space-y-8">
+          <div className="flex flex-col md:flex-row md:items-center justify-between border-b-4 border-brand pb-4 gap-4">
+            <div>
+              <h1 className="text-4xl font-black uppercase tracking-tight">Plano Nutricional</h1>
+              <p className="text-gray-600 font-bold">Focado em: {plan.goal}</p>
+            </div>
+            <div className="flex gap-2 print:hidden">
+              <button 
+                onClick={handleOpenNewTab}
+                className="px-4 py-2 bg-blue-100 text-blue-800 rounded-xl font-bold hover:bg-blue-200 transition-colors flex items-center gap-2"
+                title="Abrir em nova aba para melhor impressão"
+              >
+                <RefreshCw className="w-4 h-4" />
+                Nova Aba
+              </button>
+              <button 
+                onClick={() => setIsPrintMode(false)}
+                className="px-4 py-2 bg-gray-100 text-gray-800 rounded-xl font-bold hover:bg-gray-200 transition-colors"
+              >
+                Voltar
+              </button>
+              <button 
+                onClick={handlePrint}
+                className="px-4 py-2 bg-brand text-white rounded-xl font-bold hover:opacity-90 transition-colors"
+              >
+                Imprimir (Ctrl+P)
+              </button>
+            </div>
+          </div>
+
+          <div className="bg-blue-50 p-4 rounded-2xl border border-blue-100 text-blue-800 text-sm font-medium print:hidden">
+            <p className="flex items-center gap-2">
+              <Info className="w-4 h-4" />
+              Dica: Se o diálogo de impressão não abrir, use o atalho <strong>Ctrl + P</strong> (Windows) ou <strong>Cmd + P</strong> (Mac).
+            </p>
+          </div>
+
+          <div className="grid grid-cols-4 gap-4 text-center">
+            <div className="p-4 border-2 border-gray-100 rounded-2xl">
+              <div className="text-xs font-black text-gray-400 uppercase">Calorias</div>
+              <div className="text-xl font-black">{plan.calories} kcal</div>
+            </div>
+            <div className="p-4 border-2 border-gray-100 rounded-2xl">
+              <div className="text-xs font-black text-gray-400 uppercase">Proteína</div>
+              <div className="text-xl font-black">{plan.macros.protein}g</div>
+            </div>
+            <div className="p-4 border-2 border-gray-100 rounded-2xl">
+              <div className="text-xs font-black text-gray-400 uppercase">Carbos</div>
+              <div className="text-xl font-black">{plan.macros.carbs}g</div>
+            </div>
+            <div className="p-4 border-2 border-gray-100 rounded-2xl">
+              <div className="text-xs font-black text-gray-400 uppercase">Gorduras</div>
+              <div className="text-xl font-black">{plan.macros.fats}g</div>
+            </div>
+          </div>
+
+          <div className="space-y-8">
+            {plan.meals.map((meal, idx) => (
+              <div key={idx} className="border-2 border-gray-100 rounded-3xl overflow-hidden break-inside-avoid">
+                <div className="bg-gray-50 p-4 flex items-center justify-between">
+                  <h4 className="font-black text-lg">{idx + 1}. {meal.name} - {meal.time}</h4>
+                  <span className="font-bold text-sm">{meal.foods.reduce((acc, f) => acc + f.calories, 0)} kcal</span>
+                </div>
+                <div className="p-6 space-y-4">
+                  {meal.foods.map((food, fIdx) => (
+                    <div key={fIdx} className="flex justify-between items-center border-b border-gray-50 pb-2">
+                      <div>
+                        <div className="font-bold">{food.item}</div>
+                        <div className="text-xs text-gray-500">{food.quantity}</div>
+                      </div>
+                      <div className="text-right font-bold text-sm">{food.calories} kcal</div>
+                    </div>
+                  ))}
+
+                  {meal.weeklyVariations && meal.weeklyVariations.length > 0 && (
+                    <div className="mt-4 pt-4 border-t border-dashed border-gray-200">
+                      <div className="text-xs font-black text-brand uppercase mb-3">Variações Semanais</div>
+                      <div className="grid grid-cols-2 gap-4">
+                        {meal.weeklyVariations.map((v, vIdx) => (
+                          <div key={vIdx} className="text-xs">
+                            <span className="font-black text-gray-800">{v.day}:</span>
+                            <div className="text-gray-600">
+                              {v.foods.map(f => `${f.item} (${f.quantity})`).join(', ')}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="grid grid-cols-2 gap-8 pt-8">
+            <div className="space-y-4">
+              <h3 className="font-black text-xl border-b-2 border-gray-100 pb-2">Suplementação</h3>
+              <p className="text-gray-600 text-sm whitespace-pre-line">{plan.supplementation}</p>
+            </div>
+            <div className="space-y-4">
+              <h3 className="font-black text-xl border-b-2 border-gray-100 pb-2">Recomendações</h3>
+              <p className="text-gray-600 text-sm whitespace-pre-line">{plan.recommendations}</p>
+            </div>
+          </div>
+
+          <div className="text-center pt-12 print:hidden">
+            <button 
+              onClick={handlePrint}
+              className="px-12 py-4 bg-brand text-white font-black rounded-2xl shadow-xl hover:scale-105 transition-all"
+            >
+              Confirmar e Imprimir Agora
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-5xl mx-auto space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-700">
@@ -37,12 +166,15 @@ export function DietPlanView({ plan, onReset }: DietPlanViewProps) {
               <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-brand/10 text-brand text-xs font-black uppercase tracking-widest">
                 Plano Nutricional Profissional
               </div>
-              <button 
-                onClick={handlePrint}
-                className="md:hidden p-2 rounded-xl bg-brand/10 text-brand print:hidden"
-              >
-                <Printer className="w-5 h-5" />
-              </button>
+              <div className="flex items-center gap-2 md:hidden">
+                <button 
+                  onClick={() => setIsPrintMode(true)}
+                  className="p-2 rounded-xl bg-brand/10 text-brand print:hidden"
+                  title="Modo Impressão"
+                >
+                  <Printer className="w-5 h-5" />
+                </button>
+              </div>
             </div>
             <h1 className="text-4xl md:text-6xl font-black tracking-tight leading-tight">
               Seu Cardápio <br />
@@ -52,13 +184,21 @@ export function DietPlanView({ plan, onReset }: DietPlanViewProps) {
               Focado em <span className="text-text-main font-bold">{plan.goal}</span>. 
               Siga as orientações para maximizar seus resultados.
             </p>
-            <button 
-              onClick={handlePrint}
-              className="hidden md:flex items-center gap-2 px-6 py-2 rounded-xl bg-brand/10 text-brand font-black hover:bg-brand/20 transition-all print:hidden"
-            >
-              <Printer className="w-4 h-4" />
-              Imprimir PDF
-            </button>
+            <div className="flex items-center gap-4 print:hidden">
+              <button 
+                onClick={handlePrint}
+                className="hidden md:flex items-center gap-2 px-6 py-2 rounded-xl bg-brand/10 text-brand font-black hover:bg-brand/20 transition-all"
+              >
+                <Printer className="w-4 h-4" />
+                Imprimir PDF
+              </button>
+              <button 
+                onClick={() => setIsPrintMode(true)}
+                className="hidden md:flex items-center gap-2 px-6 py-2 rounded-xl bg-surface border border-border text-text-muted font-bold hover:text-text-main transition-all"
+              >
+                Modo Impressão
+              </button>
+            </div>
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 w-full md:w-auto">
@@ -195,26 +335,28 @@ function MealCard({ meal, index }: MealCardProps) {
           </div>
         ))}
 
-        {/* Variations Section */}
-        {meal.variations && meal.variations.length > 0 && (
+        {/* Weekly Variations Section */}
+        {meal.weeklyVariations && meal.weeklyVariations.length > 0 && (
           <div className="mt-6 pt-6 border-t border-border border-dashed space-y-4">
             <div className="flex items-center gap-2 text-xs font-black text-brand uppercase tracking-widest">
               <RefreshCw className="w-3 h-3" />
-              Opções de Variação
+              Variações Semanais
             </div>
-            {meal.variations.map((variation, vIdx) => (
-              <div key={vIdx} className="p-4 rounded-2xl bg-bg-main border border-border/50 hover:border-brand/30 transition-all">
-                <div className="text-sm font-black text-text-main mb-2">{variation.description}</div>
-                <div className="space-y-1">
-                  {variation.foods.map((vFood, vfIdx) => (
-                    <div key={vfIdx} className="text-xs text-text-muted flex justify-between">
-                      <span>• {vFood.item} ({vFood.quantity})</span>
-                      <span className="font-bold">{vFood.calories} kcal</span>
-                    </div>
-                  ))}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {meal.weeklyVariations.map((variation, vIdx) => (
+                <div key={vIdx} className="p-4 rounded-2xl bg-bg-main border border-border/50 hover:border-brand/30 transition-all">
+                  <div className="text-sm font-black text-brand mb-2">{variation.day}</div>
+                  <div className="space-y-1">
+                    {variation.foods.map((vFood, vfIdx) => (
+                      <div key={vfIdx} className="text-[10px] text-text-muted flex justify-between leading-tight">
+                        <span>• {vFood.item}</span>
+                        <span className="font-bold whitespace-nowrap ml-2">{vFood.quantity}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         )}
       </div>
