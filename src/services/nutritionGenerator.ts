@@ -1,6 +1,4 @@
-import { GoogleGenAI, Type } from "@google/genai";
-
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+import { FOOD_DB, FoodItem } from '../data/foodDatabase';
 
 export interface NutritionalAnamnesis {
   mealCount?: number;
@@ -47,139 +45,275 @@ export interface DietPlan {
   createdAt: string;
 }
 
+// --- MOTOR DE REGRAS NUTRICIONAL ROBUSTO ---
+
 export async function generateDietPlan(
-  anamnesis: any, // Physical anamnesis from SpeltaFit
+  anamnesis: any, // Dados físicos do SpeltaFit
   nutritionalAnamnesis: NutritionalAnamnesis
 ): Promise<DietPlan> {
-  try {
-    const prompt = `
-      Aja como um nutricionista esportivo profissional de elite.
-      Gere um plano alimentar personalizado e criativo baseado nos seguintes dados do aluno:
-      
-      DADOS FÍSICOS (SpeltaFit):
-      - Nome: ${anamnesis.name || 'Aluno'}
-      - Idade: ${anamnesis.age || 'Não informada'}
-      - Gênero: ${anamnesis.gender || 'Não informado'}
-      - Peso: ${anamnesis.weight || 'Não informado'}kg
-      - Altura: ${anamnesis.height || 'Não informada'}cm
-      - Objetivo: ${anamnesis.goal || 'Saúde e Bem-estar'}
-      - Nível de Atividade: ${anamnesis.experience || 'Iniciante'} (${anamnesis.daysPerWeek || 3} dias/semana)
-      
-      PREFERÊNCIAS NUTRICIONAIS:
-      - Tipo de Dieta: ${nutritionalAnamnesis.dietType}
-      - Alergias: ${nutritionalAnamnesis.allergies || 'Nenhuma'}
-      - Não gosta de: ${nutritionalAnamnesis.dislikes || 'Nada específico'}
-      - Orçamento: ${nutritionalAnamnesis.budget || 'Padrão'}
-      - Tempo para cozinhar: ${nutritionalAnamnesis.cookingTime || 'Padrão'}
-      - Suplementos atuais/desejados: ${nutritionalAnamnesis.supplements?.join(', ') || 'Nenhum'}
-      
-      REQUISITOS ESPECÍFICOS:
-      1. O cardápio deve ser profissional, elegante e variado.
-      2. Use alimentos de fácil acesso no Brasil.
-      3. O aluno prefere ter ${nutritionalAnamnesis.mealCount} refeições por dia. Tente respeitar essa quantidade, mas ajuste se for estritamente necessário para os objetivos.
-      4. VARIABILIDADE SEMANAL: O aluno não quer um cardápio único para todos os dias. Forneça OBRIGATORIAMENTE uma lista de variações para cada dia da semana (Segunda a Domingo) para as refeições principais (Almoço e Jantar) para que ele possa alternar e ter um cardápio diversificado no mês.
-      5. Inclua recomendações de Creatina e Whey Protein se o objetivo for hipertrofia ou manutenção de massa.
-      6. Calcule as calorias e macros de forma precisa.
-      7. Seja criativo nas combinações.
-      
-      Retorne a resposta EXATAMENTE no formato JSON solicitado.
-    `;
+  const weight = Number(anamnesis.weight) || 70;
+  const height = Number(anamnesis.height) || 170;
+  const age = Number(anamnesis.age) || 30;
+  const gender = anamnesis.gender || 'Masculino';
+  const goal = (anamnesis.goal || 'Saúde').toLowerCase();
+  const activityLevel = Number(anamnesis.daysPerWeek) || 3;
+  const userLevel = (anamnesis.experience || 'Iniciante').toLowerCase();
 
-    const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
-      contents: prompt,
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            goal: { type: Type.STRING },
-            calories: { type: Type.NUMBER },
-            macros: {
-              type: Type.OBJECT,
-              properties: {
-                protein: { type: Type.NUMBER },
-                carbs: { type: Type.NUMBER },
-                fats: { type: Type.NUMBER }
-              },
-              required: ["protein", "carbs", "fats"]
-            },
-            meals: {
-              type: Type.ARRAY,
-              items: {
-                type: Type.OBJECT,
-                properties: {
-                  name: { type: Type.STRING },
-                  time: { type: Type.STRING },
-                  foods: {
-                    type: Type.ARRAY,
-                    items: {
-                      type: Type.OBJECT,
-                      properties: {
-                        item: { type: Type.STRING },
-                        quantity: { type: Type.STRING },
-                        calories: { type: Type.NUMBER },
-                        protein: { type: Type.NUMBER },
-                        carbs: { type: Type.NUMBER },
-                        fats: { type: Type.NUMBER }
-                      },
-                      required: ["item", "quantity", "calories", "protein", "carbs", "fats"]
-                    }
-                  },
-                  weeklyVariations: {
-                    type: Type.ARRAY,
-                    description: "Lista de variações para os dias da semana (Segunda a Domingo)",
-                    items: {
-                      type: Type.OBJECT,
-                      properties: {
-                        day: { type: Type.STRING, description: "Ex: Segunda-feira" },
-                        foods: {
-                          type: Type.ARRAY,
-                          items: {
-                            type: Type.OBJECT,
-                            properties: {
-                              item: { type: Type.STRING },
-                              quantity: { type: Type.STRING },
-                              calories: { type: Type.NUMBER },
-                              protein: { type: Type.NUMBER },
-                              carbs: { type: Type.NUMBER },
-                              fats: { type: Type.NUMBER }
-                            },
-                            required: ["item", "quantity", "calories", "protein", "carbs", "fats"]
-                          }
-                        }
-                      },
-                      required: ["day", "foods"]
-                    }
-                  }
-                },
-                required: ["name", "time", "foods"]
-              }
-            },
-            supplementation: { type: Type.STRING },
-            recommendations: { type: Type.STRING }
-          },
-          required: ["goal", "calories", "macros", "meals", "supplementation", "recommendations"]
-        }
-      }
-    });
-
-    if (!response.text) {
-      throw new Error("Resposta vazia da IA.");
-    }
-
-    const result = JSON.parse(response.text);
-    
-    if (!result || typeof result !== 'object') {
-      throw new Error("Formato de resposta inválido.");
-    }
-
-    return {
-      ...result,
-      createdAt: new Date().toISOString()
-    };
-  } catch (error) {
-    console.error("Erro detalhado na geração do plano:", error);
-    throw error;
+  // 1. Calcular TMB (Mifflin-St Jeor)
+  let bmr = (10 * weight) + (6.25 * height) - (5 * age);
+  if (gender === 'Masculino') {
+    bmr += 5;
+  } else {
+    bmr -= 161;
   }
+
+  // 2. Calcular Gasto Energético Total (GET)
+  let factor = 1.2; // Sedentário
+  if (activityLevel >= 5) factor = 1.725; // Muito ativo
+  else if (activityLevel >= 3) factor = 1.55; // Moderadamente ativo
+  else if (activityLevel >= 1) factor = 1.375; // Levemente ativo
+  
+  let tdee = bmr * factor;
+
+  // 3. Ajustar Calorias conforme Objetivo e Nível
+  let targetCalories = tdee;
+  let calorieAdjustment = 0;
+
+  if (goal.includes('emagrecimento') || goal.includes('perder') || goal.includes('definição')) {
+    calorieAdjustment = userLevel === 'avançado' ? -700 : -500;
+  } else if (goal.includes('hipertrofia') || goal.includes('ganhar') || goal.includes('massa')) {
+    calorieAdjustment = userLevel === 'avançado' ? 500 : 300;
+  }
+  
+  targetCalories += calorieAdjustment;
+
+  // 4. Calcular Macros (g/kg) baseados no Nível e Objetivo
+  let protGPerKg = 2.0;
+  let fatGPerKg = 0.8;
+  
+  if (goal.includes('emagrecimento')) {
+    protGPerKg = userLevel === 'avançado' ? 2.5 : 2.2; 
+    fatGPerKg = 0.7;
+  } else if (goal.includes('hipertrofia')) {
+    protGPerKg = userLevel === 'avançado' ? 2.2 : 2.0;
+    fatGPerKg = 1.0;
+  }
+
+  const proteinTotal = weight * protGPerKg;
+  const fatsTotal = weight * fatGPerKg;
+  const proteinCal = proteinTotal * 4;
+  const fatsCal = fatsTotal * 9;
+  const carbsCal = Math.max(targetCalories - proteinCal - fatsCal, 500); // Mínimo de carbos para energia
+  const carbsTotal = carbsCal / 4;
+
+  // 5. Distribuir em Refeições
+  const mealCount = nutritionalAnamnesis.mealCount || 4;
+  const meals: Meal[] = [];
+  
+  const mealNames = [
+    { name: 'Café da Manhã', time: '08:00', type: 'breakfast' },
+    { name: 'Almoço', time: '12:30', type: 'main' },
+    { name: 'Lanche da Tarde', time: '16:00', type: 'snack' },
+    { name: 'Jantar', time: '20:00', type: 'main' },
+    { name: 'Ceia', time: '22:30', type: 'snack' },
+    { name: 'Pré-Treino', time: '1 hora antes', type: 'pre-workout' }
+  ];
+
+  const isVegetarian = nutritionalAnamnesis.dietType?.toLowerCase().includes('vegetariana');
+  const dislikes = nutritionalAnamnesis.dislikes?.toLowerCase() || '';
+
+  const getFoodOptions = (category: string) => {
+    let options = FOOD_DB.filter(f => f.category === category);
+    if (isVegetarian && category === 'proteina') {
+      options = options.filter(f => ['ovo_cozido', 'ovo_mexido', 'tofu', 'tempeh', 'queijo_cottage', 'queijo_minas', 'iogurte_natural', 'iogurte_grego_zero', 'whey_protein', 'albumina'].includes(f.id));
+    } else if (isVegetarian && category === 'carboidrato') {
+      // Priorizar grãos para vegetarianos (mais proteína)
+      options = options.sort((a, b) => b.protein - a.protein);
+    }
+    
+    options = options.filter(f => !dislikes.includes(f.name.toLowerCase()));
+    return options.length > 0 ? options : [FOOD_DB[0]];
+  };
+
+  const getRandom = (options: FoodItem[]) => options[Math.floor(Math.random() * options.length)];
+
+  for (let i = 0; i < mealCount; i++) {
+    const mealInfo = mealNames[i] || { name: `Refeição ${i + 1}`, time: '--:--', type: 'snack' };
+    
+    // Distribuição de macros por refeição (ex: almoço/jantar são maiores)
+    let mealFactor = 1 / mealCount;
+    if (mealInfo.type === 'main') mealFactor = 1.3 / mealCount;
+    if (mealInfo.type === 'snack') mealFactor = 0.7 / mealCount;
+
+    const mealProt = proteinTotal * mealFactor;
+    const mealCarb = carbsTotal * mealFactor;
+    const mealFat = fatsTotal * mealFactor;
+
+    const foods: Food[] = [];
+    
+    if (mealInfo.type === 'main') {
+      const p = getRandom(getFoodOptions('proteina'));
+      const c = getRandom(getFoodOptions('carboidrato'));
+      const v = getRandom(getFoodOptions('vegetal'));
+
+      foods.push({
+        item: p.name,
+        quantity: `${Math.round((mealProt / p.protein) * 100)}g`,
+        calories: Math.round((mealProt / p.protein) * p.calories),
+        protein: Math.round(mealProt),
+        carbs: Math.round((mealProt / p.protein) * p.carbs),
+        fats: Math.round((mealProt / p.protein) * p.fats)
+      });
+
+      foods.push({
+        item: c.name,
+        quantity: `${Math.round((mealCarb / c.carbs) * 100)}g`,
+        calories: Math.round((mealCarb / c.carbs) * c.calories),
+        protein: Math.round((mealCarb / c.carbs) * c.protein),
+        carbs: Math.round(mealCarb),
+        fats: Math.round((mealCarb / c.carbs) * c.fats)
+      });
+
+      foods.push({
+        item: v.name,
+        quantity: 'À vontade (mínimo 100g)',
+        calories: v.calories,
+        protein: v.protein,
+        carbs: v.carbs,
+        fats: v.fats
+      });
+    } else if (mealInfo.type === 'breakfast' || mealInfo.type === 'snack') {
+      const p = getRandom(getFoodOptions('proteina'));
+      const f = getRandom(getFoodOptions('fruta'));
+      const g = getRandom(getFoodOptions('gordura'));
+      
+      foods.push({
+        item: p.name,
+        quantity: `${Math.round((mealProt / p.protein) * 100)}g`,
+        calories: Math.round((mealProt / p.protein) * p.calories),
+        protein: Math.round(mealProt),
+        carbs: Math.round((mealProt / p.protein) * p.carbs),
+        fats: Math.round((mealProt / p.protein) * p.fats)
+      });
+
+      foods.push({
+        item: f.name,
+        quantity: `${Math.round((mealCarb / f.carbs) * 100)}g`,
+        calories: Math.round((mealCarb / f.carbs) * f.calories),
+        protein: Math.round((mealCarb / f.carbs) * f.protein),
+        carbs: Math.round(mealCarb),
+        fats: Math.round((mealCarb / f.carbs) * f.fats)
+      });
+
+      if (mealFat > 5) {
+        foods.push({
+          item: g.name,
+          quantity: `${Math.round((mealFat / g.fats) * 100)}g`,
+          calories: Math.round((mealFat / g.fats) * g.calories),
+          protein: Math.round((mealFat / g.fats) * g.protein),
+          carbs: Math.round((mealFat / g.fats) * g.carbs),
+          fats: Math.round(mealFat)
+        });
+      }
+    } else if (mealInfo.type === 'pre-workout') {
+      const c = getRandom(getFoodOptions('carboidrato'));
+      const p = getRandom(getFoodOptions('proteina'));
+
+      foods.push({
+        item: c.name,
+        quantity: `${Math.round((mealCarb / c.carbs) * 100)}g`,
+        calories: Math.round((mealCarb / c.carbs) * c.calories),
+        protein: Math.round((mealCarb / c.carbs) * c.protein),
+        carbs: Math.round(mealCarb),
+        fats: Math.round((mealCarb / c.carbs) * c.fats)
+      });
+
+      foods.push({
+        item: p.name,
+        quantity: `${Math.round((mealProt / p.protein) * 100)}g`,
+        calories: Math.round((mealProt / p.protein) * p.calories),
+        protein: Math.round(mealProt),
+        carbs: Math.round((mealProt / p.protein) * p.carbs),
+        fats: Math.round((mealProt / p.protein) * p.fats)
+      });
+    }
+
+    // Gerar variações semanais reais baseadas no banco
+    const weeklyVariations = [
+      { day: 'Segunda/Terça', foods: [...foods] },
+      { 
+        day: 'Quarta/Quinta', 
+        foods: foods.map(f => {
+          const cat = FOOD_DB.find(db => db.name === f.item)?.category || 'proteina';
+          const alt = getRandom(getFoodOptions(cat));
+          return {
+            ...f,
+            item: alt.name,
+            quantity: f.quantity.includes('g') ? `${Math.round((f.calories / alt.calories) * 100)}g` : f.quantity
+          };
+        })
+      },
+      { 
+        day: 'Sexta/Sábado', 
+        foods: foods.map(f => {
+          const cat = FOOD_DB.find(db => db.name === f.item)?.category || 'proteina';
+          const alt = getRandom(getFoodOptions(cat));
+          return {
+            ...f,
+            item: alt.name,
+            quantity: f.quantity.includes('g') ? `${Math.round((f.calories / alt.calories) * 100)}g` : f.quantity
+          };
+        })
+      }
+    ];
+
+    meals.push({
+      name: mealInfo.name,
+      time: mealInfo.time,
+      foods,
+      weeklyVariations
+    });
+  }
+
+  // 6. Suplementação Estratégica
+  let suppList = ["Multivitamínico: 1 cápsula ao acordar."];
+  
+  if (goal.includes('hipertrofia') || goal.includes('massa')) {
+    suppList.push("Creatina Monohidratada: 5g todos os dias (inclusive dias sem treino).");
+    suppList.push("Whey Protein: 30g-40g para completar a meta de proteína diária.");
+    if (userLevel === 'avançado') suppList.push("Beta-Alanina: 5g fracionadas ao longo do dia.");
+  } else if (goal.includes('emagrecimento') || goal.includes('definição')) {
+    suppList.push("Cafeína: 200mg-400mg antes do treino (se não tiver sensibilidade).");
+    suppList.push("Ômega 3: 2g-3g por dia com as principais refeições.");
+    suppList.push("Whey Protein: Útil para manter saciedade e massa magra.");
+  }
+
+  if (userLevel === 'avançado') {
+    suppList.push("Glutamina: 5g-10g antes de dormir para recuperação imunológica.");
+  }
+
+  const supplementation = suppList.join('\n');
+
+  const recommendations = `
+    - Hidratação: Beba pelo menos ${Math.round(weight * 40 / 1000)} litros de água por dia.
+    - Consistência: Tente seguir os horários das refeições em pelo menos 80% do tempo.
+    - Qualidade: Priorize alimentos "de verdade" (descasque mais, embale menos).
+    - Sal: Use com moderação, prefira temperos naturais (alho, cebola, ervas).
+    - Sono: Durma de 7 a 9 horas por noite. A regeneração ocorre no descanso.
+    - Nível ${userLevel.toUpperCase()}: Foco total na precisão das pesagens dos alimentos.
+  `.trim();
+
+  return {
+    goal: anamnesis.goal || 'Saúde e Performance',
+    calories: Math.round(targetCalories),
+    macros: {
+      protein: Math.round(proteinTotal),
+      carbs: Math.round(carbsTotal),
+      fats: Math.round(fatsTotal)
+    },
+    meals,
+    supplementation,
+    recommendations,
+    createdAt: new Date().toISOString()
+  };
 }

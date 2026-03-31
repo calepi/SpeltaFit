@@ -157,7 +157,7 @@ export function NutritionalAnamnesisForm({ onSubmit, isLoading, userGoal }: Nutr
                     ))}
                   </div>
                   <p className="text-xs text-text-muted text-center italic">
-                    O nutricionista IA ajustará as porções para bater suas metas.
+                    Nosso sistema ajustará as porções para bater suas metas.
                   </p>
                 </div>
               </motion.div>

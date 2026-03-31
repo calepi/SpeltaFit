@@ -1,5 +1,5 @@
 {
   "name": "SpeltaFit - Virtual Personal Trainer",
-  "description": "A virtual personal trainer that generates customized workout plans based on a professional anamnesis, including progressive overload and cardio integration.",
+  "description": "A virtual personal trainer that generates customized workout and nutritional plans based on a professional anamnesis, including progressive overload and cardio integration.",
   "requestFramePermissions": []
 }
