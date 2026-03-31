@@ -167,8 +167,11 @@ export const WorkoutSheetExport = forwardRef<HTMLDivElement, Props>(({ plan, use
                 </thead>
                 <tbody>
                   {day.exercises.map((ex, i) => {
-                    const loadKey = `w${selectedWeek}-d${idx}-${ex.id}`;
-                    const actualLoad = actualLoads[loadKey] || '';
+                    const setLoads = Array.from({ length: Number(ex.sets) || 0 }).map((_, setIdx) => {
+                      const setLoadKey = `w${selectedWeek}-d${idx}-${ex.id}-${setIdx}`;
+                      return actualLoads[setLoadKey] || '-';
+                    });
+                    const actualLoadDisplay = setLoads.every(l => l === '-') ? '' : setLoads.join(' / ');
                     return (
                     <tr key={i} className="border-b border-gray-300 break-inside-avoid" style={{ pageBreakInside: 'avoid' }}>
                       <td className="border border-gray-300 px-3 py-2 text-center font-bold">{i + 1}</td>
@@ -179,7 +182,7 @@ export const WorkoutSheetExport = forwardRef<HTMLDivElement, Props>(({ plan, use
                       <td className="border border-gray-300 px-3 py-2 text-center font-bold whitespace-nowrap">{ex.sets} x {ex.reps}</td>
                       <td className="border border-gray-300 px-3 py-2 text-center">{ex.rest}</td>
                       <td className="border border-gray-300 px-3 py-2 text-center">{ex.suggestedLoad}</td>
-                      <td className="border border-gray-300 px-3 py-2 text-center font-bold text-brand">{actualLoad}</td>
+                      <td className="border border-gray-300 px-3 py-2 text-center font-bold text-brand">{actualLoadDisplay}</td>
                       <td className="border border-gray-300 px-3 py-2 text-xs leading-tight">
                         {ex.rir && <div className="font-bold uppercase mb-0.5 text-gray-600">RIR: {ex.rir}</div>}
                         {ex.setup && <div className="mt-0.5 text-gray-800"><span className="font-bold">Progressão:</span> {formatProgressionText(ex.setup, selectedWeek, plan, user, ex.name, ex.group)}</div>}

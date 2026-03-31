@@ -846,136 +846,164 @@ export function WorkoutTracker({ plan, user, onUpdatePlan, readOnly = false, stu
                                   <h4 className="text-xs font-black text-text-muted uppercase tracking-widest">Séries de Trabalho</h4>
                                 </div>
                                 
-                                <div className="flex flex-wrap gap-3 mb-5">
+                                <div className="space-y-3">
                                   {Array.from({ length: Number(ex.sets) || 0 }).map((_, setIdx) => {
                                     const isCompleted = completedSets && completedSets[getSetKey(ex.id, setIdx)];
                                     return (
-                                      <button
-                                        key={setIdx}
-                                        onClick={() => toggleSet(ex.id, setIdx)}
-                                        disabled={isCheckedIn}
-                                        className={`w-12 h-12 rounded-2xl flex items-center justify-center font-black text-lg transition-all shadow-sm ${
-                                          isCompleted 
-                                            ? 'bg-brand text-white shadow-brand/30 scale-105' 
-                                            : 'bg-surface border-2 border-border/50 text-text-muted hover:border-brand/50'
-                                        } ${isCheckedIn ? 'cursor-default' : ''}`}
-                                      >
-                                        {setIdx + 1}
-                                      </button>
+                                      <div key={setIdx} className="flex items-center gap-3 bg-surface p-3 rounded-2xl border border-border/50">
+                                        <button
+                                          onClick={() => toggleSet(ex.id, setIdx)}
+                                          disabled={isCheckedIn}
+                                          className={`w-12 h-12 rounded-2xl flex items-center justify-center font-black text-lg transition-all shadow-sm shrink-0 ${
+                                            isCompleted 
+                                              ? 'bg-brand text-white shadow-brand/30 scale-105' 
+                                              : 'bg-bg-main border-2 border-border/50 text-text-muted hover:border-brand/50'
+                                          } ${isCheckedIn ? 'cursor-default' : ''}`}
+                                        >
+                                          {isCompleted ? <CheckCircle2 className="w-6 h-6" /> : setIdx + 1}
+                                        </button>
+                                        
+                                        <div className="flex-1 flex items-center justify-between">
+                                          <span className="text-xs font-black text-text-main uppercase tracking-widest">Série {setIdx + 1}</span>
+                                          <div className="flex items-center gap-2">
+                                            <span className="text-[10px] font-bold text-text-muted uppercase tracking-widest">Carga (kg)</span>
+                                            <input 
+                                              type="text" 
+                                              placeholder="0.0"
+                                              value={(actualLoads && actualLoads[getSetLoadKey(ex.id, setIdx)]) || ''}
+                                              onChange={(e) => updateSetLoad(ex.id, setIdx, e.target.value)}
+                                              disabled={isCheckedIn}
+                                              className="w-20 bg-bg-main border-2 border-border/50 rounded-xl px-2 py-2 text-center font-black text-base text-text-main focus:outline-none focus:border-brand placeholder:text-text-muted/30 disabled:opacity-50"
+                                            />
+                                          </div>
+                                        </div>
+                                      </div>
                                     );
                                   })}
-                                </div>
-
-                                <div className="flex items-center gap-3 bg-surface p-3 rounded-2xl border border-border/50">
-                                  <div className="bg-brand/10 p-2 rounded-xl">
-                                    <Dumbbell className="w-4 h-4 text-brand" />
-                                  </div>
-                                  <span className="text-xs font-black text-text-main uppercase tracking-widest flex-1">Carga Utilizada (kg)</span>
-                                  <input 
-                                    type="text" 
-                                    placeholder="0.0"
-                                    value={(actualLoads && actualLoads[getLoadKey(ex.id)]) || ''}
-                                    onChange={(e) => updateLoad(ex.id, e.target.value)}
-                                    disabled={isCheckedIn}
-                                    className="w-24 bg-bg-main border-2 border-border/50 rounded-xl px-3 py-2 text-center font-black text-lg text-text-main focus:outline-none focus:border-brand placeholder:text-text-muted/30 disabled:opacity-50"
-                                  />
                                 </div>
                               </div>
                             )}
 
-                            {/* Exercise Feedback (Always Visible) */}
+                            {/* Exercise Feedback (Collapsible) */}
                             {!isEditing && (
-                              <div className="bg-amber-500/5 p-6 rounded-[2rem] border-2 border-amber-500/10">
-                                <div className="flex items-center justify-between mb-6">
+                              <div className="bg-amber-500/5 rounded-[2rem] border-2 border-amber-500/10 overflow-hidden">
+                                <button 
+                                  onClick={() => toggleFeedback(ex.id)}
+                                  className="w-full flex items-center justify-between p-6 hover:bg-amber-500/10 transition-colors"
+                                >
                                   <div className="flex items-center gap-3">
                                     <div className="bg-amber-500 p-2 rounded-xl shadow-lg shadow-amber-500/20">
                                       <MessageSquare className="w-5 h-5 text-white" />
                                     </div>
-                                    <h4 className="text-sm font-black text-amber-900 uppercase tracking-widest">Avaliação</h4>
+                                    <h4 className="text-sm font-black text-amber-900 uppercase tracking-widest">Avaliação do Exercício</h4>
                                   </div>
-                                  <div className="bg-amber-500 text-white px-4 py-1.5 rounded-full text-xs font-black shadow-lg shadow-amber-500/20">
-                                    {(exerciseFeedback && exerciseFeedback[getLoadKey(ex.id)]?.pse) || 5} / 10 PSE
+                                  <div className="flex items-center gap-3">
+                                    {exerciseFeedback && exerciseFeedback[getLoadKey(ex.id)]?.pse && (
+                                      <div className="bg-amber-500 text-white px-3 py-1 rounded-full text-[10px] font-black shadow-lg shadow-amber-500/20">
+                                        {exerciseFeedback[getLoadKey(ex.id)]?.pse} / 10 PSE
+                                      </div>
+                                    )}
+                                    {expandedFeedback[ex.id] ? (
+                                      <ChevronUp className="w-5 h-5 text-amber-900/50" />
+                                    ) : (
+                                      <ChevronDown className="w-5 h-5 text-amber-900/50" />
+                                    )}
                                   </div>
-                                </div>
+                                </button>
                                 
-                                <div className="space-y-8">
-                                  {/* PSE Slider */}
-                                  <div className="px-2">
-                                    <input 
-                                      type="range" 
-                                      min="1" max="10" 
-                                      value={exerciseFeedback[getLoadKey(ex.id)]?.pse || 5}
-                                      onChange={(e) => updateExerciseFeedback(ex.id, 'pse', parseInt(e.target.value))}
-                                      disabled={isCheckedIn}
-                                      className="w-full h-3 bg-amber-200 rounded-full appearance-none cursor-pointer accent-amber-600 shadow-inner"
-                                    />
-                                    <div className="flex justify-between text-[10px] text-amber-700/60 mt-3 font-black uppercase tracking-tighter">
-                                      <span>Leve</span>
-                                      <span>Moderado</span>
-                                      <span>Falha</span>
-                                    </div>
-                                  </div>
-
-                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                    {/* Qualidade */}
-                                    <div className="space-y-3">
-                                      <p className="text-[10px] font-black text-amber-900 uppercase tracking-widest ml-1">Qualidade da Execução</p>
-                                      <div className="flex gap-2">
-                                        {['Excelente', 'Boa', 'Ruim'].map((opt) => (
-                                          <button
-                                            key={opt}
-                                            onClick={() => updateExerciseFeedback(ex.id, 'execution', opt)}
+                                <AnimatePresence>
+                                  {expandedFeedback[ex.id] && (
+                                    <motion.div 
+                                      initial={{ height: 0, opacity: 0 }}
+                                      animate={{ height: 'auto', opacity: 1 }}
+                                      exit={{ height: 0, opacity: 0 }}
+                                      className="px-6 pb-6"
+                                    >
+                                      <div className="space-y-8 pt-4 border-t border-amber-500/10">
+                                        {/* PSE Slider */}
+                                        <div className="px-2">
+                                          <div className="flex justify-between items-center mb-3">
+                                            <p className="text-[10px] font-black text-amber-900 uppercase tracking-widest ml-1">Percepção de Esforço (PSE)</p>
+                                            <span className="text-xs font-black text-amber-600">{exerciseFeedback[getLoadKey(ex.id)]?.pse || 5} / 10</span>
+                                          </div>
+                                          <input 
+                                            type="range" 
+                                            min="1" max="10" 
+                                            value={exerciseFeedback[getLoadKey(ex.id)]?.pse || 5}
+                                            onChange={(e) => updateExerciseFeedback(ex.id, 'pse', parseInt(e.target.value))}
                                             disabled={isCheckedIn}
-                                            className={`flex-1 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border-2 ${
-                                              exerciseFeedback[getLoadKey(ex.id)]?.execution === opt
-                                                ? 'bg-amber-500 border-amber-500 text-white shadow-lg shadow-amber-500/20'
-                                                : 'bg-white border-amber-500/10 text-amber-900/40 hover:border-amber-500/30'
-                                            }`}
-                                          >
-                                            {opt}
-                                          </button>
-                                        ))}
-                                      </div>
-                                    </div>
+                                            className="w-full h-3 bg-amber-200 rounded-full appearance-none cursor-pointer accent-amber-600 shadow-inner"
+                                          />
+                                          <div className="flex justify-between text-[10px] text-amber-700/60 mt-3 font-black uppercase tracking-tighter">
+                                            <span>Leve</span>
+                                            <span>Moderado</span>
+                                            <span>Falha</span>
+                                          </div>
+                                        </div>
 
-                                    {/* Dor */}
-                                    <div className="space-y-3">
-                                      <p className="text-[10px] font-black text-amber-900 uppercase tracking-widest ml-1">Dor Articular?</p>
-                                      <div className="flex gap-2">
-                                        {[
-                                          { label: 'Sim', value: true },
-                                          { label: 'Não', value: false }
-                                        ].map((opt) => (
-                                          <button
-                                            key={opt.label}
-                                            onClick={() => updateExerciseFeedback(ex.id, 'pain', opt.value)}
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                          {/* Qualidade */}
+                                          <div className="space-y-3">
+                                            <p className="text-[10px] font-black text-amber-900 uppercase tracking-widest ml-1">Qualidade da Execução</p>
+                                            <div className="flex gap-2">
+                                              {['Excelente', 'Boa', 'Ruim'].map((opt) => (
+                                                <button
+                                                  key={opt}
+                                                  onClick={() => updateExerciseFeedback(ex.id, 'execution', opt)}
+                                                  disabled={isCheckedIn}
+                                                  className={`flex-1 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border-2 ${
+                                                    exerciseFeedback[getLoadKey(ex.id)]?.execution === opt
+                                                      ? 'bg-amber-500 border-amber-500 text-white shadow-lg shadow-amber-500/20'
+                                                      : 'bg-white border-amber-500/10 text-amber-900/40 hover:border-amber-500/30'
+                                                  }`}
+                                                >
+                                                  {opt}
+                                                </button>
+                                              ))}
+                                            </div>
+                                          </div>
+
+                                          {/* Dor */}
+                                          <div className="space-y-3">
+                                            <p className="text-[10px] font-black text-amber-900 uppercase tracking-widest ml-1">Dor Articular?</p>
+                                            <div className="flex gap-2">
+                                              {[
+                                                { label: 'Sim', value: true },
+                                                { label: 'Não', value: false }
+                                              ].map((opt) => (
+                                                <button
+                                                  key={opt.label}
+                                                  onClick={() => updateExerciseFeedback(ex.id, 'pain', opt.value)}
+                                                  disabled={isCheckedIn}
+                                                  className={`flex-1 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border-2 ${
+                                                    (exerciseFeedback[getLoadKey(ex.id)]?.pain === opt.value)
+                                                      ? 'bg-amber-500 border-amber-500 text-white shadow-lg shadow-amber-500/20'
+                                                      : 'bg-white border-amber-500/10 text-amber-900/40 hover:border-amber-500/30'
+                                                  }`}
+                                                >
+                                                  {opt.label}
+                                                </button>
+                                              ))}
+                                            </div>
+                                          </div>
+                                        </div>
+
+                                        {/* Notas */}
+                                        <div className="space-y-3">
+                                          <p className="text-[10px] font-black text-amber-900 uppercase tracking-widest ml-1">Observações do Exercício</p>
+                                          <textarea 
+                                            placeholder="Ex: Senti um leve desconforto na última repetição..."
+                                            value={exerciseFeedback[getLoadKey(ex.id)]?.notes || ''}
+                                            onChange={(e) => updateExerciseFeedback(ex.id, 'notes', e.target.value)}
                                             disabled={isCheckedIn}
-                                            className={`flex-1 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border-2 ${
-                                              (exerciseFeedback[getLoadKey(ex.id)]?.pain === opt.value)
-                                                ? 'bg-amber-500 border-amber-500 text-white shadow-lg shadow-amber-500/20'
-                                                : 'bg-white border-amber-500/10 text-amber-900/40 hover:border-amber-500/30'
-                                            }`}
-                                          >
-                                            {opt.label}
-                                          </button>
-                                        ))}
+                                            className="w-full bg-white border-2 border-amber-500/10 rounded-2xl px-4 py-3 text-xs text-amber-900 placeholder:text-amber-900/20 focus:outline-none focus:border-amber-500 transition-all resize-none"
+                                            rows={2}
+                                          />
+                                        </div>
                                       </div>
-                                    </div>
-                                  </div>
-
-                                  {/* Notas */}
-                                  <div className="space-y-3">
-                                    <p className="text-[10px] font-black text-amber-900 uppercase tracking-widest ml-1">Observações do Exercício</p>
-                                    <textarea 
-                                      placeholder="Ex: Senti um leve desconforto na última repetição..."
-                                      value={exerciseFeedback[getLoadKey(ex.id)]?.notes || ''}
-                                      onChange={(e) => updateExerciseFeedback(ex.id, 'notes', e.target.value)}
-                                      disabled={isCheckedIn}
-                                      className="w-full bg-white border-2 border-amber-500/10 rounded-2xl px-4 py-3 text-xs text-amber-900 placeholder:text-amber-900/20 focus:outline-none focus:border-amber-500 transition-all resize-none"
-                                      rows={2}
-                                    />
-                                  </div>
-                                </div>
+                                    </motion.div>
+                                  )}
+                                </AnimatePresence>
                               </div>
                             )}
                           </div>
