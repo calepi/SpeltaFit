@@ -482,7 +482,7 @@ export function AnamnesisForm({ onSubmit, isLoading }: Props) {
             <FileText className="w-6 h-6" /> 5. Treino Atual (Opcional)
           </h3>
           <p className="text-sm text-text-muted">
-            Já tem um treino da academia ou de outro profissional? Cole aqui para importar ou pedir para a IA melhorar.
+            Já tem um treino da academia ou de outro profissional? Cole aqui para importar ou pedir para o sistema melhorar.
           </p>
           
           <div>
@@ -513,7 +513,7 @@ export function AnamnesisForm({ onSubmit, isLoading }: Props) {
                   Analisar e Melhorar este treino
                 </label>
                 <p className="text-xs text-text-muted mt-1">
-                  Se marcado, a IA vai avaliar seu treino atual e fazer melhorias para você atingir sua meta mais rápido, sem regredir. Se desmarcado, a IA apenas importará o treino exatamente como está para o aplicativo.
+                  Se marcado, nosso sistema vai avaliar seu treino atual e fazer melhorias para você atingir sua meta mais rápido, sem regredir. Se desmarcado, o sistema apenas importará o treino exatamente como está para o aplicativo.
                 </p>
               </div>
             </div>

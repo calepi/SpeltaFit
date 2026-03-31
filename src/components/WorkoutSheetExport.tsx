@@ -114,7 +114,7 @@ export const WorkoutSheetExport = forwardRef<HTMLDivElement, Props>(({ plan, use
 
         {/* Footer */}
         <div className="mt-auto pt-4 border-t-2 border-black text-center text-xs font-bold text-gray-500 uppercase">
-          Gerado por SpeltaFit IA • {new Date().toLocaleDateString('pt-BR')}
+          Gerado por SpeltaFit • {new Date().toLocaleDateString('pt-BR')}
         </div>
       </div>
 

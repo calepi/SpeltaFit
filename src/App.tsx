@@ -7,14 +7,16 @@ import { ExerciseLibrary } from './components/ExerciseLibrary';
 import { AnamnesisData, WorkoutPlan } from './services/workoutGenerator';
 import { generateWorkoutPlanRuleBased } from './services/workoutGenerator';
 import { Logo } from './components/Logo';
-import { Dumbbell, Palette, LogIn, LogOut, User as UserIcon, Shield, BookOpen, Apple } from 'lucide-react';
+import { Dumbbell, Palette, LogIn, LogOut, User as UserIcon, Shield, BookOpen, Apple, Users } from 'lucide-react';
 import { auth, db, googleProvider } from './firebase';
 import { signInWithPopup, signOut, onAuthStateChanged, User } from 'firebase/auth';
 import { doc, getDoc, setDoc, deleteDoc } from 'firebase/firestore';
 
 import { NutritionalTool } from './components/NutritionalTool';
 
-type AppState = 'landing' | 'form' | 'plan' | 'admin' | 'library' | 'nutrition';
+import { SpeltaGramFeed } from './components/SpeltaGram';
+
+type AppState = 'landing' | 'form' | 'plan' | 'admin' | 'library' | 'nutrition' | 'speltagram';
 type Theme = 'default' | 'green' | 'blue' | 'gold';
 
 export default function App() {
@@ -249,13 +251,22 @@ export default function App() {
 
             <div className="flex items-center gap-2">
             {user && (
-              <button 
-                onClick={() => setAppState(appState === 'nutrition' ? 'plan' : 'nutrition')}
-                className={`p-2 rounded-xl transition-colors ${appState === 'nutrition' ? 'bg-brand text-text-inverse' : 'bg-brand/10 text-brand hover:bg-brand/20'}`}
-                title="Ferramenta Nutricional"
-              >
-                <Apple className="w-5 h-5" />
-              </button>
+              <>
+                <button 
+                  onClick={() => setAppState(appState === 'speltagram' ? 'plan' : 'speltagram')}
+                  className={`p-2 rounded-xl transition-colors ${appState === 'speltagram' ? 'bg-brand text-text-inverse' : 'bg-brand/10 text-brand hover:bg-brand/20'}`}
+                  title="SpeltaGram"
+                >
+                  <Users className="w-5 h-5" />
+                </button>
+                <button 
+                  onClick={() => setAppState(appState === 'nutrition' ? 'plan' : 'nutrition')}
+                  className={`p-2 rounded-xl transition-colors ${appState === 'nutrition' ? 'bg-brand text-text-inverse' : 'bg-brand/10 text-brand hover:bg-brand/20'}`}
+                  title="Ferramenta Nutricional"
+                >
+                  <Apple className="w-5 h-5" />
+                </button>
+              </>
             )}
             {user ? (
               <div className="flex items-center gap-3 mr-2">
@@ -375,6 +386,13 @@ export default function App() {
           <NutritionalTool 
             physicalAnamnesis={userData} 
             onBack={() => setAppState('plan')} 
+          />
+        )}
+
+        {appState === 'speltagram' && user && (
+          <SpeltaGramFeed 
+            user={user} 
+            isAdmin={user.email === 'calepi@gmail.com'} 
           />
         )}
       </main>

@@ -214,6 +214,30 @@ service cloud.firestore {
              (!('digestion' in data) || (data.digestion is string && data.digestion.size() < 100));
     }
 
+    function isValidSpeltaGramPost() {
+      let data = request.resource.data;
+      return hasRequiredFields(['userId', 'userName', 'imageUrl', 'createdAt']) &&
+             data.userId is string && data.userId == request.auth.uid &&
+             data.userName is string && data.userName.size() > 0 && data.userName.size() < 100 &&
+             data.imageUrl is string && data.imageUrl.size() < 2000 &&
+             data.createdAt is string &&
+             (!('userPhoto' in data) || (data.userPhoto is string && data.userPhoto.size() < 2000)) &&
+             (!('caption' in data) || (data.caption is string && data.caption.size() < 2000)) &&
+             (!('tag' in data) || (data.tag is string && data.tag.size() < 100)) &&
+             (!('likes' in data) || (data.likes is list && data.likes.size() < 10000));
+    }
+
+    function isValidSpeltaGramComment() {
+      let data = request.resource.data;
+      return hasRequiredFields(['postId', 'userId', 'userName', 'text', 'createdAt']) &&
+             data.postId is string && data.postId.size() > 0 &&
+             data.userId is string && data.userId == request.auth.uid &&
+             data.userName is string && data.userName.size() > 0 && data.userName.size() < 100 &&
+             data.text is string && data.text.size() > 0 && data.text.size() < 1000 &&
+             data.createdAt is string &&
+             (!('userPhoto' in data) || (data.userPhoto is string && data.userPhoto.size() < 2000));
+    }
+
     // ===============================================================
     // Rules
     // ===============================================================
@@ -264,6 +288,27 @@ service cloud.firestore {
         allow create: if isOwner(userId) && isValidNutritionalProgress();
         allow update: if isOwner(userId) && isValidNutritionalProgress();
         allow delete: if isOwner(userId) || isAdmin();
+      }
+    }
+
+    match /speltagram_posts/{postId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isValidSpeltaGramPost();
+      allow update: if isAuthenticated() && (
+        (resource.data.userId == request.auth.uid && isValidSpeltaGramPost()) ||
+        isAdmin() ||
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes']) && request.resource.data.likes is list && request.resource.data.likes.size() < 10000)
+      );
+      allow delete: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+
+      match /comments/{commentId} {
+        allow read: if isAuthenticated();
+        allow create: if isAuthenticated() && isValidSpeltaGramComment();
+        allow delete: if isAuthenticated() && (
+          resource.data.userId == request.auth.uid || 
+          isAdmin() || 
+          get(/databases/$(database)/documents/speltagram_posts/$(postId)).data.userId == request.auth.uid
+        );
       }
     }
   }

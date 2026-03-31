@@ -109,6 +109,36 @@
         "updatedAt": { "type": "string", "format": "date-time" }
       },
       "required": ["weight", "adherence", "updatedAt"]
+    },
+    "SpeltaGramPost": {
+      "title": "SpeltaGram Post",
+      "description": "A post in the SpeltaGram community feed.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "userPhoto": { "type": "string" },
+        "imageUrl": { "type": "string" },
+        "caption": { "type": "string" },
+        "tag": { "type": "string" },
+        "likes": { "type": "array" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "userName", "imageUrl", "createdAt"]
+    },
+    "SpeltaGramComment": {
+      "title": "SpeltaGram Comment",
+      "description": "A comment on a SpeltaGram post.",
+      "type": "object",
+      "properties": {
+        "postId": { "type": "string" },
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "userPhoto": { "type": "string" },
+        "text": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["postId", "userId", "userName", "text", "createdAt"]
     }
   },
   "firestore": {
@@ -139,6 +169,14 @@
     "/users/{userId}/data/nutritionalProgress": {
       "schema": { "$ref": "#/entities/NutritionalProgress" },
       "description": "User's current nutritional progress."
+    },
+    "/speltagram_posts/{postId}": {
+      "schema": { "$ref": "#/entities/SpeltaGramPost" },
+      "description": "Community posts."
+    },
+    "/speltagram_posts/{postId}/comments/{commentId}": {
+      "schema": { "$ref": "#/entities/SpeltaGramComment" },
+      "description": "Comments on community posts."
     }
   }
 }

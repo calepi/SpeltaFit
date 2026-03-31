@@ -45,7 +45,7 @@ export function LandingPage({ onStart, hasPlan, onContinue }: Props) {
         
         <h1 className="text-5xl md:text-7xl font-black text-text-main mb-6 tracking-tight leading-tight">
           Sua Evolução <br/>
-          <span className="text-brand">Guiada por IA</span>
+          <span className="text-brand">Sistema Inteligente</span>
         </h1>
         
         <p className="text-xl md:text-2xl text-text-muted mb-12 max-w-3xl mx-auto leading-relaxed">
@@ -77,7 +77,7 @@ export function LandingPage({ onStart, hasPlan, onContinue }: Props) {
         </div>
       </motion.section>
 
-      {/* O Papel da IA e Objetivo */}
+      {/* O Papel do Sistema e Objetivo */}
       <section className="w-full max-w-6xl mx-auto px-4">
         <div className="bg-surface border border-border rounded-3xl p-8 md:p-12 shadow-2xl relative overflow-hidden">
           <div className="absolute top-0 right-0 w-64 h-64 bg-brand/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
@@ -86,13 +86,13 @@ export function LandingPage({ onStart, hasPlan, onContinue }: Props) {
             <div>
               <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-brand/10 text-brand font-bold text-sm mb-6">
                 <BrainCircuit className="w-5 h-5" />
-                Inteligência Artificial Gemini
+                Sistema de Treinamento Inteligente
               </div>
               <h2 className="text-3xl md:text-4xl font-black text-text-main mb-6 leading-tight">
                 Treinos que se Adaptam a Você
               </h2>
               <p className="text-lg text-text-muted mb-6 leading-relaxed">
-                Nossa IA não apenas cria o treino inicial, ela entende seu perfil para prescrever a periodização ideal, permitindo que você ajuste e evolua com o tempo.
+                Nosso sistema não apenas cria o treino inicial, ele entende seu perfil para prescrever a periodização ideal, permitindo que você ajuste e evolua com o tempo.
               </p>
               <ul className="space-y-4">
                 {[
@@ -111,7 +111,7 @@ export function LandingPage({ onStart, hasPlan, onContinue }: Props) {
             <div className="bg-bg-main rounded-2xl p-8 border border-border shadow-inner">
               <h3 className="text-2xl font-black text-text-main mb-4">Controle Total</h3>
               <p className="text-text-muted text-lg leading-relaxed mb-6">
-                A IA sugere, mas você no comando. Troque exercícios que não se adaptaram bem, ajuste o número de séries no dia que estiver mais cansado e registre cada kg levantado para ver sua evolução real.
+                O sistema sugere, mas você no comando. Troque exercícios que não se adaptaram bem, ajuste o número de séries no dia que estiver mais cansado e registre cada kg levantado para ver sua evolução real.
               </p>
               <div className="flex items-center gap-4 p-4 bg-surface rounded-xl border border-border">
                 <Edit3 className="w-10 h-10 text-brand" />
@@ -134,7 +134,7 @@ export function LandingPage({ onStart, hasPlan, onContinue }: Props) {
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           {[
-            { icon: ClipboardList, title: '1. Avaliação', desc: 'Conte sobre você, seus objetivos e limitações para a IA.' },
+            { icon: ClipboardList, title: '1. Avaliação', desc: 'Conte sobre você, seus objetivos e limitações para o sistema.' },
             { icon: Sparkles, title: '2. Prescrição', desc: 'Receba um plano completo, periodizado e focado no seu objetivo.' },
             { icon: Activity, title: '3. Execução', desc: 'Vá para a academia, marque as séries feitas e anote as cargas.' },
             { icon: LineChart, title: '4. Progressão', desc: 'Acompanhe seu histórico, faça check-ins diários e evolua.' }
@@ -166,7 +166,7 @@ export function LandingPage({ onStart, hasPlan, onContinue }: Props) {
           className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
         >
           {[
-            { icon: BrainCircuit, title: 'IA Personalizada', desc: 'Treinos gerados via Gemini com seleção inteligente de exercícios, séries e métodos avançados.' },
+            { icon: BrainCircuit, title: 'Sistema Personalizado', desc: 'Treinos gerados com seleção inteligente de exercícios, séries e métodos avançados.' },
             { icon: Edit3, title: 'Edição Livre', desc: 'Não gostou de um exercício? Troque. Quer fazer mais séries? Adicione. Você tem controle total sobre o plano gerado.' },
             { icon: Activity, title: 'Tracker Interativo', desc: 'Marque séries concluídas com um toque e registre a carga exata utilizada em cada exercício.' },
             { icon: History, title: 'Histórico de Cargas', desc: 'O app lembra a carga que você usou no último treino para você focar apenas em progredir.' },

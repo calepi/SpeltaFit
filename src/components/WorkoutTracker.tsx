@@ -440,7 +440,7 @@ export function WorkoutTracker({ plan, user, onUpdatePlan, readOnly = false, stu
             </div>
             <div className="flex-1">
               <div className="flex items-center gap-2 mb-2">
-                <h3 className="text-sm font-black text-brand uppercase tracking-[0.2em]">Análise da IA</h3>
+                <h3 className="text-sm font-black text-brand uppercase tracking-[0.2em]">Análise do Sistema</h3>
                 <div className="h-px flex-1 bg-brand/20"></div>
               </div>
               <p className="text-text-main text-base font-medium leading-relaxed italic">
@@ -1217,7 +1217,7 @@ export function WorkoutTracker({ plan, user, onUpdatePlan, readOnly = false, stu
           <Trophy className="w-10 h-10 text-brand mx-auto mb-2" />
           <h2 className="text-lg font-black text-text-main mb-1">Ciclo Concluído! 🎉</h2>
           <p className="text-text-muted text-xs mb-4 max-w-sm mx-auto">
-            Parabéns por completar todos os dias do seu ciclo! Faça a reavaliação para a IA gerar seu próximo plano.
+            Parabéns por completar todos os dias do seu ciclo! Faça a reavaliação para o sistema gerar seu próximo plano.
           </p>
           <div className="flex items-center justify-center gap-3">
             <button
