@@ -7,7 +7,7 @@ import { ExerciseLibrary } from './components/ExerciseLibrary';
 import { AnamnesisData, WorkoutPlan } from './services/workoutGenerator';
 import { generateWorkoutPlanRuleBased } from './services/workoutGenerator';
 import { Logo } from './components/Logo';
-import { Dumbbell, Palette, LogIn, LogOut, User as UserIcon, Shield, BookOpen, Apple, Users } from 'lucide-react';
+import { LogIn, LogOut, User as UserIcon, Shield, BookOpen, Apple, Users, Palette, TrendingUp } from 'lucide-react';
 import { auth, db, googleProvider } from './firebase';
 import { signInWithPopup, signOut, onAuthStateChanged, User } from 'firebase/auth';
 import { doc, getDoc, setDoc, deleteDoc } from 'firebase/firestore';
@@ -15,8 +15,9 @@ import { doc, getDoc, setDoc, deleteDoc } from 'firebase/firestore';
 import { NutritionalTool } from './components/NutritionalTool';
 
 import { SpeltaGramFeed } from './components/SpeltaGram';
+import { EvolutionCharts } from './components/EvolutionCharts';
 
-type AppState = 'landing' | 'form' | 'plan' | 'admin' | 'library' | 'nutrition' | 'speltagram';
+type AppState = 'landing' | 'form' | 'plan' | 'admin' | 'library' | 'nutrition' | 'speltagram' | 'evolution';
 type Theme = 'default' | 'green' | 'blue' | 'gold';
 
 export default function App() {
@@ -235,7 +236,7 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-bg-main text-text-main font-sans transition-colors duration-300">
+    <div className="min-h-screen flex flex-col bg-bg-main text-text-main font-sans transition-colors duration-300">
       {/* Header */}
       <header className="border-b border-border bg-bg-main/80 backdrop-blur-md sticky top-0 z-50 print:hidden">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
@@ -252,6 +253,13 @@ export default function App() {
             <div className="flex items-center gap-2">
             {user && (
               <>
+                <button 
+                  onClick={() => setAppState(appState === 'evolution' ? 'plan' : 'evolution')}
+                  className={`p-2 rounded-xl transition-colors ${appState === 'evolution' ? 'bg-brand text-text-inverse' : 'bg-brand/10 text-brand hover:bg-brand/20'}`}
+                  title="Evolução"
+                >
+                  <TrendingUp className="w-5 h-5" />
+                </button>
                 <button 
                   onClick={() => setAppState(appState === 'speltagram' ? 'plan' : 'speltagram')}
                   className={`p-2 rounded-xl transition-colors ${appState === 'speltagram' ? 'bg-brand text-text-inverse' : 'bg-brand/10 text-brand hover:bg-brand/20'}`}
@@ -332,7 +340,7 @@ export default function App() {
       </header>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
+      <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12 w-full">
         {error && (
           <div className="max-w-2xl mx-auto mb-8 bg-red-500/10 border border-red-500/20 text-red-500 px-4 py-3 rounded-xl text-center font-medium">
             {error}
@@ -395,7 +403,20 @@ export default function App() {
             isAdmin={user.email === 'calepi@gmail.com'} 
           />
         )}
+
+        {appState === 'evolution' && user && (
+          <EvolutionCharts userId={user.uid} />
+        )}
       </main>
+
+      {/* Footer / Credits */}
+      <footer className="border-t border-border bg-bg-main/50 py-6 mt-auto print:hidden">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <p className="text-sm text-text-muted">
+            Ferramenta desenvolvida por <span className="font-semibold text-brand">Carlos Alexandre Pinheiro</span> e <span className="font-semibold text-brand">Márcio Spelta</span>
+          </p>
+        </div>
+      </footer>
     </div>
   );
 }

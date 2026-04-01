@@ -85,6 +85,15 @@ service cloud.firestore {
     //
     // ===============================================================
 
+    // Collection: users/{userId}/evolution
+    // Document ID: {autoId}
+    // Fields:
+    //   - timestamp: timestamp (required)
+    //   - weight: number (required)
+    //   - workoutConsistency: number (required)
+    //   - effort: string (required)
+    //   - date: string (required)
+    //
     // ===============================================================
     // Helper Functions
     // ===============================================================
@@ -214,6 +223,16 @@ service cloud.firestore {
              (!('digestion' in data) || (data.digestion is string && data.digestion.size() < 100));
     }
 
+    function isValidEvolution() {
+      let data = request.resource.data;
+      return hasRequiredFields(['timestamp', 'weight', 'workoutConsistency', 'effort', 'date']) &&
+             data.timestamp is timestamp &&
+             data.weight is number && data.weight > 0 && data.weight < 500 &&
+             data.workoutConsistency is number && data.workoutConsistency >= 0 && data.workoutConsistency <= 100 &&
+             data.effort is string && data.effort.size() < 100 &&
+             data.date is string && data.date.size() < 100;
+    }
+
     function isValidSpeltaGramPost() {
       let data = request.resource.data;
       return hasRequiredFields(['userId', 'userName', 'imageUrl', 'createdAt']) &&
@@ -287,6 +306,13 @@ service cloud.firestore {
         allow read: if isOwner(userId) || isAdmin();
         allow create: if isOwner(userId) && isValidNutritionalProgress();
         allow update: if isOwner(userId) && isValidNutritionalProgress();
+        allow delete: if isOwner(userId) || isAdmin();
+      }
+
+      match /evolution/{evolutionId} {
+        allow read: if isOwner(userId) || isAdmin();
+        allow create: if isOwner(userId) && isValidEvolution();
+        allow update: if isOwner(userId) && isValidEvolution();
         allow delete: if isOwner(userId) || isAdmin();
       }
     }

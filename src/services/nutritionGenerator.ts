@@ -317,3 +317,76 @@ export async function generateDietPlan(
     createdAt: new Date().toISOString()
   };
 }
+
+export interface ShoppingItem {
+  item: string;
+  quantity: string;
+  category: string;
+}
+
+export function generateShoppingList(plan: DietPlan): ShoppingItem[] {
+  const itemsMap: Record<string, { total: number, unit: string, category: string }> = {};
+
+  // Helper to parse quantity like "150g" or "2 unidades"
+  const parseQuantity = (q: string) => {
+    const match = q.match(/(\d+)\s*(g|unidades|ml|fatias|colheres)/i);
+    if (match) {
+      return { value: parseInt(match[1]), unit: match[2].toLowerCase() };
+    }
+    return { value: 0, unit: 'unidades' };
+  };
+
+  // Process all meals and their variations
+  const processFoods = (foods: Food[]) => {
+    foods.forEach(f => {
+      const { value, unit } = parseQuantity(f.quantity);
+      const foodData = FOOD_DB.find(db => db.name === f.item);
+      const category = foodData?.category || 'outros';
+      
+      if (!itemsMap[f.item]) {
+        itemsMap[f.item] = { total: 0, unit, category };
+      }
+      
+      // We estimate weekly needs (roughly 7 days)
+      // If it's in a variation, it might be used 2-3 times a week
+      // For simplicity, we sum up the daily base and add a multiplier
+      itemsMap[f.item].total += value;
+    });
+  };
+
+  plan.meals.forEach(meal => {
+    processFoods(meal.foods);
+    // Variations are also processed to ensure variety in the list
+    meal.weeklyVariations?.forEach(v => {
+      v.foods.forEach(f => {
+        const { value, unit } = parseQuantity(f.quantity);
+        const foodData = FOOD_DB.find(db => db.name === f.item);
+        const category = foodData?.category || 'outros';
+        if (!itemsMap[f.item]) {
+          itemsMap[f.item] = { total: 0, unit, category };
+        }
+        // Add a fraction for variations
+        itemsMap[f.item].total += value * 0.5; 
+      });
+    });
+  });
+
+  return Object.entries(itemsMap).map(([item, data]) => ({
+    item,
+    quantity: `${Math.ceil(data.total * 7 / 100) * 100}${data.unit}`, // Weekly estimate rounded
+    category: data.category
+  })).sort((a, b) => a.category.localeCompare(b.category));
+}
+
+export function getFoodSubstitutes(foodName: string): FoodItem[] {
+  const food = FOOD_DB.find(f => f.name === foodName);
+  if (!food) return [];
+  
+  // Return foods from the same category with similar macro profiles
+  return FOOD_DB.filter(f => 
+    f.category === food.category && 
+    f.name !== food.name &&
+    Math.abs(f.protein - food.protein) < 10 &&
+    Math.abs(f.carbs - food.carbs) < 15
+  ).slice(0, 5);
+}

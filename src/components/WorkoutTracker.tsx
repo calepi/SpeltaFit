@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { WorkoutPlan, AnamnesisData, formatProgressionText, adjustWorkoutPlanRuleBased } from '../services/workoutGenerator';
-import { CheckCircle2, Circle, Dumbbell, Timer, Flame, Zap, Activity, Trophy, Brain, X, Loader2, ClipboardList, Lock, CalendarDays, Info, ChevronDown, ChevronUp, MessageSquare, Sparkles, TrendingUp, Target, Quote, Edit3, Save, Plus, Trash2, ArrowUp, ArrowDown, LayoutGrid } from 'lucide-react';
+import { CheckCircle2, Dumbbell, Timer, Flame, Zap, Activity, Trophy, Brain, X, Loader2, Info, ChevronDown, ChevronUp, MessageSquare, Sparkles, TrendingUp, Target, Quote, Edit3, Save, Plus, Trash2, ArrowUp, ArrowDown, LayoutGrid, Scale } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { auth, db } from '../firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
@@ -27,11 +27,12 @@ export function WorkoutTracker({ plan, user, onUpdatePlan, readOnly = false, stu
   const [completedSets, setCompletedSets] = useState<Record<string, boolean>>({});
   const [actualLoads, setActualLoads] = useState<Record<string, string>>({});
   const [exerciseFeedback, setExerciseFeedback] = useState<Record<string, { pse: number, execution: string, pain: boolean, notes: string }>>({});
-  const [checkins, setCheckins] = useState<Record<string, { effort: string, notes: string, date: string }>>({});
+  const [checkins, setCheckins] = useState<Record<string, { effort: string, notes: string, date: string, weight?: number, rpe?: number }>>({});
   
   // Daily Checkin State
   const [dailyEffort, setDailyEffort] = useState('');
   const [dailyNotes, setDailyNotes] = useState('');
+  const [dailyWeight, setDailyWeight] = useState(user.weight?.toString() || '');
 
   // AI Adjustment State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -271,19 +272,45 @@ export function WorkoutTracker({ plan, user, onUpdatePlan, readOnly = false, stu
     }));
   };
 
-  const handleCheckin = () => {
+  const handleCheckin = async () => {
     if (readOnly) return;
     if (!dailyEffort) {
       alert('Por favor, selecione o nível de esforço do treino de hoje.');
       return;
     }
     const key = getCheckinKey(selectedWeek, selectedDay);
+    const weightNum = parseFloat(dailyWeight);
+    
     setCheckins(prev => ({
       ...prev,
-      [key]: { effort: dailyEffort, notes: dailyNotes, date: new Date().toISOString() }
+      [key]: { 
+        effort: dailyEffort, 
+        notes: dailyNotes, 
+        date: new Date().toISOString(),
+        weight: isNaN(weightNum) ? undefined : weightNum
+      }
     }));
+
+    // Save to evolution history
+    const targetUid = studentUid || auth.currentUser?.uid;
+    if (targetUid && !isNaN(weightNum)) {
+      try {
+        const { collection, addDoc, serverTimestamp } = await import('firebase/firestore');
+        await addDoc(collection(db, `users/${targetUid}/evolution`), {
+          timestamp: serverTimestamp(),
+          weight: weightNum,
+          workoutConsistency: 100, // For this day
+          effort: dailyEffort,
+          date: new Date().toISOString()
+        });
+      } catch (err) {
+        console.error("Error saving evolution data:", err);
+      }
+    }
+
     setDailyEffort('');
     setDailyNotes('');
+    // We don't reset dailyWeight here as it's likely to stay similar
     
     // Auto-advance to next day if not complete
     if (checkedInCount + 1 < totalDays) {
@@ -1112,6 +1139,21 @@ export function WorkoutTracker({ plan, user, onUpdatePlan, readOnly = false, stu
                 </div>
 
                 <div className="space-y-8">
+                  <div className="space-y-4">
+                    <label className="font-black text-text-main text-xs block uppercase tracking-[0.15em] ml-1 flex items-center gap-2">
+                      <Scale className="w-4 h-4 text-brand" />
+                      Peso Atual (kg)
+                    </label>
+                    <input 
+                      type="number" 
+                      step="0.1"
+                      placeholder="Ex: 75.5"
+                      value={dailyWeight}
+                      onChange={(e) => setDailyWeight(e.target.value)}
+                      className="w-full bg-bg-main border-2 border-border/50 rounded-3xl px-5 py-4 text-sm text-text-main focus:outline-none focus:border-brand transition-all placeholder:text-text-muted/50 font-bold"
+                    />
+                  </div>
+
                   <div className="space-y-4">
                     <label className="font-black text-text-main text-xs block uppercase tracking-[0.15em] ml-1">Nível de Esforço</label>
                     <div className="grid grid-cols-2 gap-3">

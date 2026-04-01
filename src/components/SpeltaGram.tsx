@@ -193,23 +193,28 @@ function CreatePostModal({ user, onClose }: { user: User, onClose: () => void })
   const [caption, setCaption] = useState('');
   const [tag, setTag] = useState('');
   const [isUploading, setIsUploading] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
+
+  const [error, setError] = useState<string | null>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selected = e.target.files?.[0];
     if (selected) {
       if (selected.size > 10 * 1024 * 1024) {
-        alert('A imagem deve ter no máximo 10MB.');
+        setError('A imagem deve ter no máximo 10MB.');
         return;
       }
       setFile(selected);
       setPreview(URL.createObjectURL(selected));
+      setError(null);
     }
   };
 
   const handleSubmit = async () => {
     if (!file) return;
     setIsUploading(true);
+    setError(null);
     try {
       const imageUrl = await speltaGramService.uploadImage(file, user.uid);
       await speltaGramService.createPost({
@@ -221,8 +226,9 @@ function CreatePostModal({ user, onClose }: { user: User, onClose: () => void })
         tag: tag || undefined
       });
       onClose();
-    } catch (error) {
-      alert('Erro ao publicar. Tente novamente.');
+    } catch (error: any) {
+      console.error('Error in handleSubmit:', error);
+      setError(error.message || 'Erro ao publicar. Tente novamente.');
       setIsUploading(false);
     }
   };
@@ -243,19 +249,50 @@ function CreatePostModal({ user, onClose }: { user: User, onClose: () => void })
         </div>
 
         <div className="overflow-y-auto p-4 space-y-4">
+          {error && (
+            <div className="bg-red-500/10 border border-red-500/20 text-red-500 p-3 rounded-xl text-sm font-medium text-center">
+              {error}
+            </div>
+          )}
           {/* Image Selection */}
           {!preview ? (
-            <div 
-              onClick={() => fileInputRef.current?.click()}
-              className="w-full aspect-square bg-bg-main border-2 border-dashed border-border rounded-2xl flex flex-col items-center justify-center cursor-pointer hover:border-brand/50 hover:bg-brand/5 transition-colors"
-            >
-              <Camera className="w-12 h-12 text-text-muted mb-2" />
-              <p className="text-text-main font-medium">Toque para escolher uma foto</p>
+            <div className="w-full aspect-square bg-bg-main border-2 border-dashed border-border rounded-2xl flex flex-col items-center justify-center gap-4 p-6">
+              <div className="w-16 h-16 bg-brand/10 rounded-full flex items-center justify-center mb-2">
+                <ImageIcon className="w-8 h-8 text-brand" />
+              </div>
+              <p className="text-text-main font-medium text-center">Como você quer enviar sua foto?</p>
+              
+              <div className="flex w-full gap-3 mt-2">
+                <button 
+                  onClick={() => cameraInputRef.current?.click()}
+                  className="flex-1 bg-surface border border-border hover:border-brand/50 hover:bg-brand/5 rounded-xl py-4 flex flex-col items-center justify-center gap-2 transition-colors"
+                >
+                  <Camera className="w-6 h-6 text-brand" />
+                  <span className="text-sm font-medium text-text-main">Tirar Foto</span>
+                </button>
+                
+                <button 
+                  onClick={() => galleryInputRef.current?.click()}
+                  className="flex-1 bg-surface border border-border hover:border-brand/50 hover:bg-brand/5 rounded-xl py-4 flex flex-col items-center justify-center gap-2 transition-colors"
+                >
+                  <ImageIcon className="w-6 h-6 text-brand" />
+                  <span className="text-sm font-medium text-text-main">Galeria</span>
+                </button>
+              </div>
+
+              <input 
+                type="file" 
+                accept="image/*" 
+                capture="environment"
+                className="hidden" 
+                ref={cameraInputRef}
+                onChange={handleFileChange}
+              />
               <input 
                 type="file" 
                 accept="image/*" 
                 className="hidden" 
-                ref={fileInputRef}
+                ref={galleryInputRef}
                 onChange={handleFileChange}
               />
             </div>
@@ -319,6 +356,8 @@ function CommentsModal({ post, currentUser, isAdmin, onClose }: { post: SpeltaGr
   const [newComment, setNewComment] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const [error, setError] = useState<string | null>(null);
+
   useEffect(() => {
     const unsubscribe = speltaGramService.subscribeToComments(post.id, setComments);
     return () => unsubscribe();
@@ -329,6 +368,7 @@ function CommentsModal({ post, currentUser, isAdmin, onClose }: { post: SpeltaGr
     if (!newComment.trim()) return;
     
     setIsSubmitting(true);
+    setError(null);
     try {
       await speltaGramService.addComment(post.id, {
         userId: currentUser.uid,
@@ -337,8 +377,9 @@ function CommentsModal({ post, currentUser, isAdmin, onClose }: { post: SpeltaGr
         text: newComment.trim()
       });
       setNewComment('');
-    } catch (error) {
-      alert('Erro ao enviar comentário.');
+    } catch (error: any) {
+      console.error('Error in addComment:', error);
+      setError('Erro ao enviar comentário.');
     } finally {
       setIsSubmitting(false);
     }
@@ -349,7 +390,7 @@ function CommentsModal({ post, currentUser, isAdmin, onClose }: { post: SpeltaGr
       try {
         await speltaGramService.deleteComment(post.id, commentId);
       } catch (e) {
-        alert('Erro ao apagar.');
+        setError('Erro ao apagar.');
       }
     }
   };
@@ -371,6 +412,11 @@ function CommentsModal({ post, currentUser, isAdmin, onClose }: { post: SpeltaGr
         </div>
 
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          {error && (
+            <div className="bg-red-500/10 border border-red-500/20 text-red-500 p-3 rounded-xl text-sm font-medium text-center">
+              {error}
+            </div>
+          )}
           {/* Post Caption as first comment */}
           {post.caption && (
             <div className="flex gap-3 pb-4 border-b border-border/50">

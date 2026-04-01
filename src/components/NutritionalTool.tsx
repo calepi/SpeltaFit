@@ -4,7 +4,7 @@ import { DietPlanView } from './DietPlanView';
 import { NutritionalAnamnesis, DietPlan, generateDietPlan } from '../services/nutritionGenerator';
 import { doc, getDoc, setDoc, deleteDoc } from 'firebase/firestore';
 import { db, auth } from '../firebase';
-import { Apple, ChevronLeft, LayoutDashboard, History, TrendingUp, AlertCircle } from 'lucide-react';
+import { Apple, ChevronLeft, LayoutDashboard, TrendingUp, AlertCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface NutritionalToolProps {

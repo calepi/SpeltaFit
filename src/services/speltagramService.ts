@@ -33,19 +33,37 @@ export const speltaGramService = {
     const options = {
       maxSizeMB: 1,
       maxWidthOrHeight: 1080,
-      useWebWorker: true,
+      useWebWorker: false, // More stable in some iframe environments
     };
     
+    let fileToUpload = file;
     try {
-      const compressedFile = await imageCompression(file, options);
-      const filename = `${userId}_${Date.now()}_${compressedFile.name}`;
+      // Try to compress, but don't let it hang the whole process
+      const compressionPromise = imageCompression(file, options);
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Compression timeout')), 10000)
+      );
+      
+      fileToUpload = await Promise.race([compressionPromise, timeoutPromise]) as File;
+    } catch (error) {
+      console.warn('Image compression failed or timed out, using original file:', error);
+      fileToUpload = file;
+    }
+
+    try {
+      const timestamp = Date.now();
+      const safeName = file.name.replace(/[^a-z0-9.]/gi, '_').toLowerCase();
+      const filename = `${userId}_${timestamp}_${safeName}`;
       const storageRef = ref(storage, `speltagram/${filename}`);
       
-      await uploadBytes(storageRef, compressedFile);
-      return await getDownloadURL(storageRef);
-    } catch (error) {
+      const uploadResult = await uploadBytes(storageRef, fileToUpload);
+      return await getDownloadURL(uploadResult.ref);
+    } catch (error: any) {
       console.error('Error uploading image:', error);
-      throw new Error('Falha ao fazer upload da imagem.');
+      if (error.code === 'storage/unauthorized') {
+        throw new Error('Sem permissão para fazer upload. Verifique as regras de armazenamento.');
+      }
+      throw new Error('Falha ao fazer upload da imagem. Verifique sua conexão.');
     }
   },
 

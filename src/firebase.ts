@@ -4,15 +4,15 @@ import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 import firebaseConfigFile from '../firebase-applet-config.json';
 
-// Support both the local JSON file (AI Studio) and Environment Variables (Netlify)
+// Use the local JSON file (AI Studio) directly
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || firebaseConfigFile.apiKey,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || firebaseConfigFile.authDomain,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || firebaseConfigFile.projectId,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || (firebaseConfigFile as any).storageBucket,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || (firebaseConfigFile as any).messagingSenderId,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || firebaseConfigFile.appId,
-  firestoreDatabaseId: import.meta.env.VITE_FIRESTORE_DATABASE_ID || firebaseConfigFile.firestoreDatabaseId
+  apiKey: firebaseConfigFile.apiKey,
+  authDomain: firebaseConfigFile.authDomain,
+  projectId: firebaseConfigFile.projectId,
+  storageBucket: (firebaseConfigFile as any).storageBucket,
+  messagingSenderId: (firebaseConfigFile as any).messagingSenderId,
+  appId: firebaseConfigFile.appId,
+  firestoreDatabaseId: firebaseConfigFile.firestoreDatabaseId
 };
 
 const app = initializeApp(firebaseConfig);

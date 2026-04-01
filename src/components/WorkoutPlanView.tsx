@@ -1,7 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { WorkoutPlan, AnamnesisData } from '../services/workoutGenerator';
 import { motion } from 'motion/react';
-import { Dumbbell, Target, TrendingUp, Info, FileText, Calendar, AlertTriangle, BookOpen, User } from 'lucide-react';
+import { Target, TrendingUp, Info, FileText, Calendar, AlertTriangle, User } from 'lucide-react';
 import { WorkoutSheetExport } from './WorkoutSheetExport';
 import { WorkoutTracker } from './WorkoutTracker';
 

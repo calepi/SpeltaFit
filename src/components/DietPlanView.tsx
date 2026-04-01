@@ -1,7 +1,8 @@
 import React from 'react';
-import { DietPlan, Meal } from '../services/nutritionGenerator';
-import { Apple, Clock, Flame, Zap, Droplets, Pill, Info, Printer, RefreshCw, ChevronRight, CheckCircle2 } from 'lucide-react';
-import { motion } from 'motion/react';
+import { DietPlan, Meal, Food, generateShoppingList, ShoppingItem, getFoodSubstitutes } from '../services/nutritionGenerator';
+import { Apple, Clock, Flame, Zap, Droplets, Pill, Info, Printer, RefreshCw, ChevronRight, CheckCircle2, ShoppingCart, X, Search, ArrowRight } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
+import { FoodItem } from '../data/foodDatabase';
 
 interface DietPlanViewProps {
   plan: DietPlan;
@@ -10,6 +11,10 @@ interface DietPlanViewProps {
 
 export function DietPlanView({ plan, onReset }: DietPlanViewProps) {
   const [isPrintMode, setIsPrintMode] = React.useState(false);
+  const [showShoppingList, setShowShoppingList] = React.useState(false);
+  const [selectedFood, setSelectedFood] = React.useState<{ name: string, substitutes: FoodItem[] } | null>(null);
+
+  const shoppingList = React.useMemo(() => generateShoppingList(plan), [plan]);
 
   const handlePrint = () => {
     console.log("Triggering print...");
@@ -186,6 +191,13 @@ export function DietPlanView({ plan, onReset }: DietPlanViewProps) {
             </p>
             <div className="flex items-center gap-4 print:hidden">
               <button 
+                onClick={() => setShowShoppingList(true)}
+                className="flex items-center gap-2 px-6 py-2 rounded-xl bg-green-500/10 text-green-600 font-black hover:bg-green-500/20 transition-all"
+              >
+                <ShoppingCart className="w-4 h-4" />
+                Lista de Compras
+              </button>
+              <button 
                 onClick={handlePrint}
                 className="hidden md:flex items-center gap-2 px-6 py-2 rounded-xl bg-brand/10 text-brand font-black hover:bg-brand/20 transition-all"
               >
@@ -213,7 +225,7 @@ export function DietPlanView({ plan, onReset }: DietPlanViewProps) {
       {/* Meals Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {plan.meals.map((meal, idx) => (
-          <MealCard key={idx} meal={meal} index={idx} />
+          <MealCard key={idx} meal={meal} index={idx} setSelectedFood={setSelectedFood} />
         ))}
       </div>
 
@@ -247,6 +259,13 @@ export function DietPlanView({ plan, onReset }: DietPlanViewProps) {
       {/* Actions */}
       <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-8 print:hidden">
         <button 
+          onClick={() => setShowShoppingList(true)}
+          className="flex items-center gap-2 px-8 py-4 rounded-2xl bg-green-500 text-white font-black hover:scale-105 transition-all shadow-xl shadow-green-500/20 active:scale-95"
+        >
+          <ShoppingCart className="w-5 h-5" />
+          Ver Lista de Compras
+        </button>
+        <button 
           onClick={handlePrint}
           className="flex items-center gap-2 px-8 py-4 rounded-2xl bg-surface border border-border font-black hover:bg-bg-main transition-all"
         >
@@ -261,6 +280,130 @@ export function DietPlanView({ plan, onReset }: DietPlanViewProps) {
           Novo Planejamento
         </button>
       </div>
+
+      {/* Shopping List Modal */}
+      <AnimatePresence>
+        {showShoppingList && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              className="bg-surface border border-border rounded-[2.5rem] w-full max-w-2xl max-h-[80vh] overflow-hidden flex flex-col shadow-2xl"
+            >
+              <div className="p-6 border-b border-border flex items-center justify-between bg-bg-main/50">
+                <div className="flex items-center gap-3">
+                  <div className="p-3 rounded-2xl bg-green-500/10 text-green-500">
+                    <ShoppingCart className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-black tracking-tight">Lista de Compras Semanal</h3>
+                    <p className="text-xs text-text-muted font-bold">Estimativa baseada no seu plano</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setShowShoppingList(false)}
+                  className="p-2 rounded-full hover:bg-bg-main transition-colors"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+
+              <div className="p-6 overflow-y-auto flex-grow space-y-6">
+                {Object.entries(
+                  shoppingList.reduce((acc, item) => {
+                    if (!acc[item.category]) acc[item.category] = [];
+                    acc[item.category].push(item);
+                    return acc;
+                  }, {} as Record<string, ShoppingItem[]>)
+                ).map(([category, items]) => (
+                  <div key={category} className="space-y-3">
+                    <h4 className="text-xs font-black text-brand uppercase tracking-widest border-b border-brand/20 pb-1">
+                      {category}
+                    </h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {(items as ShoppingItem[]).map((item, idx) => (
+                        <div key={idx} className="flex items-center justify-between p-3 rounded-xl bg-bg-main border border-border/50">
+                          <span className="font-bold text-sm">{item.item}</span>
+                          <span className="text-xs font-black text-text-muted">{item.quantity}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="p-6 border-t border-border bg-bg-main/50 flex justify-end">
+                <button 
+                  onClick={() => setShowShoppingList(false)}
+                  className="px-8 py-3 rounded-xl bg-brand text-text-inverse font-black shadow-lg shadow-brand/20"
+                >
+                  Fechar
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Substitutes Modal */}
+      <AnimatePresence>
+        {selectedFood && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              className="bg-surface border border-border rounded-[2.5rem] w-full max-w-md shadow-2xl overflow-hidden"
+            >
+              <div className="p-6 border-b border-border flex items-center justify-between bg-bg-main/50">
+                <div className="flex items-center gap-3">
+                  <div className="p-3 rounded-2xl bg-brand/10 text-brand">
+                    <RefreshCw className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-black tracking-tight">Substituições</h3>
+                    <p className="text-xs text-text-muted font-bold">Opções equivalentes para {selectedFood.name}</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setSelectedFood(null)}
+                  className="p-2 rounded-full hover:bg-bg-main transition-colors"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+
+              <div className="p-6 space-y-4">
+                {selectedFood.substitutes.length > 0 ? (
+                  selectedFood.substitutes.map((sub, idx) => (
+                    <div key={idx} className="flex items-center justify-between p-4 rounded-2xl bg-bg-main border border-border hover:border-brand/50 transition-all group">
+                      <div>
+                        <div className="font-bold text-text-main group-hover:text-brand transition-colors">{sub.name}</div>
+                        <div className="text-[10px] text-text-muted font-bold uppercase tracking-widest">
+                          P: {sub.protein}g | C: {sub.carbs}g | G: {sub.fats}g
+                        </div>
+                      </div>
+                      <ArrowRight className="w-4 h-4 text-text-muted group-hover:text-brand transition-all" />
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-8 text-text-muted font-bold">
+                    Nenhuma substituição direta encontrada para este item.
+                  </div>
+                )}
+              </div>
+
+              <div className="p-6 border-t border-border bg-bg-main/50 text-center">
+                <p className="text-[10px] text-text-muted font-bold leading-tight">
+                  * As quantidades devem ser ajustadas para manter as mesmas calorias. 
+                  Consulte seu nutricionista para ajustes precisos.
+                </p>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -287,10 +430,16 @@ function StatCard({ icon, label, value, color }: { icon: React.ReactNode, label:
 interface MealCardProps {
   meal: Meal;
   index: number;
+  setSelectedFood: (food: { name: string, substitutes: FoodItem[] } | null) => void;
   key?: React.Key;
 }
 
-function MealCard({ meal, index }: MealCardProps) {
+function MealCard({ meal, index, setSelectedFood }: MealCardProps) {
+  const handleFoodClick = (foodName: string) => {
+    const substitutes = getFoodSubstitutes(foodName);
+    setSelectedFood({ name: foodName, substitutes });
+  };
+
   return (
     <motion.div 
       initial={{ opacity: 0, y: 20 }}
@@ -318,13 +467,20 @@ function MealCard({ meal, index }: MealCardProps) {
 
       <div className="p-6 flex-grow space-y-4">
         {meal.foods.map((food, fIdx) => (
-          <div key={fIdx} className="flex items-start justify-between group">
+          <button 
+            key={fIdx} 
+            onClick={() => handleFoodClick(food.item)}
+            className="w-full flex items-start justify-between group text-left hover:bg-bg-main/50 p-2 -m-2 rounded-xl transition-all"
+          >
             <div className="flex gap-3">
               <div className="mt-1">
                 <CheckCircle2 className="w-4 h-4 text-brand/40 group-hover:text-brand transition-colors" />
               </div>
               <div>
-                <div className="font-bold text-text-main group-hover:text-brand transition-colors">{food.item}</div>
+                <div className="font-bold text-text-main group-hover:text-brand transition-colors flex items-center gap-2">
+                  {food.item}
+                  <Search className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                </div>
                 <div className="text-xs text-text-muted font-medium">{food.quantity}</div>
               </div>
             </div>
@@ -332,7 +488,7 @@ function MealCard({ meal, index }: MealCardProps) {
               <div className="text-xs font-black text-text-main">{food.calories} kcal</div>
               <div className="text-[10px] text-text-muted font-bold">P: {food.protein}g | C: {food.carbs}g</div>
             </div>
-          </div>
+          </button>
         ))}
 
         {/* Weekly Variations Section */}
