@@ -238,7 +238,7 @@ service cloud.firestore {
       return hasRequiredFields(['userId', 'userName', 'imageUrl', 'createdAt']) &&
              data.userId is string && data.userId == request.auth.uid &&
              data.userName is string && data.userName.size() > 0 && data.userName.size() < 100 &&
-             data.imageUrl is string && data.imageUrl.size() < 2000 &&
+             data.imageUrl is string && data.imageUrl.size() < 1000000 &&
              data.createdAt is string &&
              (!('userPhoto' in data) || (data.userPhoto is string && data.userPhoto.size() < 2000)) &&
              (!('caption' in data) || (data.caption is string && data.caption.size() < 2000)) &&

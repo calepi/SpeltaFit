@@ -515,12 +515,12 @@ export async function adjustWorkoutPlanRuleBased(
   let volumeMessage = "O volume de treino foi mantido para continuar a progressão constante.";
   
   if (highEffortCount > (totalCheckins * 0.4) || monthlyFeedback.includes('Exausto') || monthlyFeedback.includes('Não recuperei')) {
-    volumeMessage = "⚠️ **Fadiga Elevada Detectada:** Notamos um alto nível de esforço nos seus check-ins diários. O volume e a intensidade foram levemente ajustados para baixo neste novo ciclo para permitir uma supercompensação e melhor recuperação do seu Sistema Nervoso Central.";
+    volumeMessage = "⚠️ Fadiga Elevada Detectada: Notamos um alto nível de esforço nos seus check-ins diários. O volume e a intensidade foram levemente ajustados para baixo neste novo ciclo para permitir uma supercompensação e melhor recuperação do seu Sistema Nervoso Central.";
     if (adjustedUserData.experience.includes('Avançado')) {
       adjustedUserData.experience = 'Intermediário'; // Reduz técnicas avançadas
     }
   } else if (highEffortCount === 0 && (monthlyFeedback.includes('Muito fácil') || monthlyFeedback.includes('Sobrou energia'))) {
-    volumeMessage = "🔥 **Energia em Alta:** Como você relatou ótima recuperação e energia sobrando, aumentamos a densidade do treino e adicionamos estímulos mais intensos.";
+    volumeMessage = "🔥 Energia em Alta: Como você relatou ótima recuperação e energia sobrando, aumentamos a densidade do treino e adicionamos estímulos mais intensos.";
     if (adjustedUserData.experience.includes('Iniciante')) {
       adjustedUserData.experience = 'Intermediário';
     } else if (adjustedUserData.experience.includes('Intermediário')) {
@@ -566,11 +566,11 @@ export async function adjustWorkoutPlanRuleBased(
 
   let progressionMessage = "";
   if (progressedCount > stagnantCount) {
-    progressionMessage = `📈 **Sobrecarga Progressiva:** Excelente trabalho! Você progrediu carga em **${progressedCount} exercícios** ao longo do mês. O novo treino vai capitalizar em cima dessa fase de ganho de força.`;
+    progressionMessage = `📈 Sobrecarga Progressiva: Excelente trabalho! Você progrediu carga em ${progressedCount} exercícios ao longo do mês. O novo treino vai capitalizar em cima dessa fase de ganho de força.`;
   } else if (stagnantCount > 0) {
-    progressionMessage = `🔄 **Quebra de Platô:** Notamos que a carga estagnou na maioria dos exercícios. O novo treino trará estímulos diferentes (novas faixas de repetição e variações) para quebrar esse platô neuromuscular.`;
+    progressionMessage = `🔄 Quebra de Platô: Notamos que a carga estagnou na maioria dos exercícios. O novo treino trará estímulos diferentes (novas faixas de repetição e variações) para quebrar esse platô neuromuscular.`;
   } else {
-    progressionMessage = `📊 **Manutenção:** Suas cargas se mantiveram estáveis. Vamos focar em melhorar a qualidade do movimento neste novo ciclo.`;
+    progressionMessage = `📊 Manutenção: Suas cargas se mantiveram estáveis. Vamos focar em melhorar a qualidade do movimento neste novo ciclo.`;
   }
 
   // 4. Gerar o novo plano com a blacklist e dados ajustados
@@ -600,10 +600,10 @@ export async function adjustWorkoutPlanRuleBased(
   analysis += `${progressionMessage}\n\n`;
   
   if (painExercises.length > 0) {
-    analysis += `🛡️ **Prevenção de Lesões:** Identificamos que você sentiu dor articular em **${painExercises.length} exercício(s)**. Eles foram colocados na "lista negra" e substituídos por variações mais seguras para a sua biomecânica.\n\n`;
+    analysis += `🛡️ Prevenção de Lesões: Identificamos que você sentiu dor articular em ${painExercises.length} exercício(s). Eles foram colocados na "lista negra" e substituídos por variações mais seguras para a sua biomecânica.\n\n`;
   }
   if (badExecutionExercises.length > 0) {
-    analysis += `🎯 **Foco na Biomecânica:** Substituímos **${badExecutionExercises.length} exercício(s)** onde você relatou dificuldade de execução. O foco agora é em exercícios onde você consiga ter uma melhor conexão mente-músculo.\n\n`;
+    analysis += `🎯 Foco na Biomecânica: Substituímos ${badExecutionExercises.length} exercício(s) onde você relatou dificuldade de execução. O foco agora é em exercícios onde você consiga ter uma melhor conexão mente-músculo.\n\n`;
   }
 
   analysis += `> *Seu novo treino já está montado e pronto para começar. Bom treino!*`;

@@ -7,7 +7,7 @@ import { ExerciseLibrary } from './components/ExerciseLibrary';
 import { AnamnesisData, WorkoutPlan } from './services/workoutGenerator';
 import { generateWorkoutPlanRuleBased } from './services/workoutGenerator';
 import { Logo } from './components/Logo';
-import { LogIn, LogOut, User as UserIcon, Shield, BookOpen, Apple, Users, Palette, TrendingUp } from 'lucide-react';
+import { LogIn, LogOut, User as UserIcon, Shield, BookOpen, Apple, Users, Palette, TrendingUp, HelpCircle } from 'lucide-react';
 import { auth, db, googleProvider } from './firebase';
 import { signInWithPopup, signOut, onAuthStateChanged, User } from 'firebase/auth';
 import { doc, getDoc, setDoc, deleteDoc } from 'firebase/firestore';
@@ -16,8 +16,9 @@ import { NutritionalTool } from './components/NutritionalTool';
 
 import { SpeltaGramFeed } from './components/SpeltaGram';
 import { EvolutionCharts } from './components/EvolutionCharts';
+import { UserManual } from './components/UserManual';
 
-type AppState = 'landing' | 'form' | 'plan' | 'admin' | 'library' | 'nutrition' | 'speltagram' | 'evolution';
+type AppState = 'landing' | 'form' | 'plan' | 'admin' | 'library' | 'nutrition' | 'speltagram' | 'evolution' | 'manual';
 type Theme = 'default' | 'green' | 'blue' | 'gold';
 
 export default function App() {
@@ -108,7 +109,7 @@ export default function App() {
     } catch (err: any) {
       console.error("Login error:", err);
       if (err.code !== 'auth/popup-closed-by-user' && err.code !== 'auth/cancelled-popup-request') {
-        alert("Erro ao fazer login. Tente novamente.");
+        alert(`Erro ao fazer login (${err.code || 'erro desconhecido'}). Certifique-se de que o domínio está autorizado no Console do Firebase.`);
       }
     }
   };
@@ -274,6 +275,13 @@ export default function App() {
                 >
                   <Apple className="w-5 h-5" />
                 </button>
+                <button 
+                  onClick={() => setAppState(appState === 'manual' ? 'plan' : 'manual')}
+                  className={`p-2 rounded-xl transition-colors ${appState === 'manual' ? 'bg-brand text-text-inverse' : 'bg-brand/10 text-brand hover:bg-brand/20'}`}
+                  title="Manual do Usuário"
+                >
+                  <HelpCircle className="w-5 h-5" />
+                </button>
               </>
             )}
             {user ? (
@@ -406,6 +414,10 @@ export default function App() {
 
         {appState === 'evolution' && user && (
           <EvolutionCharts userId={user.uid} />
+        )}
+
+        {appState === 'manual' && (
+          <UserManual />
         )}
       </main>
 

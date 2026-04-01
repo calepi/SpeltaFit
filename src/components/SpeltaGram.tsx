@@ -16,14 +16,29 @@ export function SpeltaGramFeed({ user, isAdmin }: Props) {
   const [isCreating, setIsCreating] = useState(false);
   const [selectedPost, setSelectedPost] = useState<SpeltaGramPost | null>(null); // For comments modal
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'all' | 'mine'>('all');
 
   useEffect(() => {
-    const unsubscribe = speltaGramService.subscribeToPosts((fetchedPosts) => {
-      setPosts(fetchedPosts);
-      setLoading(false);
-    });
+    setLoading(true);
+    setError(null);
+    const unsubscribe = speltaGramService.subscribeToPosts(
+      (fetchedPosts) => {
+        setPosts(fetchedPosts);
+        setLoading(false);
+      },
+      (err) => {
+        console.error('Feed error:', err);
+        setError('Erro ao carregar o feed. Verifique sua conexão ou permissões.');
+        setLoading(false);
+      }
+    );
     return () => unsubscribe();
   }, []);
+
+  const filteredPosts = activeTab === 'all' 
+    ? posts 
+    : posts.filter(p => p.userId === user.uid);
 
   return (
     <div className="max-w-2xl mx-auto pb-24">
@@ -41,20 +56,64 @@ export function SpeltaGramFeed({ user, isAdmin }: Props) {
         </button>
       </div>
 
+      {/* Tabs */}
+      <div className="flex gap-2 mb-6 bg-surface p-1 rounded-2xl border border-border">
+        <button
+          onClick={() => setActiveTab('all')}
+          className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-all ${activeTab === 'all' ? 'bg-brand text-text-inverse shadow-md' : 'text-text-muted hover:text-text-main hover:bg-bg-main'}`}
+        >
+          Feed Global
+        </button>
+        <button
+          onClick={() => setActiveTab('mine')}
+          className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-all ${activeTab === 'mine' ? 'bg-brand text-text-inverse shadow-md' : 'text-text-muted hover:text-text-main hover:bg-bg-main'}`}
+        >
+          Minhas Postagens
+        </button>
+      </div>
+
+      {/* Error Message */}
+      {error && (
+        <div className="bg-red-500/10 border border-red-500/20 text-red-500 p-4 rounded-2xl text-center mb-6 font-medium">
+          {error}
+          <button 
+            onClick={() => window.location.reload()} 
+            className="block mx-auto mt-2 text-sm underline hover:no-underline"
+          >
+            Tentar recarregar a página
+          </button>
+        </div>
+      )}
+
       {/* Feed */}
       {loading ? (
-        <div className="flex justify-center py-12">
-          <Loader2 className="w-8 h-8 text-brand animate-spin" />
+        <div className="flex flex-col items-center justify-center py-12">
+          <Loader2 className="w-8 h-8 text-brand animate-spin mb-2" />
+          <p className="text-text-muted text-sm">Carregando postagens...</p>
         </div>
-      ) : posts.length === 0 ? (
+      ) : filteredPosts.length === 0 ? (
         <div className="text-center py-12 bg-surface rounded-3xl border border-border">
           <ImageIcon className="w-12 h-12 text-text-muted mx-auto mb-4 opacity-50" />
-          <h3 className="text-xl font-bold text-text-main mb-2">Nenhuma postagem ainda</h3>
-          <p className="text-text-muted">Seja o primeiro a compartilhar seu treino ou refeição!</p>
+          <h3 className="text-xl font-bold text-text-main mb-2">
+            {activeTab === 'all' ? 'Nenhuma postagem ainda' : 'Você ainda não postou nada'}
+          </h3>
+          <p className="text-text-muted">
+            {activeTab === 'all' 
+              ? 'Seja o primeiro a compartilhar seu treino ou refeição!' 
+              : 'Compartilhe seu progresso com a comunidade!'}
+          </p>
+          {activeTab === 'mine' && (
+            <button
+              onClick={() => setIsCreating(true)}
+              className="mt-4 text-brand font-bold hover:underline"
+            >
+              Criar minha primeira postagem
+            </button>
+          )}
         </div>
       ) : (
         <div className="space-y-6">
-          {posts.map((post) => (
+          {filteredPosts.map((post) => (
             <PostCard 
               key={post.id} 
               post={post} 
@@ -228,7 +287,14 @@ function CreatePostModal({ user, onClose }: { user: User, onClose: () => void })
       onClose();
     } catch (error: any) {
       console.error('Error in handleSubmit:', error);
-      setError(error.message || 'Erro ao publicar. Tente novamente.');
+      let errorMessage = 'Erro ao publicar. Tente novamente.';
+      try {
+        const parsed = JSON.parse(error.message);
+        if (parsed.error) errorMessage = 'Erro de permissão ou conexão. Tente novamente.';
+      } catch (e) {
+        errorMessage = error.message || errorMessage;
+      }
+      setError(errorMessage);
       setIsUploading(false);
     }
   };
@@ -379,7 +445,14 @@ function CommentsModal({ post, currentUser, isAdmin, onClose }: { post: SpeltaGr
       setNewComment('');
     } catch (error: any) {
       console.error('Error in addComment:', error);
-      setError('Erro ao enviar comentário.');
+      let errorMessage = 'Erro ao enviar comentário.';
+      try {
+        const parsed = JSON.parse(error.message);
+        if (parsed.error) errorMessage = 'Erro de permissão ou conexão. Tente novamente.';
+      } catch (e) {
+        errorMessage = error.message || errorMessage;
+      }
+      setError(errorMessage);
     } finally {
       setIsSubmitting(false);
     }

@@ -1,6 +1,6 @@
 import { collection, doc, addDoc, updateDoc, deleteDoc, getDocs, query, orderBy, onSnapshot, serverTimestamp, arrayUnion, arrayRemove } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
-import { db, storage } from '../firebase';
+import { db, storage, auth } from '../firebase';
 import imageCompression from 'browser-image-compression';
 
 export interface SpeltaGramPost {
@@ -27,12 +27,63 @@ export interface SpeltaGramComment {
 
 const POSTS_COLLECTION = 'speltagram_posts';
 
+enum OperationType {
+  CREATE = 'create',
+  UPDATE = 'update',
+  DELETE = 'delete',
+  LIST = 'list',
+  GET = 'get',
+  WRITE = 'write',
+}
+
+interface FirestoreErrorInfo {
+  error: string;
+  operationType: OperationType;
+  path: string | null;
+  authInfo: {
+    userId: string | undefined;
+    email: string | null | undefined;
+    emailVerified: boolean | undefined;
+    isAnonymous: boolean | undefined;
+    tenantId: string | null | undefined;
+    providerInfo: {
+      providerId: string;
+      displayName: string | null;
+      email: string | null;
+      photoUrl: string | null;
+    }[];
+  }
+}
+
+function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
+  const errInfo: FirestoreErrorInfo = {
+    error: error instanceof Error ? error.message : String(error),
+    authInfo: {
+      userId: auth.currentUser?.uid,
+      email: auth.currentUser?.email,
+      emailVerified: auth.currentUser?.emailVerified,
+      isAnonymous: auth.currentUser?.isAnonymous,
+      tenantId: auth.currentUser?.tenantId,
+      providerInfo: auth.currentUser?.providerData.map(provider => ({
+        providerId: provider.providerId,
+        displayName: provider.displayName,
+        email: provider.email,
+        photoUrl: provider.photoURL
+      })) || []
+    },
+    operationType,
+    path
+  }
+  console.error('Firestore Error: ', JSON.stringify(errInfo));
+  throw new Error(JSON.stringify(errInfo));
+}
+
 export const speltaGramService = {
-  // Compress and upload image
+  // Compress and convert image to Base64
   async uploadImage(file: File, userId: string): Promise<string> {
     const options = {
-      maxSizeMB: 1,
-      maxWidthOrHeight: 1080,
+      maxSizeMB: 0.5, // Max 500KB to ensure Base64 fits in Firestore 1MB limit
+      maxWidthOrHeight: 800,
       useWebWorker: false, // More stable in some iframe environments
     };
     
@@ -41,106 +92,105 @@ export const speltaGramService = {
       // Try to compress, but don't let it hang the whole process
       const compressionPromise = imageCompression(file, options);
       const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Compression timeout')), 10000)
+        setTimeout(() => reject(new Error('Compression timeout')), 8000)
       );
       
       fileToUpload = await Promise.race([compressionPromise, timeoutPromise]) as File;
     } catch (error) {
-      console.warn('Image compression failed or timed out, using original file:', error);
+      console.warn('Image compression failed or timed out:', error);
+      if (file.size > 700 * 1024) { // If original is > 700KB, it might exceed 1MB in Base64
+        throw new Error('A imagem é muito grande e a compressão falhou. Escolha uma imagem menor (máx 700KB).');
+      }
       fileToUpload = file;
     }
 
-    try {
-      const timestamp = Date.now();
-      const safeName = file.name.replace(/[^a-z0-9.]/gi, '_').toLowerCase();
-      const filename = `${userId}_${timestamp}_${safeName}`;
-      const storageRef = ref(storage, `speltagram/${filename}`);
-      
-      const uploadResult = await uploadBytes(storageRef, fileToUpload);
-      return await getDownloadURL(uploadResult.ref);
-    } catch (error: any) {
-      console.error('Error uploading image:', error);
-      if (error.code === 'storage/unauthorized') {
-        throw new Error('Sem permissão para fazer upload. Verifique as regras de armazenamento.');
-      }
-      throw new Error('Falha ao fazer upload da imagem. Verifique sua conexão.');
-    }
+    // Convert to base64
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(fileToUpload);
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = () => reject(new Error('Erro ao processar a imagem.'));
+    });
   },
 
   // Create a new post
   async createPost(data: Omit<SpeltaGramPost, 'id' | 'likes' | 'createdAt'>): Promise<string> {
+    const path = POSTS_COLLECTION;
     try {
-      const docRef = await addDoc(collection(db, POSTS_COLLECTION), {
+      const docRef = await addDoc(collection(db, path), {
         ...data,
         likes: [],
         createdAt: new Date().toISOString()
       });
       return docRef.id;
     } catch (error) {
-      console.error('Error creating post:', error);
-      throw new Error('Falha ao criar postagem.');
+      handleFirestoreError(error, OperationType.CREATE, path);
+      return ''; // Unreachable
     }
   },
 
   // Delete a post
   async deletePost(postId: string, imageUrl: string): Promise<void> {
+    const path = `${POSTS_COLLECTION}/${postId}`;
     try {
       // Delete from Firestore
       await deleteDoc(doc(db, POSTS_COLLECTION, postId));
       
-      // Try to delete image from Storage (ignore if fails)
-      try {
-        const imageRef = ref(storage, imageUrl);
-        await deleteObject(imageRef);
-      } catch (e) {
-        console.warn('Could not delete image from storage', e);
+      // Try to delete image from Storage if it's a Storage URL (not base64)
+      if (imageUrl.startsWith('https://firebasestorage.googleapis.com')) {
+        try {
+          const imageRef = ref(storage, imageUrl);
+          await deleteObject(imageRef);
+        } catch (e) {
+          console.warn('Could not delete image from storage', e);
+        }
       }
     } catch (error) {
-      console.error('Error deleting post:', error);
-      throw new Error('Falha ao deletar postagem.');
+      handleFirestoreError(error, OperationType.DELETE, path);
     }
   },
 
   // Toggle Like
   async toggleLike(postId: string, userId: string, isLiked: boolean): Promise<void> {
+    const path = `${POSTS_COLLECTION}/${postId}`;
     try {
       const postRef = doc(db, POSTS_COLLECTION, postId);
       await updateDoc(postRef, {
         likes: isLiked ? arrayRemove(userId) : arrayUnion(userId)
       });
     } catch (error) {
-      console.error('Error toggling like:', error);
-      throw new Error('Falha ao curtir/descurtir.');
+      handleFirestoreError(error, OperationType.UPDATE, path);
     }
   },
 
   // Add Comment
   async addComment(postId: string, data: Omit<SpeltaGramComment, 'id' | 'postId' | 'createdAt'>): Promise<void> {
+    const path = `${POSTS_COLLECTION}/${postId}/comments`;
     try {
-      await addDoc(collection(db, `${POSTS_COLLECTION}/${postId}/comments`), {
+      await addDoc(collection(db, path), {
         ...data,
         postId,
         createdAt: new Date().toISOString()
       });
     } catch (error) {
-      console.error('Error adding comment:', error);
-      throw new Error('Falha ao adicionar comentário.');
+      handleFirestoreError(error, OperationType.CREATE, path);
     }
   },
 
   // Delete Comment
   async deleteComment(postId: string, commentId: string): Promise<void> {
+    const path = `${POSTS_COLLECTION}/${postId}/comments/${commentId}`;
     try {
       await deleteDoc(doc(db, `${POSTS_COLLECTION}/${postId}/comments`, commentId));
     } catch (error) {
-      console.error('Error deleting comment:', error);
-      throw new Error('Falha ao deletar comentário.');
+      handleFirestoreError(error, OperationType.DELETE, path);
     }
   },
 
   // Subscribe to Posts
-  subscribeToPosts(callback: (posts: SpeltaGramPost[]) => void) {
-    const q = query(collection(db, POSTS_COLLECTION), orderBy('createdAt', 'desc'));
+  subscribeToPosts(callback: (posts: SpeltaGramPost[]) => void, onError?: (error: any) => void) {
+    const path = POSTS_COLLECTION;
+    const q = query(collection(db, path), orderBy('createdAt', 'desc'));
     return onSnapshot(q, (snapshot) => {
       const posts: SpeltaGramPost[] = [];
       snapshot.forEach((doc) => {
@@ -148,13 +198,18 @@ export const speltaGramService = {
       });
       callback(posts);
     }, (error) => {
-      console.error('Error listening to posts:', error);
+      if (onError) {
+        onError(error);
+      } else {
+        handleFirestoreError(error, OperationType.LIST, path);
+      }
     });
   },
 
   // Subscribe to Comments
-  subscribeToComments(postId: string, callback: (comments: SpeltaGramComment[]) => void) {
-    const q = query(collection(db, `${POSTS_COLLECTION}/${postId}/comments`), orderBy('createdAt', 'asc'));
+  subscribeToComments(postId: string, callback: (comments: SpeltaGramComment[]) => void, onError?: (error: any) => void) {
+    const path = `${POSTS_COLLECTION}/${postId}/comments`;
+    const q = query(collection(db, path), orderBy('createdAt', 'asc'));
     return onSnapshot(q, (snapshot) => {
       const comments: SpeltaGramComment[] = [];
       snapshot.forEach((doc) => {
@@ -162,7 +217,11 @@ export const speltaGramService = {
       });
       callback(comments);
     }, (error) => {
-      console.error('Error listening to comments:', error);
+      if (onError) {
+        onError(error);
+      } else {
+        handleFirestoreError(error, OperationType.LIST, path);
+      }
     });
   }
 };
