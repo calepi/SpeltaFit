@@ -146,11 +146,64 @@ export function SpeltaGramFeed({ user, isAdmin }: Props) {
   );
 }
 
+// --- CONFIRM MODAL ---
+function ConfirmModal({ 
+  isOpen, 
+  title, 
+  message, 
+  onConfirm, 
+  onCancel, 
+  isLoading 
+}: { 
+  isOpen: boolean; 
+  title: string; 
+  message: string; 
+  onConfirm: () => void; 
+  onCancel: () => void;
+  isLoading?: boolean;
+}) {
+  if (!isOpen) return null;
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.95 }}
+        className="bg-surface w-full max-w-sm rounded-3xl overflow-hidden shadow-xl border border-border p-6"
+      >
+        <h3 className="text-xl font-bold text-text-main mb-2">{title}</h3>
+        <p className="text-sm text-text-muted mb-6">{message}</p>
+        <div className="flex gap-3">
+          <button 
+            onClick={onCancel}
+            disabled={isLoading}
+            className="flex-1 py-3 px-4 rounded-xl font-bold text-text-main bg-bg-main hover:bg-border transition-colors disabled:opacity-50"
+          >
+            Cancelar
+          </button>
+          <button 
+            onClick={onConfirm}
+            disabled={isLoading}
+            className="flex-1 py-3 px-4 rounded-xl font-bold text-white bg-red-500 hover:bg-red-600 transition-colors disabled:opacity-50 flex items-center justify-center"
+          >
+            {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Apagar'}
+          </button>
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
 // --- POST CARD COMPONENT ---
 function PostCard({ post, currentUser, isAdmin, onOpenComments }: { key?: string | number, post: SpeltaGramPost, currentUser: User, isAdmin: boolean, onOpenComments: () => void }) {
   const [showMenu, setShowMenu] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
   const isLiked = post.likes?.includes(currentUser.uid);
-  const canDelete = post.userId === currentUser.uid || isAdmin;
+  const isWithin24h = (Date.now() - new Date(post.createdAt).getTime()) <= 24 * 60 * 60 * 1000;
+  const canDelete = isAdmin || (post.userId === currentUser.uid && isWithin24h);
 
   const handleLike = async () => {
     try {
@@ -161,17 +214,21 @@ function PostCard({ post, currentUser, isAdmin, onOpenComments }: { key?: string
   };
 
   const handleDelete = async () => {
-    if (window.confirm('Tem certeza que deseja apagar esta postagem?')) {
-      try {
-        await speltaGramService.deletePost(post.id, post.imageUrl);
-      } catch (e) {
-        alert('Erro ao deletar postagem.');
-      }
+    setIsDeleting(true);
+    setDeleteError(null);
+    try {
+      await speltaGramService.deletePost(post.id, post.imageUrl);
+      setShowDeleteModal(false);
+    } catch (e: any) {
+      setDeleteError('Erro ao deletar postagem.');
+    } finally {
+      setIsDeleting(false);
     }
   };
 
   return (
-    <div className="bg-surface rounded-3xl border border-border overflow-hidden shadow-sm">
+    <>
+      <div className="bg-surface rounded-3xl border border-border overflow-hidden shadow-sm">
       {/* Post Header */}
       <div className="p-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -192,16 +249,16 @@ function PostCard({ post, currentUser, isAdmin, onOpenComments }: { key?: string
         
         {canDelete && (
           <div className="relative">
-            <button onClick={() => setShowMenu(!showMenu)} className="p-2 text-text-muted hover:text-text-main rounded-full hover:bg-bg-main">
+            <button onClick={() => { setShowMenu(!showMenu); setDeleteError(null); }} className="p-2 text-text-muted hover:text-text-main rounded-full hover:bg-bg-main">
               <MoreVertical className="w-5 h-5" />
             </button>
             {showMenu && (
-              <div className="absolute right-0 mt-2 w-32 bg-surface border border-border rounded-xl shadow-lg z-10 overflow-hidden">
+              <div className="absolute right-0 mt-2 w-48 bg-surface border border-border rounded-xl shadow-lg z-10 overflow-hidden">
                 <button 
-                  onClick={handleDelete}
+                  onClick={() => { setShowMenu(false); setShowDeleteModal(true); }}
                   className="w-full text-left px-4 py-3 text-sm text-red-500 hover:bg-red-500/10 flex items-center gap-2 font-medium"
                 >
-                  <Trash2 className="w-4 h-4" /> Apagar
+                  <Trash2 className="w-4 h-4 shrink-0" /> Apagar Postagem
                 </button>
               </div>
             )}
@@ -241,7 +298,21 @@ function PostCard({ post, currentUser, isAdmin, onOpenComments }: { key?: string
           )}
         </div>
       </div>
-    </div>
+      </div>
+
+      <AnimatePresence>
+        {showDeleteModal && (
+          <ConfirmModal
+            isOpen={showDeleteModal}
+            title="Apagar Postagem"
+            message={deleteError || "Tem certeza que deseja apagar esta postagem? Esta ação não pode ser desfeita."}
+            onConfirm={handleDelete}
+            onCancel={() => { setShowDeleteModal(false); setDeleteError(null); }}
+            isLoading={isDeleting}
+          />
+        )}
+      </AnimatePresence>
+    </>
   );
 }
 
@@ -458,13 +529,20 @@ function CommentsModal({ post, currentUser, isAdmin, onClose }: { post: SpeltaGr
     }
   };
 
-  const handleDelete = async (commentId: string) => {
-    if (window.confirm('Apagar comentário?')) {
-      try {
-        await speltaGramService.deleteComment(post.id, commentId);
-      } catch (e) {
-        setError('Erro ao apagar.');
-      }
+  const [commentToDelete, setCommentToDelete] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleDelete = async () => {
+    if (!commentToDelete) return;
+    setIsDeleting(true);
+    try {
+      await speltaGramService.deleteComment(post.id, commentToDelete);
+      setCommentToDelete(null);
+    } catch (e) {
+      setError('Erro ao apagar. Você só pode apagar comentários recentes.');
+      setCommentToDelete(null);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -517,7 +595,8 @@ function CommentsModal({ post, currentUser, isAdmin, onClose }: { post: SpeltaGr
             <p className="text-center text-text-muted text-sm py-8">Nenhum comentário ainda. Seja o primeiro!</p>
           ) : (
             comments.map(comment => {
-              const canDelete = comment.userId === currentUser.uid || post.userId === currentUser.uid || isAdmin;
+              const isWithin24h = (Date.now() - new Date(comment.createdAt).getTime()) <= 24 * 60 * 60 * 1000;
+              const canDelete = isAdmin || ((comment.userId === currentUser.uid || post.userId === currentUser.uid) && isWithin24h);
               return (
                 <div key={comment.id} className="flex gap-3 group">
                   {comment.userPhoto ? (
@@ -538,7 +617,7 @@ function CommentsModal({ post, currentUser, isAdmin, onClose }: { post: SpeltaGr
                       </p>
                       {canDelete && (
                         <button 
-                          onClick={() => handleDelete(comment.id)}
+                          onClick={() => setCommentToDelete(comment.id)}
                           className="text-xs text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
                         >
                           Apagar
@@ -579,6 +658,19 @@ function CommentsModal({ post, currentUser, isAdmin, onClose }: { post: SpeltaGr
           </form>
         </div>
       </motion.div>
+
+      <AnimatePresence>
+        {commentToDelete && (
+          <ConfirmModal
+            isOpen={!!commentToDelete}
+            title="Apagar Comentário"
+            message="Tem certeza que deseja apagar este comentário?"
+            onConfirm={handleDelete}
+            onCancel={() => setCommentToDelete(null)}
+            isLoading={isDeleting}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }

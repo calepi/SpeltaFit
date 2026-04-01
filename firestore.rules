@@ -325,15 +325,20 @@ service cloud.firestore {
         isAdmin() ||
         (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes']) && request.resource.data.likes is list && request.resource.data.likes.size() < 10000)
       );
-      allow delete: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow delete: if isAuthenticated() && (
+        isAdmin() || 
+        (resource.data.userId == request.auth.uid && 
+         request.time.toMillis() - timestamp.value(resource.data.createdAt).toMillis() <= 86400000)
+      );
 
       match /comments/{commentId} {
         allow read: if isAuthenticated();
         allow create: if isAuthenticated() && isValidSpeltaGramComment();
         allow delete: if isAuthenticated() && (
-          resource.data.userId == request.auth.uid || 
           isAdmin() || 
-          get(/databases/$(database)/documents/speltagram_posts/$(postId)).data.userId == request.auth.uid
+          ((resource.data.userId == request.auth.uid || 
+            get(/databases/$(database)/documents/speltagram_posts/$(postId)).data.userId == request.auth.uid) &&
+           request.time.toMillis() - timestamp.value(resource.data.createdAt).toMillis() <= 86400000)
         );
       }
     }
