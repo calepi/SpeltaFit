@@ -109,7 +109,10 @@ export function DietPlanView({ plan, onReset }: DietPlanViewProps) {
                     <tbody>
                       {meal.foods.map((food, fIdx) => (
                         <tr key={fIdx} className="border-b border-gray-100 last:border-0">
-                          <td className="py-2 font-semibold text-gray-800 w-1/2">{food.item}</td>
+                          <td className="py-2 font-semibold text-gray-800 w-1/2">
+                            {food.item}
+                            {food.prep && <span className="block text-[10px] text-gray-500 italic font-normal">{food.prep}</span>}
+                          </td>
                           <td className="py-2 text-gray-600 w-1/4">{food.quantity}</td>
                           <td className="py-2 text-right text-gray-500 w-1/4">{food.calories} kcal</td>
                         </tr>
@@ -469,6 +472,9 @@ function MealCard({ meal, index, setSelectedFood }: MealCardProps) {
                   <Search className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
                 </div>
                 <div className="text-xs text-text-muted font-medium">{food.quantity}</div>
+                {food.prep && (
+                  <div className="text-[10px] text-brand/70 italic mt-0.5">{food.prep}</div>
+                )}
               </div>
             </div>
             <div className="text-right shrink-0 ml-2">

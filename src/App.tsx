@@ -7,7 +7,8 @@ import { ExerciseLibrary } from './components/ExerciseLibrary';
 import { AnamnesisData, WorkoutPlan, ExistingDay } from './services/workoutGenerator';
 import { generateWorkoutPlanRuleBased } from './services/workoutGenerator';
 import { Logo } from './components/Logo';
-import { LogIn, LogOut, User as UserIcon, Shield, BookOpen, Apple, Users, Palette, TrendingUp, HelpCircle } from 'lucide-react';
+import { LogIn, LogOut, User as UserIcon, Shield, BookOpen, Apple, Users, Palette, TrendingUp, HelpCircle, Trophy, Bell } from 'lucide-react';
+import { ReminderSettings } from './components/ReminderSettings';
 import { auth, db, googleProvider } from './firebase';
 import { signInWithPopup, signOut, onAuthStateChanged, User } from 'firebase/auth';
 import { doc, getDoc, setDoc, deleteDoc } from 'firebase/firestore';
@@ -17,8 +18,9 @@ import { WorkoutComparisonView } from './components/WorkoutComparisonView';
 import { SpeltaGramFeed } from './components/SpeltaGram';
 import { EvolutionCharts } from './components/EvolutionCharts';
 import { UserManual } from './components/UserManual';
+import { GamificationDashboard } from './components/GamificationDashboard';
 
-type AppState = 'landing' | 'form' | 'plan' | 'admin' | 'library' | 'nutrition' | 'speltagram' | 'evolution' | 'manual' | 'comparison';
+type AppState = 'landing' | 'form' | 'plan' | 'admin' | 'library' | 'nutrition' | 'speltagram' | 'evolution' | 'manual' | 'comparison' | 'gamification' | 'reminders';
 type Theme = 'default' | 'green' | 'blue' | 'gold';
 
 export default function App() {
@@ -281,6 +283,21 @@ export default function App() {
             {user && (
               <>
                 <button 
+                  onClick={() => setAppState(appState === 'gamification' ? 'plan' : 'gamification')}
+                  className={`p-2 rounded-xl transition-colors ${appState === 'gamification' ? 'bg-brand text-text-inverse' : 'bg-brand/10 text-brand hover:bg-brand/20'}`}
+                  title="Gamificação"
+                >
+                  <Trophy className="w-5 h-5" />
+                </button>
+
+                <button 
+                  onClick={() => setAppState(appState === 'reminders' ? 'plan' : 'reminders')}
+                  className={`p-2 rounded-xl transition-colors ${appState === 'reminders' ? 'bg-brand text-text-inverse' : 'bg-brand/10 text-brand hover:bg-brand/20'}`}
+                  title="Lembretes"
+                >
+                  <Bell className="w-5 h-5" />
+                </button>
+                <button 
                   onClick={() => setAppState(appState === 'evolution' ? 'plan' : 'evolution')}
                   className={`p-2 rounded-xl transition-colors ${appState === 'evolution' ? 'bg-brand text-text-inverse' : 'bg-brand/10 text-brand hover:bg-brand/20'}`}
                   title="Evolução"
@@ -453,6 +470,14 @@ export default function App() {
 
         {appState === 'evolution' && user && (
           <EvolutionCharts userId={user.uid} />
+        )}
+
+        {appState === 'gamification' && user && (
+          <GamificationDashboard userId={user.uid} />
+        )}
+
+        {appState === 'reminders' && (
+          <ReminderSettings />
         )}
 
         {appState === 'manual' && (

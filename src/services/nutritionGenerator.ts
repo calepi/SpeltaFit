@@ -19,6 +19,7 @@ export interface Food {
   protein: number;
   carbs: number;
   fats: number;
+  prep?: string; // Como preparar (ex: "com cúrcuma e pimenta preta")
 }
 
 export interface Meal {
@@ -156,13 +157,23 @@ export async function generateDietPlan(
       const c = getRandom(getFoodOptions('carboidrato'));
       const v = getRandom(getFoodOptions('vegetal'));
 
+      const prepOptions = [
+        'Grelhado com ervas finas',
+        'Cozido no vapor',
+        'Assado com especiarias',
+        'Refogado com alho e cebola',
+        'Salteado no azeite'
+      ];
+      const randomPrep = prepOptions[Math.floor(Math.random() * prepOptions.length)];
+
       foods.push({
         item: p.name,
         quantity: `${Math.round((mealProt / p.protein) * 100)}g`,
         calories: Math.round((mealProt / p.protein) * p.calories),
         protein: Math.round(mealProt),
         carbs: Math.round((mealProt / p.protein) * p.carbs),
-        fats: Math.round((mealProt / p.protein) * p.fats)
+        fats: Math.round((mealProt / p.protein) * p.fats),
+        prep: randomPrep
       });
 
       foods.push({
@@ -180,20 +191,27 @@ export async function generateDietPlan(
         calories: v.calories,
         protein: v.protein,
         carbs: v.carbs,
-        fats: v.fats
+        fats: v.fats,
+        prep: 'Temperar com limão e pouco sal'
       });
     } else if (mealInfo.type === 'breakfast' || mealInfo.type === 'snack') {
       const p = getRandom(getFoodOptions('proteina'));
       const f = getRandom(getFoodOptions('fruta'));
       const g = getRandom(getFoodOptions('gordura'));
       
+      let prep = '';
+      if (p.id === 'ovo_mexido' || p.id === 'ovo_cozido') {
+        prep = 'Com pitada de cúrcuma e pimenta preta';
+      }
+
       foods.push({
         item: p.name,
         quantity: `${Math.round((mealProt / p.protein) * 100)}g`,
         calories: Math.round((mealProt / p.protein) * p.calories),
         protein: Math.round(mealProt),
         carbs: Math.round((mealProt / p.protein) * p.carbs),
-        fats: Math.round((mealProt / p.protein) * p.fats)
+        fats: Math.round((mealProt / p.protein) * p.fats),
+        prep: prep
       });
 
       foods.push({
@@ -304,25 +322,46 @@ export async function generateDietPlan(
     }
   };
 
-  // Base Supplements
-  addSupplementToMeal('breakfast', 'multivitaminico', '1 unidade');
-  addSupplementToMeal('main', 'creatina', '5g'); // Almoço ou Jantar
+  // User-selected supplements
+  if (nutritionalAnamnesis.supplements && nutritionalAnamnesis.supplements.length > 0) {
+    nutritionalAnamnesis.supplements.forEach(suppName => {
+      const supp = FOOD_DB.find(f => f.name.toLowerCase() === suppName.toLowerCase());
+      if (supp) {
+        let mealType = 'snack';
+        let qty = '1 unidade';
+        
+        if (supp.id === 'whey_protein' || supp.id === 'albumina') {
+          mealType = 'snack';
+          qty = '30g';
+        } else if (supp.id === 'creatina' || supp.id === 'glutamina') {
+          mealType = 'main';
+          qty = '5g';
+        } else if (supp.id === 'multivitaminico') {
+          mealType = 'breakfast';
+          qty = '1 unidade';
+        } else if (supp.id === 'omega3') {
+          mealType = 'main';
+          qty = '2 unidades';
+        } else if (supp.id === 'cafeina' || supp.id === 'pre-treino') {
+          mealType = 'pre-workout';
+          qty = '1 dose';
+        }
+        
+        addSupplementToMeal(mealType, supp.id, qty);
+      }
+    });
+  } else {
+    // Base Supplements if none selected
+    addSupplementToMeal('breakfast', 'multivitaminico', '1 unidade');
+    addSupplementToMeal('main', 'creatina', '5g');
 
-  // Goal-specific Supplements
-  if (goal.includes('hipertrofia') || goal.includes('massa')) {
-    addSupplementToMeal('snack', 'whey_protein', '30g');
-    if (userLevel === 'avançado') {
-      // Beta-alanina doesn't exist in FOOD_DB yet, let's use creatina again or just skip if not in DB.
-      // We will add it to DB if needed, but for now let's stick to what we have.
+    // Goal-specific Suggestions
+    if (goal.includes('hipertrofia') || goal.includes('massa')) {
+      addSupplementToMeal('snack', 'whey_protein', '30g');
+    } else if (goal.includes('emagrecimento') || goal.includes('definição')) {
+      addSupplementToMeal('pre-workout', 'cafeina', '1 unidade');
+      addSupplementToMeal('main', 'omega3', '2 unidades');
     }
-  } else if (goal.includes('emagrecimento') || goal.includes('definição')) {
-    addSupplementToMeal('pre-workout', 'cafeina', '1 unidade');
-    addSupplementToMeal('main', 'omega3', '2 unidades');
-    addSupplementToMeal('snack', 'whey_protein', '30g');
-  }
-
-  if (userLevel === 'avançado') {
-    addSupplementToMeal('snack', 'glutamina', '5g'); // Ceia ou Lanche
   }
 
   const recommendations = `

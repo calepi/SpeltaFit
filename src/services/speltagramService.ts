@@ -226,6 +226,14 @@ export const speltaGramService = {
     }
   },
 
+  // Update comment count manually if needed
+  async syncCommentCount(postId: string): Promise<number> {
+    const count = await this.getCommentCount(postId);
+    const postRef = doc(db, POSTS_COLLECTION, postId);
+    await updateDoc(postRef, { commentCount: count });
+    return count;
+  },
+
   // Delete Comment
   async deleteComment(postId: string, commentId: string): Promise<void> {
     const path = `${POSTS_COLLECTION}/${postId}/comments/${commentId}`;

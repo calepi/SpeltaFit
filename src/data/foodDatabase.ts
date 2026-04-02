@@ -12,11 +12,11 @@ export interface FoodItem {
 export const FOOD_DB: FoodItem[] = [
   // PROTEÍNAS ANIMAIS
   { id: 'frango_grelhado', name: 'Frango', category: 'proteina', calories: 165, protein: 31, carbs: 0, fats: 3.6, baseQuantity: '100g' },
-  { id: 'frango_desfiado', name: 'Frango Desfiado', category: 'proteina', calories: 150, protein: 28, carbs: 0, fats: 3, baseQuantity: '100g' },
+  { id: 'frango_desfiado', name: 'Frango', category: 'proteina', calories: 150, protein: 28, carbs: 0, fats: 3, baseQuantity: '100g' },
   { id: 'patinho_moido', name: 'Carne Moída (Patinho)', category: 'proteina', calories: 220, protein: 26, carbs: 0, fats: 12, baseQuantity: '100g' },
   { id: 'file_mignon', name: 'Filé Mignon', category: 'proteina', calories: 250, protein: 28, carbs: 0, fats: 15, baseQuantity: '100g' },
   { id: 'ovo_cozido', name: 'Ovo', category: 'proteina', calories: 155, protein: 13, carbs: 1.1, fats: 11, baseQuantity: '100g' },
-  { id: 'ovo_mexido', name: 'Ovo Mexido', category: 'proteina', calories: 160, protein: 13, carbs: 1.5, fats: 12, baseQuantity: '100g' },
+  { id: 'ovo_mexido', name: 'Ovo', category: 'proteina', calories: 160, protein: 13, carbs: 1.5, fats: 12, baseQuantity: '100g' },
   { id: 'tilapia_grelhada', name: 'Tilápia', category: 'proteina', calories: 128, protein: 26, carbs: 0, fats: 2.7, baseQuantity: '100g' },
   { id: 'salmao_grelhado', name: 'Salmão', category: 'proteina', calories: 208, protein: 20, carbs: 0, fats: 13, baseQuantity: '100g' },
   { id: 'atum_lata', name: 'Atum em Lata', category: 'proteina', calories: 116, protein: 26, carbs: 0, fats: 1, baseQuantity: '100g' },

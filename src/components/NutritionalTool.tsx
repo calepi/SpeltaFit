@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { NutritionalAnamnesisForm } from './NutritionalAnamnesisForm';
 import { DietPlanView } from './DietPlanView';
+import { RecipeView } from './RecipeView';
 import { NutritionalAnamnesis, DietPlan, generateDietPlan } from '../services/nutritionGenerator';
 import { doc, getDoc, setDoc, deleteDoc } from 'firebase/firestore';
 import { db, auth } from '../firebase';
-import { Apple, ChevronLeft, LayoutDashboard, TrendingUp, AlertCircle } from 'lucide-react';
+import { Apple, ChevronLeft, LayoutDashboard, TrendingUp, AlertCircle, BookOpen } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface NutritionalToolProps {
@@ -12,7 +13,7 @@ interface NutritionalToolProps {
   onBack: () => void;
 }
 
-type ViewState = 'dashboard' | 'form' | 'plan' | 'history' | 'progress';
+type ViewState = 'dashboard' | 'form' | 'plan' | 'history' | 'progress' | 'recipes';
 
 export function NutritionalTool({ physicalAnamnesis, onBack }: NutritionalToolProps) {
   const [view, setView] = useState<ViewState>('dashboard');
@@ -131,6 +132,7 @@ export function NutritionalTool({ physicalAnamnesis, onBack }: NutritionalToolPr
         <div className="flex items-center gap-4">
           <NavButton active={view === 'dashboard'} onClick={() => setView('dashboard')} icon={<LayoutDashboard className="w-4 h-4" />} label="Geral" />
           <NavButton active={view === 'plan'} onClick={() => dietPlan ? setView('plan') : setView('form')} icon={<Apple className="w-4 h-4" />} label="Dieta" />
+          <NavButton active={view === 'recipes'} onClick={() => setView('recipes')} icon={<BookOpen className="w-4 h-4" />} label="Receitas" />
           <NavButton active={view === 'progress'} onClick={() => setView('progress')} icon={<TrendingUp className="w-4 h-4" />} label="Evolução" />
         </div>
       </div>
@@ -210,6 +212,17 @@ export function NutritionalTool({ physicalAnamnesis, onBack }: NutritionalToolPr
               exit={{ opacity: 0 }}
             >
               <DietPlanView plan={dietPlan} onReset={handleReset} />
+            </motion.div>
+          )}
+
+          {view === 'recipes' && (
+            <motion.div 
+              key="recipes"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+            >
+              <RecipeView />
             </motion.div>
           )}
         </AnimatePresence>

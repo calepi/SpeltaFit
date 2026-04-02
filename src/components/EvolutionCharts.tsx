@@ -16,6 +16,7 @@ import { collection, query, orderBy, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { VisualEvolution } from './VisualEvolution';
 
 interface EvolutionData {
   date: string;
@@ -32,6 +33,7 @@ interface EvolutionChartsProps {
 export function EvolutionCharts({ userId }: EvolutionChartsProps) {
   const [data, setData] = React.useState<EvolutionData[]>([]);
   const [loading, setLoading] = React.useState(true);
+  const [activeTab, setActiveTab] = React.useState<'charts' | 'visual'>('charts');
 
   React.useEffect(() => {
     if (!userId) return;
@@ -91,8 +93,30 @@ export function EvolutionCharts({ userId }: EvolutionChartsProps) {
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-      {/* Header & Summary */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      {/* Tabs */}
+      <div className="flex flex-wrap gap-2 p-1 bg-surface rounded-2xl border border-border w-fit print:hidden">
+        <button
+          onClick={() => setActiveTab('charts')}
+          className={`px-6 py-2.5 rounded-xl font-bold text-sm transition-all ${
+            activeTab === 'charts' ? 'bg-bg-main text-brand shadow-sm border border-border' : 'text-text-muted hover:text-text-main'
+          }`}
+        >
+          Gráficos de Evolução
+        </button>
+        <button
+          onClick={() => setActiveTab('visual')}
+          className={`px-6 py-2.5 rounded-xl font-bold text-sm transition-all ${
+            activeTab === 'visual' ? 'bg-bg-main text-brand shadow-sm border border-border' : 'text-text-muted hover:text-text-main'
+          }`}
+        >
+          Diário Visual e Medidas
+        </button>
+      </div>
+
+      {activeTab === 'charts' ? (
+        <>
+          {/* Header & Summary */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="md:col-span-2 bg-surface border border-border rounded-[2.5rem] p-8 shadow-xl relative overflow-hidden">
           <div className="absolute top-0 right-0 w-1/3 h-full bg-gradient-to-l from-brand/5 to-transparent pointer-events-none" />
           <div className="relative z-10 space-y-4">
@@ -249,8 +273,12 @@ export function EvolutionCharts({ userId }: EvolutionChartsProps) {
           />
         </div>
       </div>
-    </div>
-  );
+    </>
+  ) : (
+    <VisualEvolution userId={userId} />
+  )}
+</div>
+);
 }
 
 function InsightCard({ title, content }: { title: string, content: string }) {

@@ -261,6 +261,10 @@ function PostCard({ post, currentUser, isAdmin, onOpenComments, onOpenLikes }: {
     // or got out of sync due to increment(1) on undefined
     speltaGramService.getCommentCount(post.id).then(count => {
       setRealCommentCount(count);
+      // Sync with Firestore if out of sync
+      if (post.commentCount !== count) {
+        speltaGramService.syncCommentCount(post.id).catch(console.error);
+      }
     });
   }, [post.id, post.commentCount]); // Re-fetch if post.commentCount changes from parent subscription
 
