@@ -1,4 +1,4 @@
-import { collection, doc, addDoc, updateDoc, deleteDoc, getDocs, query, orderBy, onSnapshot, serverTimestamp, arrayUnion, arrayRemove, deleteField, increment } from 'firebase/firestore';
+import { collection, doc, addDoc, updateDoc, deleteDoc, getDocs, query, orderBy, onSnapshot, serverTimestamp, arrayUnion, arrayRemove, deleteField, increment, getCountFromServer } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { db, storage, auth } from '../firebase';
 import imageCompression from 'browser-image-compression';
@@ -259,6 +259,19 @@ export const speltaGramService = {
         handleFirestoreError(error, OperationType.LIST, path);
       }
     });
+  },
+
+  // Get Comment Count
+  async getCommentCount(postId: string): Promise<number> {
+    const path = `${POSTS_COLLECTION}/${postId}/comments`;
+    try {
+      const coll = collection(db, path);
+      const snapshot = await getCountFromServer(coll);
+      return snapshot.data().count;
+    } catch (error) {
+      console.error('Error getting comment count:', error);
+      return 0;
+    }
   },
 
   // Subscribe to Comments

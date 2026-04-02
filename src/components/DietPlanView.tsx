@@ -97,32 +97,34 @@ export function DietPlanView({ plan, onReset }: DietPlanViewProps) {
             </div>
           </div>
 
-          <div className="space-y-8">
+          <div className="space-y-6">
             {plan.meals.map((meal, idx) => (
-              <div key={idx} className="border-2 border-gray-100 rounded-3xl overflow-hidden break-inside-avoid">
-                <div className="bg-gray-50 p-4 flex items-center justify-between">
-                  <h4 className="font-black text-lg">{idx + 1}. {meal.name} - {meal.time}</h4>
-                  <span className="font-bold text-sm">{meal.foods.reduce((acc, f) => acc + f.calories, 0)} kcal</span>
+              <div key={idx} className="border border-gray-300 rounded-xl overflow-hidden break-inside-avoid mb-6">
+                <div className="bg-gray-100 px-4 py-3 flex items-center justify-between border-b border-gray-300">
+                  <h4 className="font-bold text-lg text-gray-800">{idx + 1}. {meal.name} <span className="text-gray-500 text-sm ml-2 font-normal">{meal.time}</span></h4>
+                  <span className="font-bold text-sm text-gray-600">{meal.foods.reduce((acc, f) => acc + f.calories, 0)} kcal</span>
                 </div>
-                <div className="p-6 space-y-4">
-                  {meal.foods.map((food, fIdx) => (
-                    <div key={fIdx} className="flex justify-between items-center border-b border-gray-50 pb-2">
-                      <div>
-                        <div className="font-bold">{food.item}</div>
-                        <div className="text-xs text-gray-500">{food.quantity}</div>
-                      </div>
-                      <div className="text-right font-bold text-sm">{food.calories} kcal</div>
-                    </div>
-                  ))}
+                <div className="p-4">
+                  <table className="w-full text-sm">
+                    <tbody>
+                      {meal.foods.map((food, fIdx) => (
+                        <tr key={fIdx} className="border-b border-gray-100 last:border-0">
+                          <td className="py-2 font-semibold text-gray-800 w-1/2">{food.item}</td>
+                          <td className="py-2 text-gray-600 w-1/4">{food.quantity}</td>
+                          <td className="py-2 text-right text-gray-500 w-1/4">{food.calories} kcal</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
 
                   {meal.weeklyVariations && meal.weeklyVariations.length > 0 && (
-                    <div className="mt-4 pt-4 border-t border-dashed border-gray-200">
-                      <div className="text-xs font-black text-brand uppercase mb-3">Variações Semanais</div>
+                    <div className="mt-4 pt-3 border-t border-gray-200">
+                      <div className="text-xs font-bold text-gray-500 uppercase mb-2">Variações Semanais</div>
                       <div className="grid grid-cols-2 gap-4">
                         {meal.weeklyVariations.map((v, vIdx) => (
                           <div key={vIdx} className="text-xs">
-                            <span className="font-black text-gray-800">{v.day}:</span>
-                            <div className="text-gray-600">
+                            <span className="font-bold text-gray-700">{v.day}:</span>
+                            <div className="text-gray-600 mt-1">
                               {v.foods.map(f => `${f.item} (${f.quantity})`).join(', ')}
                             </div>
                           </div>
@@ -135,11 +137,7 @@ export function DietPlanView({ plan, onReset }: DietPlanViewProps) {
             ))}
           </div>
 
-          <div className="grid grid-cols-2 gap-8 pt-8">
-            <div className="space-y-4">
-              <h3 className="font-black text-xl border-b-2 border-gray-100 pb-2">Suplementação</h3>
-              <p className="text-gray-600 text-sm whitespace-pre-line">{plan.supplementation}</p>
-            </div>
+          <div className="pt-8">
             <div className="space-y-4">
               <h3 className="font-black text-xl border-b-2 border-gray-100 pb-2">Recomendações</h3>
               <p className="text-gray-600 text-sm whitespace-pre-line">{plan.recommendations}</p>
@@ -223,26 +221,14 @@ export function DietPlanView({ plan, onReset }: DietPlanViewProps) {
       </div>
 
       {/* Meals Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {plan.meals.map((meal, idx) => (
           <MealCard key={idx} meal={meal} index={idx} setSelectedFood={setSelectedFood} />
         ))}
       </div>
 
-      {/* Supplementation & Recommendations */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        <div className="bg-surface border border-border rounded-[2.5rem] p-8 shadow-xl">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="p-3 rounded-2xl bg-blue-500/10 text-blue-500">
-              <Pill className="w-6 h-6" />
-            </div>
-            <h3 className="text-xl font-black tracking-tight">Suplementação</h3>
-          </div>
-          <div className="prose prose-invert max-w-none text-text-muted leading-relaxed whitespace-pre-line">
-            {plan.supplementation}
-          </div>
-        </div>
-
+      {/* Recommendations */}
+      <div className="grid grid-cols-1 gap-8">
         <div className="bg-surface border border-border rounded-[2.5rem] p-8 shadow-xl">
           <div className="flex items-center gap-3 mb-6">
             <div className="p-3 rounded-2xl bg-brand/10 text-brand">
@@ -448,68 +434,66 @@ function MealCard({ meal, index, setSelectedFood }: MealCardProps) {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.1 }}
-      className="bg-surface border border-border rounded-[2.5rem] overflow-hidden shadow-xl flex flex-col"
+      className="bg-surface border border-border rounded-3xl overflow-hidden shadow-sm hover:shadow-md transition-shadow flex flex-col"
     >
-      <div className="p-6 border-b border-border bg-bg-main/50 flex items-center justify-between">
+      <div className="p-5 border-b border-border bg-bg-main/30 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-brand text-text-inverse flex items-center justify-center font-black text-lg">
+          <div className="w-8 h-8 rounded-xl bg-brand/10 text-brand flex items-center justify-center font-black text-sm">
             {index + 1}
           </div>
           <div>
-            <h4 className="font-black text-lg tracking-tight">{meal.name}</h4>
-            <div className="flex items-center gap-1 text-xs text-text-muted font-bold">
+            <h4 className="font-bold text-lg tracking-tight text-text-main">{meal.name}</h4>
+            <div className="flex items-center gap-1 text-xs text-text-muted font-medium">
               <Clock className="w-3 h-3" />
               {meal.time}
             </div>
           </div>
         </div>
-        <div className="px-3 py-1 rounded-full bg-brand/10 text-brand text-[10px] font-black uppercase tracking-widest">
+        <div className="px-2 py-1 rounded-lg bg-bg-main border border-border text-text-muted text-xs font-bold">
           {meal.foods.reduce((acc, f) => acc + f.calories, 0)} kcal
         </div>
       </div>
 
-      <div className="p-6 flex-grow space-y-4">
+      <div className="p-5 flex-grow space-y-2">
         {meal.foods.map((food, fIdx) => (
           <button 
             key={fIdx} 
             onClick={() => handleFoodClick(food.item)}
-            className="w-full flex items-start justify-between group text-left hover:bg-bg-main/50 p-2 -m-2 rounded-xl transition-all"
+            className="w-full flex items-center justify-between group text-left hover:bg-bg-main p-3 -mx-3 rounded-xl transition-colors border border-transparent hover:border-border"
           >
-            <div className="flex gap-3">
-              <div className="mt-1">
-                <CheckCircle2 className="w-4 h-4 text-brand/40 group-hover:text-brand transition-colors" />
-              </div>
+            <div className="flex items-center gap-3">
+              <div className="w-1.5 h-1.5 rounded-full bg-brand/40 group-hover:bg-brand transition-colors shrink-0" />
               <div>
-                <div className="font-bold text-text-main group-hover:text-brand transition-colors flex items-center gap-2">
+                <div className="font-bold text-text-main text-sm group-hover:text-brand transition-colors flex items-center gap-2">
                   {food.item}
-                  <Search className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <Search className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
                 </div>
                 <div className="text-xs text-text-muted font-medium">{food.quantity}</div>
               </div>
             </div>
-            <div className="text-right">
-              <div className="text-xs font-black text-text-main">{food.calories} kcal</div>
-              <div className="text-[10px] text-text-muted font-bold">P: {food.protein}g | C: {food.carbs}g</div>
+            <div className="text-right shrink-0 ml-2">
+              <div className="text-xs font-bold text-text-main">{food.calories} kcal</div>
+              <div className="text-[10px] text-text-muted">P:{food.protein} C:{food.carbs} G:{food.fats}</div>
             </div>
           </button>
         ))}
 
         {/* Weekly Variations Section */}
         {meal.weeklyVariations && meal.weeklyVariations.length > 0 && (
-          <div className="mt-6 pt-6 border-t border-border border-dashed space-y-4">
-            <div className="flex items-center gap-2 text-xs font-black text-brand uppercase tracking-widest">
+          <div className="mt-5 pt-5 border-t border-border border-dashed space-y-3">
+            <div className="flex items-center gap-2 text-xs font-bold text-text-muted uppercase tracking-wider">
               <RefreshCw className="w-3 h-3" />
               Variações Semanais
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {meal.weeklyVariations.map((variation, vIdx) => (
-                <div key={vIdx} className="p-4 rounded-2xl bg-bg-main border border-border/50 hover:border-brand/30 transition-all">
-                  <div className="text-sm font-black text-brand mb-2">{variation.day}</div>
+                <div key={vIdx} className="p-3 rounded-xl bg-bg-main border border-border/50">
+                  <div className="text-xs font-bold text-text-main mb-1.5">{variation.day}</div>
                   <div className="space-y-1">
                     {variation.foods.map((vFood, vfIdx) => (
                       <div key={vfIdx} className="text-[10px] text-text-muted flex justify-between leading-tight">
-                        <span>• {vFood.item}</span>
-                        <span className="font-bold whitespace-nowrap ml-2">{vFood.quantity}</span>
+                        <span className="truncate pr-2">• {vFood.item}</span>
+                        <span className="font-medium whitespace-nowrap shrink-0">{vFood.quantity}</span>
                       </div>
                     ))}
                   </div>
@@ -520,7 +504,7 @@ function MealCard({ meal, index, setSelectedFood }: MealCardProps) {
         )}
       </div>
 
-      <div className="p-4 bg-bg-main/30 border-t border-border flex items-center justify-center gap-4">
+      <div className="p-3 bg-bg-main/50 border-t border-border flex items-center justify-center gap-6">
         <MacroBadge label="P" value={meal.foods.reduce((acc, f) => acc + f.protein, 0)} color="blue" />
         <MacroBadge label="C" value={meal.foods.reduce((acc, f) => acc + f.carbs, 0)} color="green" />
         <MacroBadge label="G" value={meal.foods.reduce((acc, f) => acc + f.fats, 0)} color="gold" />

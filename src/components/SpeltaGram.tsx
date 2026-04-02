@@ -254,6 +254,15 @@ function PostCard({ post, currentUser, isAdmin, onOpenComments, onOpenLikes }: {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [realCommentCount, setRealCommentCount] = useState<number>(post.commentCount || 0);
+
+  useEffect(() => {
+    // Always fetch the real count to fix legacy posts that didn't have commentCount
+    // or got out of sync due to increment(1) on undefined
+    speltaGramService.getCommentCount(post.id).then(count => {
+      setRealCommentCount(count);
+    });
+  }, [post.id, post.commentCount]); // Re-fetch if post.commentCount changes from parent subscription
 
   const isLiked = post.likes?.includes(currentUser.uid);
   const isWithin24h = (Date.now() - new Date(post.createdAt).getTime()) <= 24 * 60 * 60 * 1000;
@@ -341,7 +350,7 @@ function PostCard({ post, currentUser, isAdmin, onOpenComments, onOpenLikes }: {
               <MessageCircle className="w-7 h-7 text-text-main group-hover:text-brand transition-colors" />
             </button>
             <button onClick={onOpenComments} className="font-bold text-text-main hover:underline">
-              {post.commentCount || 0}
+              {realCommentCount}
             </button>
           </div>
         </div>

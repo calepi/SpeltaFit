@@ -275,24 +275,55 @@ export async function generateDietPlan(
     });
   }
 
-  // 6. Suplementação Estratégica
-  let suppList = ["Multivitamínico: 1 cápsula ao acordar."];
-  
+  // 6. Suplementação Estratégica (Integrada nas refeições)
+  const addSupplementToMeal = (mealType: string, suppId: string, quantity: string) => {
+    // Find the first meal that matches the type
+    let targetMeal = meals.find(m => {
+      const info = mealNames.find(mn => mn.name === m.name);
+      return info && info.type === mealType;
+    });
+    
+    // Fallback if meal type not found
+    if (!targetMeal) targetMeal = meals[0];
+
+    if (targetMeal) {
+      const suppData = FOOD_DB.find(f => f.id === suppId);
+      if (suppData) {
+        const foodItem = {
+          item: suppData.name,
+          quantity: quantity,
+          calories: suppData.calories > 0 ? Math.round((parseInt(quantity) || 0) / 100 * suppData.calories) : 0,
+          protein: suppData.protein > 0 ? Math.round((parseInt(quantity) || 0) / 100 * suppData.protein) : 0,
+          carbs: suppData.carbs > 0 ? Math.round((parseInt(quantity) || 0) / 100 * suppData.carbs) : 0,
+          fats: suppData.fats > 0 ? Math.round((parseInt(quantity) || 0) / 100 * suppData.fats) : 0
+        };
+        targetMeal.foods.push(foodItem);
+        // Also add to variations so it shows up every day
+        targetMeal.weeklyVariations?.forEach(v => v.foods.push(foodItem));
+      }
+    }
+  };
+
+  // Base Supplements
+  addSupplementToMeal('breakfast', 'multivitaminico', '1 unidade');
+  addSupplementToMeal('main', 'creatina', '5g'); // Almoço ou Jantar
+
+  // Goal-specific Supplements
   if (goal.includes('hipertrofia') || goal.includes('massa')) {
-    suppList.push("Creatina Monohidratada: 5g todos os dias (inclusive dias sem treino).");
-    suppList.push("Whey Protein: 30g-40g para completar a meta de proteína diária.");
-    if (userLevel === 'avançado') suppList.push("Beta-Alanina: 5g fracionadas ao longo do dia.");
+    addSupplementToMeal('snack', 'whey_protein', '30g');
+    if (userLevel === 'avançado') {
+      // Beta-alanina doesn't exist in FOOD_DB yet, let's use creatina again or just skip if not in DB.
+      // We will add it to DB if needed, but for now let's stick to what we have.
+    }
   } else if (goal.includes('emagrecimento') || goal.includes('definição')) {
-    suppList.push("Cafeína: 200mg-400mg antes do treino (se não tiver sensibilidade).");
-    suppList.push("Ômega 3: 2g-3g por dia com as principais refeições.");
-    suppList.push("Whey Protein: Útil para manter saciedade e massa magra.");
+    addSupplementToMeal('pre-workout', 'cafeina', '1 unidade');
+    addSupplementToMeal('main', 'omega3', '2 unidades');
+    addSupplementToMeal('snack', 'whey_protein', '30g');
   }
 
   if (userLevel === 'avançado') {
-    suppList.push("Glutamina: 5g-10g antes de dormir para recuperação imunológica.");
+    addSupplementToMeal('snack', 'glutamina', '5g'); // Ceia ou Lanche
   }
-
-  const supplementation = suppList.join('\n');
 
   const recommendations = `
     - Hidratação: Beba pelo menos ${Math.round(weight * 40 / 1000)} litros de água por dia.
@@ -300,6 +331,7 @@ export async function generateDietPlan(
     - Qualidade: Priorize alimentos "de verdade" (descasque mais, embale menos).
     - Sal: Use com moderação, prefira temperos naturais (alho, cebola, ervas).
     - Sono: Durma de 7 a 9 horas por noite. A regeneração ocorre no descanso.
+    - Suplementação: Os suplementos foram integrados diretamente nas suas refeições para facilitar a rotina.
     - Nível ${userLevel.toUpperCase()}: Foco total na precisão das pesagens dos alimentos.
   `.trim();
 
@@ -312,7 +344,7 @@ export async function generateDietPlan(
       fats: Math.round(fatsTotal)
     },
     meals,
-    supplementation,
+    supplementation: "", // Removed separate supplementation
     recommendations,
     createdAt: new Date().toISOString()
   };
@@ -382,6 +414,9 @@ export function generateShoppingList(plan: DietPlan): ShoppingItem[] {
       if (itemNameLower.includes('whey') || itemNameLower.includes('albumina')) {
         const packs = Math.ceil(kg / 0.9); // 900g pack
         packagesToBuy = `${packs} pote(s) de 900g`;
+      } else if (itemNameLower.includes('creatina') || itemNameLower.includes('glutamina')) {
+        const packs = Math.ceil(kg / 0.3); // 300g pack
+        packagesToBuy = `${packs} pote(s) de 300g`;
       } else if (itemNameLower.includes('arroz') || itemNameLower.includes('feijão') || itemNameLower.includes('feijao') || itemNameLower.includes('frango') || itemNameLower.includes('carne') || itemNameLower.includes('patinho') || itemNameLower.includes('tilápia') || itemNameLower.includes('salmão') || itemNameLower.includes('lombo')) {
         const packs = Math.ceil(kg / 1); // 1kg pack
         packagesToBuy = `${packs} pacote(s)/bandeja(s) de 1kg`;
@@ -407,6 +442,9 @@ export function generateShoppingList(plan: DietPlan): ShoppingItem[] {
       } else if (itemNameLower.includes('pão') || itemNameLower.includes('pao')) {
         const packs = Math.ceil(monthlyTotalValue / 14); // 14 slices per loaf
         packagesToBuy = `${packs} pacote(s) de pão de forma`;
+      } else if (itemNameLower.includes('multivitamínico') || itemNameLower.includes('ômega 3') || itemNameLower.includes('cafeína')) {
+        const packs = Math.ceil(monthlyTotalValue / 60); // 60 capsules per bottle
+        packagesToBuy = `${packs} frasco(s) de 60 cápsulas`;
       } else {
         packagesToBuy = `Comprar ${Math.round(monthlyTotalValue)} unidades`;
       }
@@ -433,11 +471,9 @@ export function getFoodSubstitutes(foodName: string): FoodItem[] {
   const food = FOOD_DB.find(f => f.name === foodName);
   if (!food) return [];
   
-  // Return foods from the same category with similar macro profiles
+  // Return foods from the same category for easier substitution for beginners
   return FOOD_DB.filter(f => 
     f.category === food.category && 
-    f.name !== food.name &&
-    Math.abs(f.protein - food.protein) < 10 &&
-    Math.abs(f.carbs - food.carbs) < 15
-  ).slice(0, 5);
+    f.name !== food.name
+  ).slice(0, 6);
 }
