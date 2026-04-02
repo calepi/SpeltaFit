@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { User } from 'firebase/auth';
-import { speltaGramService, SpeltaGramPost, SpeltaGramComment } from '../services/speltagramService';
+import { speltaGramService, SpeltaGramPost, SpeltaGramComment, LikeDetail } from '../services/speltagramService';
 
 interface Props {
   user: User;
@@ -15,6 +15,7 @@ export function SpeltaGramFeed({ user, isAdmin }: Props) {
   const [posts, setPosts] = useState<SpeltaGramPost[]>([]);
   const [isCreating, setIsCreating] = useState(false);
   const [selectedPost, setSelectedPost] = useState<SpeltaGramPost | null>(null); // For comments modal
+  const [likesPost, setLikesPost] = useState<SpeltaGramPost | null>(null); // For likes modal
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'all' | 'mine'>('all');
@@ -120,6 +121,7 @@ export function SpeltaGramFeed({ user, isAdmin }: Props) {
               currentUser={user} 
               isAdmin={isAdmin}
               onOpenComments={() => setSelectedPost(post)}
+              onOpenLikes={() => setLikesPost(post)}
             />
           ))}
         </div>
@@ -139,6 +141,12 @@ export function SpeltaGramFeed({ user, isAdmin }: Props) {
             currentUser={user} 
             isAdmin={isAdmin}
             onClose={() => setSelectedPost(null)} 
+          />
+        )}
+        {likesPost && (
+          <LikesModal
+            post={likesPost}
+            onClose={() => setLikesPost(null)}
           />
         )}
       </AnimatePresence>
@@ -194,8 +202,54 @@ function ConfirmModal({
   );
 }
 
+// --- LIKES MODAL ---
+function LikesModal({ post, onClose }: { post: SpeltaGramPost, onClose: () => void }) {
+  const likesList = post.likes || [];
+  const likeDetails = post.likeDetails || {};
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 bg-black/60 backdrop-blur-sm">
+      <motion.div 
+        initial={{ opacity: 0, y: '100%' }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: '100%' }}
+        transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+        className="bg-surface w-full sm:max-w-sm sm:rounded-3xl rounded-t-3xl overflow-hidden flex flex-col max-h-[60vh] sm:max-h-[500px]"
+      >
+        <div className="flex items-center justify-between p-4 border-b border-border bg-surface shrink-0">
+          <h2 className="text-lg font-bold text-text-main">Curtidas</h2>
+          <button onClick={onClose} className="p-2 text-text-muted hover:text-text-main rounded-full hover:bg-bg-main">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          {likesList.length === 0 ? (
+            <p className="text-center text-text-muted text-sm py-8">Nenhuma curtida ainda.</p>
+          ) : (
+            likesList.map(uid => {
+              const detail = likeDetails[uid];
+              return (
+                <div key={uid} className="flex items-center gap-3">
+                  {detail?.photoUrl ? (
+                    <img src={detail.photoUrl} alt={detail.name} className="w-10 h-10 rounded-full object-cover border border-border" referrerPolicy="no-referrer" />
+                  ) : (
+                    <div className="w-10 h-10 rounded-full bg-brand/10 flex items-center justify-center text-brand font-bold">
+                      {detail?.name?.charAt(0).toUpperCase() || 'U'}
+                    </div>
+                  )}
+                  <p className="font-bold text-text-main text-sm">{detail?.name || 'Usuário'}</p>
+                </div>
+              );
+            })
+          )}
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
 // --- POST CARD COMPONENT ---
-function PostCard({ post, currentUser, isAdmin, onOpenComments }: { key?: string | number, post: SpeltaGramPost, currentUser: User, isAdmin: boolean, onOpenComments: () => void }) {
+function PostCard({ post, currentUser, isAdmin, onOpenComments, onOpenLikes }: { key?: string | number, post: SpeltaGramPost, currentUser: User, isAdmin: boolean, onOpenComments: () => void, onOpenLikes: () => void }) {
   const [showMenu, setShowMenu] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -207,7 +261,7 @@ function PostCard({ post, currentUser, isAdmin, onOpenComments }: { key?: string
 
   const handleLike = async () => {
     try {
-      await speltaGramService.toggleLike(post.id, currentUser.uid, !!isLiked);
+      await speltaGramService.toggleLike(post.id, currentUser.uid, currentUser.displayName || 'Aluno', currentUser.photoURL || undefined, !!isLiked);
     } catch (e) {
       console.error(e);
     }
@@ -274,13 +328,22 @@ function PostCard({ post, currentUser, isAdmin, onOpenComments }: { key?: string
       {/* Actions */}
       <div className="p-4">
         <div className="flex items-center gap-4 mb-3">
-          <button onClick={handleLike} className="flex items-center gap-1.5 group">
-            <Heart className={`w-7 h-7 transition-colors ${isLiked ? 'fill-red-500 text-red-500' : 'text-text-main group-hover:text-red-500'}`} />
-            <span className="font-bold text-text-main">{post.likes?.length || 0}</span>
-          </button>
-          <button onClick={onOpenComments} className="flex items-center gap-1.5 group">
-            <MessageCircle className="w-7 h-7 text-text-main group-hover:text-brand transition-colors" />
-          </button>
+          <div className="flex items-center gap-1.5">
+            <button onClick={handleLike} className="group">
+              <Heart className={`w-7 h-7 transition-colors ${isLiked ? 'fill-red-500 text-red-500' : 'text-text-main group-hover:text-red-500'}`} />
+            </button>
+            <button onClick={onOpenLikes} className="font-bold text-text-main hover:underline">
+              {post.likes?.length || 0}
+            </button>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <button onClick={onOpenComments} className="group">
+              <MessageCircle className="w-7 h-7 text-text-main group-hover:text-brand transition-colors" />
+            </button>
+            <button onClick={onOpenComments} className="font-bold text-text-main hover:underline">
+              {post.commentCount || 0}
+            </button>
+          </div>
         </div>
 
         {/* Tag & Caption */}
@@ -492,6 +555,8 @@ function CommentsModal({ post, currentUser, isAdmin, onClose }: { post: SpeltaGr
   const [comments, setComments] = useState<SpeltaGramComment[]>([]);
   const [newComment, setNewComment] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [replyingTo, setReplyingTo] = useState<{ id: string, userName: string } | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const [error, setError] = useState<string | null>(null);
 
@@ -511,9 +576,11 @@ function CommentsModal({ post, currentUser, isAdmin, onClose }: { post: SpeltaGr
         userId: currentUser.uid,
         userName: currentUser.displayName || 'Aluno',
         userPhoto: currentUser.photoURL || undefined,
-        text: newComment.trim()
+        text: newComment.trim(),
+        parentId: replyingTo?.id
       });
       setNewComment('');
+      setReplyingTo(null);
     } catch (error: any) {
       console.error('Error in addComment:', error);
       let errorMessage = 'Erro ao enviar comentário.';
@@ -544,6 +611,93 @@ function CommentsModal({ post, currentUser, isAdmin, onClose }: { post: SpeltaGr
     } finally {
       setIsDeleting(false);
     }
+  };
+
+  const handleReply = (commentId: string, userName: string) => {
+    setReplyingTo({ id: commentId, userName });
+    inputRef.current?.focus();
+  };
+
+  const handleCommentLike = async (commentId: string, isLiked: boolean) => {
+    try {
+      await speltaGramService.toggleCommentLike(post.id, commentId, currentUser.uid, currentUser.displayName || 'Aluno', currentUser.photoURL || undefined, isLiked);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  // Organize comments into top-level and replies
+  const topLevelComments = comments.filter(c => !c.parentId);
+  const repliesByParentId = comments.reduce((acc, c) => {
+    if (c.parentId) {
+      if (!acc[c.parentId]) acc[c.parentId] = [];
+      acc[c.parentId].push(c);
+    }
+    return acc;
+  }, {} as Record<string, SpeltaGramComment[]>);
+
+  const renderComment = (comment: SpeltaGramComment, isReply = false) => {
+    const isWithin24h = (Date.now() - new Date(comment.createdAt).getTime()) <= 24 * 60 * 60 * 1000;
+    const canDelete = isAdmin || ((comment.userId === currentUser.uid || post.userId === currentUser.uid) && isWithin24h);
+    const isLiked = comment.likes?.includes(currentUser.uid);
+    const replies = repliesByParentId[comment.id] || [];
+
+    return (
+      <div key={comment.id} className={`flex gap-3 group ${isReply ? 'mt-3' : 'mt-4'}`}>
+        {comment.userPhoto ? (
+          <img src={comment.userPhoto} alt={comment.userName} className={`${isReply ? 'w-6 h-6' : 'w-8 h-8'} rounded-full object-cover shrink-0`} referrerPolicy="no-referrer" />
+        ) : (
+          <div className={`${isReply ? 'w-6 h-6 text-[10px]' : 'w-8 h-8 text-xs'} rounded-full bg-brand/10 flex items-center justify-center text-brand font-bold shrink-0`}>
+            {comment.userName.charAt(0).toUpperCase()}
+          </div>
+        )}
+        <div className="flex-1">
+          <div className="flex justify-between items-start">
+            <p className="text-sm text-text-main">
+              <span className="font-bold mr-2">{comment.userName}</span>
+              {comment.text}
+            </p>
+            <button 
+              onClick={() => handleCommentLike(comment.id, !!isLiked)}
+              className="ml-2 flex flex-col items-center gap-0.5"
+            >
+              <Heart className={`w-3.5 h-3.5 transition-colors ${isLiked ? 'fill-red-500 text-red-500' : 'text-text-muted hover:text-red-500'}`} />
+              {comment.likes && comment.likes.length > 0 && (
+                <span className="text-[10px] text-text-muted">{comment.likes.length}</span>
+              )}
+            </button>
+          </div>
+          <div className="flex items-center gap-3 mt-1">
+            <p className="text-xs text-text-muted">
+              {formatDistanceToNow(new Date(comment.createdAt), { addSuffix: true, locale: ptBR })}
+            </p>
+            {!isReply && (
+              <button 
+                onClick={() => handleReply(comment.id, comment.userName)}
+                className="text-xs text-text-muted hover:text-text-main font-medium"
+              >
+                Responder
+              </button>
+            )}
+            {canDelete && (
+              <button 
+                onClick={() => setCommentToDelete(comment.id)}
+                className="text-xs text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+              >
+                Apagar
+              </button>
+            )}
+          </div>
+          
+          {/* Render Replies */}
+          {replies.length > 0 && (
+            <div className="ml-2 border-l-2 border-border/50 pl-3 mt-1">
+              {replies.map(reply => renderComment(reply, true))}
+            </div>
+          )}
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -594,46 +748,23 @@ function CommentsModal({ post, currentUser, isAdmin, onClose }: { post: SpeltaGr
           {comments.length === 0 ? (
             <p className="text-center text-text-muted text-sm py-8">Nenhum comentário ainda. Seja o primeiro!</p>
           ) : (
-            comments.map(comment => {
-              const isWithin24h = (Date.now() - new Date(comment.createdAt).getTime()) <= 24 * 60 * 60 * 1000;
-              const canDelete = isAdmin || ((comment.userId === currentUser.uid || post.userId === currentUser.uid) && isWithin24h);
-              return (
-                <div key={comment.id} className="flex gap-3 group">
-                  {comment.userPhoto ? (
-                    <img src={comment.userPhoto} alt={comment.userName} className="w-8 h-8 rounded-full object-cover shrink-0" referrerPolicy="no-referrer" />
-                  ) : (
-                    <div className="w-8 h-8 rounded-full bg-brand/10 flex items-center justify-center text-brand font-bold shrink-0 text-xs">
-                      {comment.userName.charAt(0).toUpperCase()}
-                    </div>
-                  )}
-                  <div className="flex-1">
-                    <p className="text-sm text-text-main">
-                      <span className="font-bold mr-2">{comment.userName}</span>
-                      {comment.text}
-                    </p>
-                    <div className="flex items-center gap-3 mt-1">
-                      <p className="text-xs text-text-muted">
-                        {formatDistanceToNow(new Date(comment.createdAt), { addSuffix: true, locale: ptBR })}
-                      </p>
-                      {canDelete && (
-                        <button 
-                          onClick={() => setCommentToDelete(comment.id)}
-                          className="text-xs text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
-                        >
-                          Apagar
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              );
-            })
+            <div className="pb-4">
+              {topLevelComments.map(comment => renderComment(comment))}
+            </div>
           )}
         </div>
 
         {/* Comment Input */}
-        <div className="p-3 border-t border-border bg-surface shrink-0">
-          <form onSubmit={handleSubmit} className="flex items-center gap-2">
+        <div className="p-3 border-t border-border bg-surface shrink-0 flex flex-col">
+          {replyingTo && (
+            <div className="flex items-center justify-between bg-bg-main px-3 py-2 rounded-t-xl text-xs text-text-muted border-b border-border/50">
+              <span>Respondendo a <span className="font-bold">{replyingTo.userName}</span></span>
+              <button onClick={() => setReplyingTo(null)} className="hover:text-text-main">
+                <X className="w-3 h-3" />
+              </button>
+            </div>
+          )}
+          <form onSubmit={handleSubmit} className={`flex items-center gap-2 ${replyingTo ? 'pt-2' : ''}`}>
             {currentUser.photoURL ? (
               <img src={currentUser.photoURL} alt="You" className="w-8 h-8 rounded-full object-cover shrink-0" referrerPolicy="no-referrer" />
             ) : (
@@ -642,8 +773,9 @@ function CommentsModal({ post, currentUser, isAdmin, onClose }: { post: SpeltaGr
               </div>
             )}
             <input
+              ref={inputRef}
               type="text"
-              placeholder="Adicione um comentário..."
+              placeholder={replyingTo ? "Adicione uma resposta..." : "Adicione um comentário..."}
               value={newComment}
               onChange={(e) => setNewComment(e.target.value)}
               className="flex-1 bg-transparent border-none focus:ring-0 text-sm text-text-main placeholder:text-text-muted px-2"

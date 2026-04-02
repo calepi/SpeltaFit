@@ -1,7 +1,12 @@
-import { collection, doc, addDoc, updateDoc, deleteDoc, getDocs, query, orderBy, onSnapshot, serverTimestamp, arrayUnion, arrayRemove } from 'firebase/firestore';
+import { collection, doc, addDoc, updateDoc, deleteDoc, getDocs, query, orderBy, onSnapshot, serverTimestamp, arrayUnion, arrayRemove, deleteField, increment } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { db, storage, auth } from '../firebase';
 import imageCompression from 'browser-image-compression';
+
+export interface LikeDetail {
+  name: string;
+  photoUrl?: string;
+}
 
 export interface SpeltaGramPost {
   id: string;
@@ -12,6 +17,8 @@ export interface SpeltaGramPost {
   caption?: string;
   tag?: string;
   likes: string[];
+  likeDetails?: Record<string, LikeDetail>;
+  commentCount?: number;
   createdAt: string;
 }
 
@@ -22,6 +29,9 @@ export interface SpeltaGramComment {
   userName: string;
   userPhoto?: string;
   text: string;
+  likes?: string[];
+  likeDetails?: Record<string, LikeDetail>;
+  parentId?: string;
   createdAt: string;
 }
 
@@ -114,12 +124,14 @@ export const speltaGramService = {
   },
 
   // Create a new post
-  async createPost(data: Omit<SpeltaGramPost, 'id' | 'likes' | 'createdAt'>): Promise<string> {
+  async createPost(data: Omit<SpeltaGramPost, 'id' | 'likes' | 'likeDetails' | 'commentCount' | 'createdAt'>): Promise<string> {
     const path = POSTS_COLLECTION;
     try {
       const docRef = await addDoc(collection(db, path), {
         ...data,
         likes: [],
+        likeDetails: {},
+        commentCount: 0,
         createdAt: new Date().toISOString()
       });
       return docRef.id;
@@ -150,27 +162,64 @@ export const speltaGramService = {
     }
   },
 
-  // Toggle Like
-  async toggleLike(postId: string, userId: string, isLiked: boolean): Promise<void> {
+  // Toggle Like on Post
+  async toggleLike(postId: string, userId: string, userName: string, userPhoto: string | undefined, isLiked: boolean): Promise<void> {
     const path = `${POSTS_COLLECTION}/${postId}`;
     try {
       const postRef = doc(db, POSTS_COLLECTION, postId);
-      await updateDoc(postRef, {
+      const updateData: any = {
         likes: isLiked ? arrayRemove(userId) : arrayUnion(userId)
-      });
+      };
+      
+      if (isLiked) {
+        updateData[`likeDetails.${userId}`] = deleteField();
+      } else {
+        updateData[`likeDetails.${userId}`] = { name: userName, photoUrl: userPhoto || null };
+      }
+      
+      await updateDoc(postRef, updateData);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, path);
+    }
+  },
+
+  // Toggle Like on Comment
+  async toggleCommentLike(postId: string, commentId: string, userId: string, userName: string, userPhoto: string | undefined, isLiked: boolean): Promise<void> {
+    const path = `${POSTS_COLLECTION}/${postId}/comments/${commentId}`;
+    try {
+      const commentRef = doc(db, `${POSTS_COLLECTION}/${postId}/comments`, commentId);
+      const updateData: any = {
+        likes: isLiked ? arrayRemove(userId) : arrayUnion(userId)
+      };
+      
+      if (isLiked) {
+        updateData[`likeDetails.${userId}`] = deleteField();
+      } else {
+        updateData[`likeDetails.${userId}`] = { name: userName, photoUrl: userPhoto || null };
+      }
+      
+      await updateDoc(commentRef, updateData);
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, path);
     }
   },
 
   // Add Comment
-  async addComment(postId: string, data: Omit<SpeltaGramComment, 'id' | 'postId' | 'createdAt'>): Promise<void> {
+  async addComment(postId: string, data: Omit<SpeltaGramComment, 'id' | 'postId' | 'likes' | 'likeDetails' | 'createdAt'>): Promise<void> {
     const path = `${POSTS_COLLECTION}/${postId}/comments`;
     try {
       await addDoc(collection(db, path), {
         ...data,
         postId,
+        likes: [],
+        likeDetails: {},
         createdAt: new Date().toISOString()
+      });
+      
+      // Increment comment count on post
+      const postRef = doc(db, POSTS_COLLECTION, postId);
+      await updateDoc(postRef, {
+        commentCount: increment(1)
       });
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, path);
@@ -182,6 +231,12 @@ export const speltaGramService = {
     const path = `${POSTS_COLLECTION}/${postId}/comments/${commentId}`;
     try {
       await deleteDoc(doc(db, `${POSTS_COLLECTION}/${postId}/comments`, commentId));
+      
+      // Decrement comment count on post
+      const postRef = doc(db, POSTS_COLLECTION, postId);
+      await updateDoc(postRef, {
+        commentCount: increment(-1)
+      });
     } catch (error) {
       handleFirestoreError(error, OperationType.DELETE, path);
     }

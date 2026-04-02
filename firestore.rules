@@ -243,7 +243,9 @@ service cloud.firestore {
              (!('userPhoto' in data) || (data.userPhoto is string && data.userPhoto.size() < 2000)) &&
              (!('caption' in data) || (data.caption is string && data.caption.size() < 2000)) &&
              (!('tag' in data) || (data.tag is string && data.tag.size() < 100)) &&
-             (!('likes' in data) || (data.likes is list && data.likes.size() < 10000));
+             (!('likes' in data) || (data.likes is list && data.likes.size() < 10000)) &&
+             (!('likeDetails' in data) || (data.likeDetails is map)) &&
+             (!('commentCount' in data) || (data.commentCount is number && data.commentCount >= 0));
     }
 
     function isValidSpeltaGramComment() {
@@ -254,7 +256,10 @@ service cloud.firestore {
              data.userName is string && data.userName.size() > 0 && data.userName.size() < 100 &&
              data.text is string && data.text.size() > 0 && data.text.size() < 1000 &&
              data.createdAt is string &&
-             (!('userPhoto' in data) || (data.userPhoto is string && data.userPhoto.size() < 2000));
+             (!('userPhoto' in data) || (data.userPhoto is string && data.userPhoto.size() < 2000)) &&
+             (!('likes' in data) || (data.likes is list && data.likes.size() < 10000)) &&
+             (!('likeDetails' in data) || (data.likeDetails is map)) &&
+             (!('parentId' in data) || (data.parentId is string && data.parentId.size() < 100));
     }
 
     // ===============================================================
@@ -323,7 +328,9 @@ service cloud.firestore {
       allow update: if isAuthenticated() && (
         (resource.data.userId == request.auth.uid && isValidSpeltaGramPost()) ||
         isAdmin() ||
-        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes']) && request.resource.data.likes is list && request.resource.data.likes.size() < 10000)
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes', 'likeDetails']) && request.resource.data.likes is list && request.resource.data.likes.size() < 10000 && request.resource.data.likeDetails is map) ||
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['commentCount']) && request.resource.data.commentCount is number && request.resource.data.commentCount >= 0) ||
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes', 'likeDetails', 'commentCount']) && request.resource.data.likes is list && request.resource.data.likes.size() < 10000 && request.resource.data.likeDetails is map && request.resource.data.commentCount is number && request.resource.data.commentCount >= 0)
       );
       allow delete: if isAuthenticated() && (
         isAdmin() || 
@@ -334,6 +341,11 @@ service cloud.firestore {
       match /comments/{commentId} {
         allow read: if isAuthenticated();
         allow create: if isAuthenticated() && isValidSpeltaGramComment();
+        allow update: if isAuthenticated() && (
+          (resource.data.userId == request.auth.uid && isValidSpeltaGramComment()) ||
+          isAdmin() ||
+          (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes', 'likeDetails']) && request.resource.data.likes is list && request.resource.data.likes.size() < 10000 && request.resource.data.likeDetails is map)
+        );
         allow delete: if isAuthenticated() && (
           isAdmin() || 
           ((resource.data.userId == request.auth.uid || 
