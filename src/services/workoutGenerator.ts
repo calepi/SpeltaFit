@@ -18,7 +18,6 @@ export interface AnamnesisData {
   limitations: string;
   postureIssues?: string;
   medications?: string;
-  weakPoints?: string[];
   cardioPreference: string;
   equipment: string;
   sleepQuality: string;

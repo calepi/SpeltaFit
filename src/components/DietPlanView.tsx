@@ -297,8 +297,8 @@ export function DietPlanView({ plan, onReset }: DietPlanViewProps) {
                     <ShoppingCart className="w-6 h-6" />
                   </div>
                   <div>
-                    <h3 className="text-xl font-black tracking-tight">Lista de Compras Semanal</h3>
-                    <p className="text-xs text-text-muted font-bold">Estimativa baseada no seu plano</p>
+                    <h3 className="text-xl font-black tracking-tight">Lista de Compras Mensal</h3>
+                    <p className="text-xs text-text-muted font-bold">Estimativa de consumo para 30 dias</p>
                   </div>
                 </div>
                 <button 
@@ -321,11 +321,14 @@ export function DietPlanView({ plan, onReset }: DietPlanViewProps) {
                     <h4 className="text-xs font-black text-brand uppercase tracking-widest border-b border-brand/20 pb-1">
                       {category}
                     </h4>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       {(items as ShoppingItem[]).map((item, idx) => (
-                        <div key={idx} className="flex items-center justify-between p-3 rounded-xl bg-bg-main border border-border/50">
-                          <span className="font-bold text-sm">{item.item}</span>
-                          <span className="text-xs font-black text-text-muted">{item.quantity}</span>
+                        <div key={idx} className="flex flex-col p-3 rounded-xl bg-bg-main border border-border/50">
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="font-bold text-sm">{item.item}</span>
+                            <span className="text-xs font-black text-brand">{item.monthlyTotal}</span>
+                          </div>
+                          <span className="text-xs font-bold text-text-muted">{item.packagesToBuy}</span>
                         </div>
                       ))}
                     </div>

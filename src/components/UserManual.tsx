@@ -285,10 +285,11 @@ function NutritionSection() {
         </div>
       </div>
 
-      <SubTitle>Lista de Compras Semanal</SubTitle>
+      <SubTitle>Lista de Compras Mensal</SubTitle>
       <p>
-        Ao clicar em "Lista de Compras", a IA soma todos os ingredientes de todas as suas refeições diárias 
-        e multiplica por 7.
+        Ao clicar em "Lista de Compras", o sistema soma todos os ingredientes de todas as suas refeições diárias 
+        e projeta o consumo para 30 dias. Ele separa os itens por categoria, calcula o total mensal e sugere 
+        quantas embalagens (ex: pacotes de 1kg, cartelas de 30 ovos) você precisará comprar para o mês inteiro.
       </p>
       <ul className="list-disc pl-6 space-y-2">
         <li><strong>Açougue:</strong> Soma total de carnes, ovos e laticínios.</li>

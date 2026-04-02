@@ -36,7 +36,6 @@ export function AnamnesisForm({ onSubmit, isLoading }: Props) {
     limitations: '',
     postureIssues: '',
     medications: '',
-    weakPoints: [],
     cardioPreference: 'Esteira',
     equipment: 'Academia Completa',
     sleepQuality: 'Boa (7-8h)',
@@ -156,19 +155,6 @@ export function AnamnesisForm({ onSubmit, isLoading }: Props) {
     
     if (type === 'checkbox') {
       const checked = (e.target as HTMLInputElement).checked;
-      
-      if (name === 'weakPoints') {
-        setFormData(prev => {
-          const current = prev.weakPoints || [];
-          if (checked) {
-            return { ...prev, weakPoints: [...current, value] };
-          } else {
-            return { ...prev, weakPoints: current.filter(wp => wp !== value) };
-          }
-        });
-        return;
-      }
-
       setFormData(prev => ({ ...prev, [name]: checked }));
       return;
     }
@@ -304,7 +290,7 @@ export function AnamnesisForm({ onSubmit, isLoading }: Props) {
           </div>
           
           <div className="mt-6">
-            <label className="block text-sm font-medium text-text-muted mb-3">Focos Específicos (Opcional)</label>
+            <label className="block text-sm font-medium text-text-muted mb-3">Foco do Treino / Pontos Fracos (Opcional)</label>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
               {SPECIFIC_GOALS_OPTIONS.map(goal => (
                 <label 
@@ -436,25 +422,6 @@ export function AnamnesisForm({ onSubmit, isLoading }: Props) {
               <label className="block text-sm font-medium text-text-muted mb-1">Medicamentos em Uso (Opcional)</label>
               <input type="text" name="medications" value={formData.medications || ''} onChange={handleChange} placeholder="Ex: Losartana, Roacutan..."
                 className="w-full bg-surface border border-border rounded-xl px-4 py-3 text-text-main focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand transition-colors" />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-text-muted mb-2">Pontos Fracos (Músculos que deseja focar)</label>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
-              {['Peitoral', 'Costas', 'Ombros', 'Bíceps', 'Tríceps', 'Quadríceps', 'Posterior de Coxa', 'Glúteos', 'Panturrilhas', 'Abdômen'].map(muscle => (
-                <label key={muscle} className="flex items-center gap-2 p-2 bg-surface border border-border rounded-lg cursor-pointer hover:border-brand/50 transition-colors">
-                  <input 
-                    type="checkbox" 
-                    name="weakPoints" 
-                    value={muscle} 
-                    checked={(formData.weakPoints || []).includes(muscle)}
-                    onChange={handleChange}
-                    className="text-brand focus:ring-brand rounded"
-                  />
-                  <span className="text-sm text-text-main">{muscle}</span>
-                </label>
-              ))}
             </div>
           </div>
 

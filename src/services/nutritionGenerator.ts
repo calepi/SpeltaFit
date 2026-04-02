@@ -320,7 +320,8 @@ export async function generateDietPlan(
 
 export interface ShoppingItem {
   item: string;
-  quantity: string;
+  monthlyTotal: string;
+  packagesToBuy: string;
   category: string;
 }
 
@@ -329,15 +330,21 @@ export function generateShoppingList(plan: DietPlan): ShoppingItem[] {
 
   // Helper to parse quantity like "150g" or "2 unidades"
   const parseQuantity = (q: string) => {
-    const match = q.match(/(\d+)\s*(g|unidades|ml|fatias|colheres)/i);
+    if (q.toLowerCase().includes('vontade')) {
+      return { value: 100, unit: 'g' }; // Base estimate for "à vontade"
+    }
+    const match = q.match(/(\d+)\s*(g|unidades|unidade|ml|fatias|colheres)/i);
     if (match) {
-      return { value: parseInt(match[1]), unit: match[2].toLowerCase() };
+      let unit = match[2].toLowerCase();
+      if (unit === 'unidade') unit = 'unidades';
+      if (unit === 'fatias') unit = 'unidades'; // Treat slices as units for calculation
+      return { value: parseInt(match[1]), unit };
     }
     return { value: 0, unit: 'unidades' };
   };
 
   // Process all meals and their variations
-  const processFoods = (foods: Food[]) => {
+  const processFoods = (foods: Food[], multiplier: number = 1) => {
     foods.forEach(f => {
       const { value, unit } = parseQuantity(f.quantity);
       const foodData = FOOD_DB.find(db => db.name === f.item);
@@ -347,35 +354,79 @@ export function generateShoppingList(plan: DietPlan): ShoppingItem[] {
         itemsMap[f.item] = { total: 0, unit, category };
       }
       
-      // We estimate weekly needs (roughly 7 days)
-      // If it's in a variation, it might be used 2-3 times a week
-      // For simplicity, we sum up the daily base and add a multiplier
-      itemsMap[f.item].total += value;
+      itemsMap[f.item].total += value * multiplier;
     });
   };
 
   plan.meals.forEach(meal => {
-    processFoods(meal.foods);
+    processFoods(meal.foods, 1); // Daily base
+    
     // Variations are also processed to ensure variety in the list
     meal.weeklyVariations?.forEach(v => {
-      v.foods.forEach(f => {
-        const { value, unit } = parseQuantity(f.quantity);
-        const foodData = FOOD_DB.find(db => db.name === f.item);
-        const category = foodData?.category || 'outros';
-        if (!itemsMap[f.item]) {
-          itemsMap[f.item] = { total: 0, unit, category };
-        }
-        // Add a fraction for variations
-        itemsMap[f.item].total += value * 0.5; 
-      });
+      processFoods(v.foods, 0.2); // Add a fraction for variations
     });
   });
 
-  return Object.entries(itemsMap).map(([item, data]) => ({
-    item,
-    quantity: `${Math.ceil(data.total * 7 / 100) * 100}${data.unit}`, // Weekly estimate rounded
-    category: data.category
-  })).sort((a, b) => a.category.localeCompare(b.category));
+  return Object.entries(itemsMap).map(([item, data]) => {
+    const monthlyTotalValue = data.total * 30; // 30 days in a month
+    let monthlyTotalStr = '';
+    let packagesToBuy = '';
+
+    const itemNameLower = item.toLowerCase();
+
+    if (data.unit === 'g') {
+      const kg = monthlyTotalValue / 1000;
+      monthlyTotalStr = kg >= 1 ? `${kg.toFixed(1)} kg` : `${Math.round(monthlyTotalValue)} g`;
+      
+      // Estimate packages
+      if (itemNameLower.includes('whey') || itemNameLower.includes('albumina')) {
+        const packs = Math.ceil(kg / 0.9); // 900g pack
+        packagesToBuy = `${packs} pote(s) de 900g`;
+      } else if (itemNameLower.includes('arroz') || itemNameLower.includes('feijão') || itemNameLower.includes('feijao') || itemNameLower.includes('frango') || itemNameLower.includes('carne') || itemNameLower.includes('patinho') || itemNameLower.includes('tilápia') || itemNameLower.includes('salmão') || itemNameLower.includes('lombo')) {
+        const packs = Math.ceil(kg / 1); // 1kg pack
+        packagesToBuy = `${packs} pacote(s)/bandeja(s) de 1kg`;
+      } else if (itemNameLower.includes('aveia') || itemNameLower.includes('tapioca') || itemNameLower.includes('macarrão') || itemNameLower.includes('macarrao') || itemNameLower.includes('café') || itemNameLower.includes('cafe')) {
+        const packs = Math.ceil(kg / 0.5); // 500g pack
+        packagesToBuy = `${packs} pacote(s) de 500g`;
+      } else if (itemNameLower.includes('azeite')) {
+        const packs = Math.ceil(monthlyTotalValue / 500); // 500ml
+        packagesToBuy = `${packs} garrafa(s) de 500ml`;
+      } else if (itemNameLower.includes('queijo') || itemNameLower.includes('tofu') || itemNameLower.includes('tempeh')) {
+        const packs = Math.ceil(kg / 0.3); // 300g pack
+        packagesToBuy = `${packs} pacote(s) de 300g`;
+      } else if (data.category === 'vegetal' || data.category === 'fruta') {
+        packagesToBuy = `Comprar aprox. ${monthlyTotalStr}`;
+      } else {
+        packagesToBuy = `Comprar aprox. ${monthlyTotalStr}`;
+      }
+    } else if (data.unit.includes('unidade')) {
+      monthlyTotalStr = `${Math.round(monthlyTotalValue)} unidades`;
+      if (itemNameLower.includes('ovo')) {
+        const packs = Math.ceil(monthlyTotalValue / 30);
+        packagesToBuy = `${packs} cartela(s) de 30 ovos`;
+      } else if (itemNameLower.includes('pão') || itemNameLower.includes('pao')) {
+        const packs = Math.ceil(monthlyTotalValue / 14); // 14 slices per loaf
+        packagesToBuy = `${packs} pacote(s) de pão de forma`;
+      } else {
+        packagesToBuy = `Comprar ${Math.round(monthlyTotalValue)} unidades`;
+      }
+    } else if (data.unit === 'ml') {
+      const liters = monthlyTotalValue / 1000;
+      monthlyTotalStr = liters >= 1 ? `${liters.toFixed(1)} L` : `${Math.round(monthlyTotalValue)} ml`;
+      const packs = Math.ceil(liters / 1);
+      packagesToBuy = `${packs} caixa(s)/garrafa(s) de 1L`;
+    } else {
+      monthlyTotalStr = `${Math.round(monthlyTotalValue)} ${data.unit}`;
+      packagesToBuy = `Comprar ${monthlyTotalStr}`;
+    }
+
+    return {
+      item,
+      monthlyTotal: monthlyTotalStr,
+      packagesToBuy,
+      category: data.category
+    };
+  }).sort((a, b) => a.category.localeCompare(b.category));
 }
 
 export function getFoodSubstitutes(foodName: string): FoodItem[] {
