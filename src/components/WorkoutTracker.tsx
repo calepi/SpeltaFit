@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { WorkoutPlan, AnamnesisData, formatProgressionText, adjustWorkoutPlanRuleBased } from '../services/workoutGenerator';
-import { CheckCircle2, Dumbbell, Timer, Flame, Zap, Activity, Trophy, Brain, X, Loader2, Info, ChevronDown, ChevronUp, MessageSquare, Sparkles, TrendingUp, Target, Quote, Edit3, Save, Plus, Trash2, ArrowUp, ArrowDown, LayoutGrid, Scale } from 'lucide-react';
+import { CheckCircle2, Dumbbell, Timer, Flame, Zap, Activity, Trophy, Brain, X, Loader2, Info, ChevronDown, ChevronUp, MessageSquare, Sparkles, TrendingUp, Target, Quote, Edit3, Save, Plus, Trash2, ArrowUp, ArrowDown, LayoutGrid, Scale, Droplets, Play, Square, Bell } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { auth, db } from '../firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
@@ -62,6 +62,14 @@ export function WorkoutTracker({ plan, user, onUpdatePlan, readOnly = false, stu
   const [showGlossary, setShowGlossary] = useState(false);
   const [isSimulatingReevaluation, setIsSimulatingReevaluation] = useState(false);
 
+  // Active Workout State
+  const [isActiveWorkout, setIsActiveWorkout] = useState(false);
+  const [workoutStartTime, setWorkoutStartTime] = useState<number | null>(null);
+  const [workoutDuration, setWorkoutDuration] = useState(0);
+  const [restTimer, setRestTimer] = useState<number | null>(null);
+  const [waterReminderCount, setWaterReminderCount] = useState(0);
+  const [showNotification, setShowNotification] = useState<{message: string, type: 'water' | 'meal' | 'info'} | null>(null);
+
   const toggleDetails = (exId: string) => {
     setExpandedDetails(prev => ({ ...prev, [exId]: !prev[exId] }));
   };
@@ -75,6 +83,58 @@ export function WorkoutTracker({ plan, user, onUpdatePlan, readOnly = false, stu
       onStateChange({ selectedWeek, actualLoads });
     }
   }, [selectedWeek, actualLoads, onStateChange]);
+
+  // Workout Timers & Reminders
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (isActiveWorkout) {
+      interval = setInterval(() => {
+        if (workoutStartTime) {
+          const duration = Math.floor((Date.now() - workoutStartTime) / 1000);
+          setWorkoutDuration(duration);
+          
+          // Water reminder every 15 minutes (900 seconds)
+          if (duration > 0 && duration % 900 === 0) {
+            setShowNotification({ message: "Hora de se hidratar! Beba um pouco de água.", type: 'water' });
+            setTimeout(() => setShowNotification(null), 5000);
+          }
+          
+          // Meal reminder after 60 minutes (3600 seconds)
+          if (duration === 3600) {
+            setShowNotification({ message: "Treino longo! Lembre-se de planejar sua refeição pós-treino.", type: 'meal' });
+            setTimeout(() => setShowNotification(null), 5000);
+          }
+        }
+        
+        setRestTimer(prev => {
+          if (prev === null) return null;
+          if (prev <= 0) {
+            if (prev === 0) {
+              // Play a sound or show notification when rest is over
+              setShowNotification({ message: "Descanso finalizado! Hora da próxima série.", type: 'info' });
+              setTimeout(() => setShowNotification(null), 3000);
+            }
+            return -1; // Keep it at -1 to show it's done but not clear it completely until next set
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [isActiveWorkout, workoutStartTime]);
+
+  const startWorkout = () => {
+    setIsActiveWorkout(true);
+    setWorkoutStartTime(Date.now());
+    setWorkoutDuration(0);
+    setRestTimer(null);
+  };
+
+  const finishWorkout = () => {
+    setIsActiveWorkout(false);
+    setRestTimer(null);
+    // Here we could save the total workoutDuration to the checkin or a new workoutLog collection
+  };
 
   // Load saved progress
   useEffect(() => {
@@ -242,10 +302,22 @@ export function WorkoutTracker({ plan, user, onUpdatePlan, readOnly = false, stu
     setEditedPlan(newPlan);
   };
 
-  const toggleSet = (exerciseId: string, setIndex: number) => {
+  const toggleSet = (exerciseId: string, setIndex: number, restTimeStr: string = '60') => {
     if (readOnly || !isUnlocked || isCheckedIn) return;
     const key = getSetKey(exerciseId, setIndex);
-    setCompletedSets(prev => ({ ...prev, [key]: !prev[key] }));
+    
+    setCompletedSets(prev => {
+      const isNowCompleted = !prev[key];
+      
+      if (isNowCompleted && isActiveWorkout) {
+        // Parse rest time string (e.g., "60-90 segundos" -> 60)
+        const match = restTimeStr.match(/(\d+)/);
+        const restSeconds = match ? parseInt(match[1]) : 60;
+        setRestTimer(restSeconds);
+      }
+      
+      return { ...prev, [key]: isNowCompleted };
+    });
   };
 
   const updateLoad = (exerciseId: string, load: string) => {
@@ -287,7 +359,8 @@ export function WorkoutTracker({ plan, user, onUpdatePlan, readOnly = false, stu
         effort: dailyEffort, 
         notes: dailyNotes, 
         date: new Date().toISOString(),
-        weight: isNaN(weightNum) ? undefined : weightNum
+        weight: isNaN(weightNum) ? undefined : weightNum,
+        duration: workoutDuration > 0 ? workoutDuration : undefined
       }
     }));
 
@@ -301,6 +374,7 @@ export function WorkoutTracker({ plan, user, onUpdatePlan, readOnly = false, stu
           weight: weightNum,
           workoutConsistency: 100, // For this day
           effort: dailyEffort,
+          duration: workoutDuration > 0 ? workoutDuration : undefined,
           date: new Date().toISOString()
         });
       } catch (err) {
@@ -395,6 +469,15 @@ export function WorkoutTracker({ plan, user, onUpdatePlan, readOnly = false, stu
           <div>
             <h1 className="text-xl font-black text-text-main uppercase tracking-tight flex items-center gap-3">
               Seu Treino
+              {!readOnly && !isPlanComplete && !isActiveWorkout && (
+                <button
+                  onClick={startWorkout}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all bg-brand text-white hover:scale-105 shadow-lg shadow-brand/20"
+                >
+                  <Play className="w-3 h-3 fill-current" />
+                  <span className="hidden sm:inline">Iniciar Treino</span>
+                </button>
+              )}
               {auth.currentUser?.email === 'calepi@gmail.com' && !isPlanComplete && (
                 <button
                   onClick={() => setIsSimulatingReevaluation(true)}
@@ -878,7 +961,7 @@ export function WorkoutTracker({ plan, user, onUpdatePlan, readOnly = false, stu
                                     return (
                                       <div key={setIdx} className="flex items-center gap-3 bg-surface p-3 rounded-2xl border border-border/50">
                                         <button
-                                          onClick={() => toggleSet(ex.id, setIdx)}
+                                          onClick={() => toggleSet(ex.id, setIdx, ex.rest)}
                                           disabled={isCheckedIn}
                                           className={`w-12 h-12 rounded-2xl flex items-center justify-center font-black text-lg transition-all shadow-sm shrink-0 ${
                                             isCompleted 
@@ -1398,6 +1481,73 @@ export function WorkoutTracker({ plan, user, onUpdatePlan, readOnly = false, stu
                 </div>
               </div>
             </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+      {/* Active Workout Overlay */}
+      <AnimatePresence>
+        {isActiveWorkout && (
+          <motion.div 
+            initial={{ y: 100, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 100, opacity: 0 }}
+            className="fixed bottom-0 left-0 right-0 bg-surface border-t border-border shadow-[0_-10px_40px_rgba(0,0,0,0.3)] z-50 p-4 md:p-6"
+          >
+            <div className="max-w-5xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
+              <div className="flex items-center gap-6 w-full md:w-auto justify-between md:justify-start">
+                <div className="flex flex-col">
+                  <span className="text-[10px] font-black text-text-muted uppercase tracking-widest flex items-center gap-1">
+                    <Timer className="w-3 h-3" /> Tempo Total
+                  </span>
+                  <span className="text-3xl font-black text-brand font-mono tracking-tighter">
+                    {Math.floor(workoutDuration / 60).toString().padStart(2, '0')}:
+                    {(workoutDuration % 60).toString().padStart(2, '0')}
+                  </span>
+                </div>
+                
+                {restTimer !== null && (
+                  <div className="flex flex-col border-l border-border/50 pl-6">
+                    <span className="text-[10px] font-black text-amber-500 uppercase tracking-widest flex items-center gap-1">
+                      <Zap className="w-3 h-3" /> Descanso
+                    </span>
+                    <span className={`text-3xl font-black font-mono tracking-tighter ${restTimer <= 0 ? 'text-green-500' : 'text-amber-500'}`}>
+                      {restTimer <= 0 ? '00:00' : `${Math.floor(restTimer / 60).toString().padStart(2, '0')}:${(restTimer % 60).toString().padStart(2, '0')}`}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex items-center gap-3 w-full md:w-auto justify-end">
+                <button 
+                  onClick={() => finishWorkout()}
+                  className="flex-1 md:flex-none flex items-center justify-center gap-2 px-8 py-4 rounded-2xl bg-red-500 text-white font-black uppercase tracking-widest shadow-lg shadow-red-500/20 hover:scale-105 transition-all active:scale-95"
+                >
+                  <Square className="w-4 h-4 fill-current" />
+                  Finalizar Treino
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Floating Notifications */}
+      <AnimatePresence>
+        {showNotification && (
+          <motion.div
+            initial={{ opacity: 0, y: -50, scale: 0.9 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -50, scale: 0.9 }}
+            className={`fixed top-6 left-1/2 -translate-x-1/2 z-[60] px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-4 border-2 ${
+              showNotification.type === 'water' ? 'bg-blue-500/10 border-blue-500/30 text-blue-500' :
+              showNotification.type === 'meal' ? 'bg-green-500/10 border-green-500/30 text-green-500' :
+              'bg-brand/10 border-brand/30 text-brand'
+            }`}
+          >
+            {showNotification.type === 'water' && <Droplets className="w-6 h-6" />}
+            {showNotification.type === 'meal' && <Flame className="w-6 h-6" />}
+            {showNotification.type === 'info' && <Bell className="w-6 h-6" />}
+            <span className="font-black tracking-tight">{showNotification.message}</span>
           </motion.div>
         )}
       </AnimatePresence>

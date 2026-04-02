@@ -1,20 +1,31 @@
 import { EXERCISE_DB } from '../data/exerciseDatabase';
 
+export interface ExistingExercise {
+  name: string;
+  sets?: string;
+  reps?: string;
+}
+
+export interface ExistingDay {
+  dayName: string;
+  exercises: ExistingExercise[];
+}
+
 export interface AnamnesisData {
   name: string;
-  age: number;
+  age: number | undefined;
   gender: string;
-  weight: number;
-  height: number;
+  weight: number | undefined;
+  height: number | undefined;
   bodyFat?: number;
   targetWeight?: number;
   goal: string;
   secondaryGoal: string;
   tertiaryGoal?: string;
-  specificGoals?: string[]; // Novo campo para metas combinadas e focos
+  specificGoals?: string[];
   experience: string;
-  daysPerWeek: number;
-  duration: number;
+  daysPerWeek: number | undefined;
+  duration: number | undefined;
   limitations: string;
   postureIssues?: string;
   medications?: string;
@@ -24,7 +35,8 @@ export interface AnamnesisData {
   stressLevel: string;
   dietType: string;
   hormonalStatus: string;
-  existingPlan?: string;
+  existingPlan?: string; // Keep for legacy/quick paste
+  structuredExistingPlan?: ExistingDay[]; // New structured format
   remodelPlan?: boolean;
 }
 
@@ -120,19 +132,50 @@ function getAdvancedTechnique(experience: string, allGoals: string, isCompound: 
   return { method: 'Série Normal', notes: 'Série Normal: Execute as repetições indicadas com uma carga que seja desafiadora, mas que permita manter a postura correta. Descanse o tempo prescrito entre as séries.' };
 }
 
-function filterExercises(group: keyof typeof EXERCISE_DB, equipment: string, count: number, blacklist: string[] = []) {
+function filterExercises(
+  group: keyof typeof EXERCISE_DB, 
+  equipment: string, 
+  count: number, 
+  blacklist: string[] = [],
+  experience: string = 'iniciante',
+  isOverweight: boolean = false
+) {
   let available = EXERCISE_DB[group].filter(ex => {
     if (blacklist.includes(ex.id)) return false;
-    if (equipment === 'Academia Completa') return true;
-    if (equipment === 'Apenas Halteres') return ex.equipment === 'Apenas Halteres' || ex.equipment === 'Nenhum';
-    return ex.equipment === 'Nenhum';
+    if (equipment === 'Academia Completa') {
+      // no equipment filter needed
+    } else if (equipment === 'Apenas Halteres') {
+      if (ex.equipment !== 'Apenas Halteres' && ex.equipment !== 'Nenhum') return false;
+    } else {
+      if (ex.equipment !== 'Nenhum') return false;
+    }
+
+    // Level filtering
+    const exp = experience.toLowerCase();
+    if (exp.includes('iniciante')) {
+      if (isOverweight && ex.level !== 'iniciante') return false;
+      if (!isOverweight && ex.level === 'avançado') return false;
+    } else if (exp.includes('intermediário')) {
+      // Intermediário can do iniciante and intermediário, maybe avançado if needed, but let's allow all
+    }
+
+    return true;
   });
 
-  // Fallback if not enough exercises found for the equipment
+  // Fallback if not enough exercises found for the equipment and level
   if (available.length < count) {
-    available = EXERCISE_DB[group].filter(ex => !blacklist.includes(ex.id));
+    available = EXERCISE_DB[group].filter(ex => {
+      if (blacklist.includes(ex.id)) return false;
+      if (equipment === 'Academia Completa') return true;
+      if (equipment === 'Apenas Halteres') return ex.equipment === 'Apenas Halteres' || ex.equipment === 'Nenhum';
+      return ex.equipment === 'Nenhum';
+    });
+    
     if (available.length < count) {
-      available = EXERCISE_DB[group]; // Ultimate fallback
+      available = EXERCISE_DB[group].filter(ex => !blacklist.includes(ex.id));
+      if (available.length < count) {
+        available = EXERCISE_DB[group]; // Ultimate fallback
+      }
     }
   }
 
@@ -188,6 +231,17 @@ export async function generateWorkoutPlanRuleBased(data: AnamnesisData, blacklis
     durationWeeks = 12; // Avançados se beneficiam de periodizações mais longas (Trimestral)
   }
   
+  // Calcular IMC para verificar se é iniciante acima do peso
+  let weightNum = data.weight;
+  let heightNum = data.height;
+  if (heightNum && heightNum > 10) heightNum = heightNum / 100; // converter cm para metros
+  
+  let bmi = 22; // default
+  if (weightNum && heightNum && heightNum > 0) {
+    bmi = weightNum / (heightNum * heightNum);
+  }
+  const isOverweight = bmi >= 28;
+
   // Ajustes finos na duração baseados no objetivo
   if (isWeightLoss && durationWeeks > 8) {
     durationWeeks = 8; // Emagrecimento precisa de ajustes mais rápidos na dieta/treino
@@ -269,7 +323,7 @@ export async function generateWorkoutPlanRuleBased(data: AnamnesisData, blacklis
     const exercises: any[] = [];
     
     daySplit.groups.forEach(group => {
-      const selected = filterExercises(group.name, data.equipment, group.count, blacklist);
+      const selected = filterExercises(group.name, data.equipment, group.count, blacklist, data.experience, isOverweight);
       selected.forEach((ex, index) => {
         const isLastExercise = index === selected.length - 1;
         // Ajustar parâmetros por exercício baseado no objetivo

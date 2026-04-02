@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { AnamnesisData } from '../services/workoutGenerator';
-import { Activity, User, Target, Calendar, AlertTriangle, HeartPulse, Dumbbell, Moon, Brain, Utensils, FileText } from 'lucide-react';
-import { motion } from 'motion/react';
+import { AnamnesisData, ExistingDay, ExistingExercise } from '../services/workoutGenerator';
+import { Activity, User, Target, Calendar, AlertTriangle, HeartPulse, Dumbbell, Moon, Brain, Utensils, FileText, Plus, Trash2, ChevronRight, ChevronDown, Sparkles } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 
 interface Props {
   onSubmit: (data: AnamnesisData) => void;
   isLoading: boolean;
+  initialData?: AnamnesisData | null;
 }
 
 const GOALS_MAP: Record<string, string[]> = {
@@ -17,34 +18,122 @@ const GOALS_MAP: Record<string, string[]> = {
   'Reabilitação': ['Mobilidade e Flexibilidade', 'Fortalecimento Específico', 'Melhora Postural', 'Alívio de Dores', 'Equilíbrio', 'Propriocepção']
 };
 
-export function AnamnesisForm({ onSubmit, isLoading }: Props) {
-  const [formData, setFormData] = useState<AnamnesisData>({
+export function AnamnesisForm({ onSubmit, isLoading, initialData }: Props) {
+  const [formData, setFormData] = useState<AnamnesisData>(initialData || {
     name: '',
-    age: 25,
-    gender: 'Masculino',
-    weight: 70,
-    height: 175,
+    age: undefined,
+    gender: '',
+    weight: undefined,
+    height: undefined,
     bodyFat: undefined,
     targetWeight: undefined,
-    goal: 'Hipertrofia',
-    secondaryGoal: 'Força Máxima',
-    tertiaryGoal: 'Condicionamento Físico',
+    goal: '',
+    secondaryGoal: '',
+    tertiaryGoal: '',
     specificGoals: [],
-    experience: 'Iniciante',
-    daysPerWeek: 3,
-    duration: 60,
+    experience: '',
+    daysPerWeek: undefined,
+    duration: undefined,
     limitations: '',
     postureIssues: '',
     medications: '',
-    cardioPreference: 'Esteira',
-    equipment: 'Academia Completa',
-    sleepQuality: 'Boa (7-8h)',
-    stressLevel: 'Moderado',
-    dietType: 'Equilibrada (Sem restrições)',
-    hormonalStatus: 'Natural',
+    cardioPreference: '',
+    equipment: '',
+    sleepQuality: '',
+    stressLevel: '',
+    dietType: '',
+    hormonalStatus: '',
     existingPlan: '',
+    structuredExistingPlan: [],
     remodelPlan: false
   });
+
+  const [showStructuredInput, setShowStructuredInput] = useState(initialData?.structuredExistingPlan && initialData.structuredExistingPlan.length > 0 ? true : false);
+
+  useEffect(() => {
+    if (initialData) {
+      setFormData(initialData);
+      if (initialData.structuredExistingPlan && initialData.structuredExistingPlan.length > 0) {
+        setShowStructuredInput(true);
+      }
+    }
+  }, [initialData]);
+
+  const addExistingDay = () => {
+    setFormData(prev => ({
+      ...prev,
+      structuredExistingPlan: [
+        ...(prev.structuredExistingPlan || []),
+        { dayName: `Treino ${(prev.structuredExistingPlan?.length || 0) + 1}`, exercises: [] }
+      ]
+    }));
+  };
+
+  const removeExistingDay = (index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      structuredExistingPlan: prev.structuredExistingPlan?.filter((_, i) => i !== index)
+    }));
+  };
+
+  const addExerciseToDay = (dayIndex: number) => {
+    setFormData(prev => {
+      const newPlan = [...(prev.structuredExistingPlan || [])];
+      newPlan[dayIndex].exercises.push({ name: '', sets: '', reps: '' });
+      return { ...prev, structuredExistingPlan: newPlan };
+    });
+  };
+
+  const updateExercise = (dayIndex: number, exerciseIndex: number, field: keyof ExistingExercise, value: string) => {
+    setFormData(prev => {
+      const newPlan = [...(prev.structuredExistingPlan || [])];
+      newPlan[dayIndex].exercises[exerciseIndex] = {
+        ...newPlan[dayIndex].exercises[exerciseIndex],
+        [field]: value
+      };
+      return { ...prev, structuredExistingPlan: newPlan };
+    });
+  };
+
+  const removeExerciseFromDay = (dayIndex: number, exerciseIndex: number) => {
+    setFormData(prev => {
+      const newPlan = [...(prev.structuredExistingPlan || [])];
+      newPlan[dayIndex].exercises = newPlan[dayIndex].exercises.filter((_, i) => i !== exerciseIndex);
+      return { ...prev, structuredExistingPlan: newPlan };
+    });
+  };
+
+  const updateDayName = (dayIndex: number, name: string) => {
+    setFormData(prev => {
+      const newPlan = [...(prev.structuredExistingPlan || [])];
+      newPlan[dayIndex].dayName = name;
+      return { ...prev, structuredExistingPlan: newPlan };
+    });
+  };
+
+  const parseQuickPaste = () => {
+    if (!formData.existingPlan) return;
+    
+    // Simple parser for common formats like "Supino 3x10"
+    const lines = formData.existingPlan.split('\n').filter(l => l.trim());
+    const newExercises: ExistingExercise[] = lines.map(line => {
+      const parts = line.split(/[xX,;-]/);
+      const name = parts[0]?.trim() || line;
+      const sets = parts[1]?.trim() || '';
+      const reps = parts[2]?.trim() || '';
+      return { name, sets, reps };
+    });
+
+    setFormData(prev => ({
+      ...prev,
+      structuredExistingPlan: [
+        ...(prev.structuredExistingPlan || []),
+        { dayName: 'Importado', exercises: newExercises }
+      ],
+      existingPlan: '' // Clear after parsing
+    }));
+    setShowStructuredInput(true);
+  };
 
   const SPECIFIC_GOALS_OPTIONS = [
     'Foco em Glúteos e Pernas',
@@ -105,6 +194,8 @@ export function AnamnesisForm({ onSubmit, isLoading }: Props) {
 
   // Validação em tempo real para garantir que os objetivos sejam válidos e não se repitam
   useEffect(() => {
+    if (!formData.goal) return;
+    
     setFormData(prev => {
       let newSecondary = prev.secondaryGoal;
       let newTertiary = prev.tertiaryGoal;
@@ -115,8 +206,8 @@ export function AnamnesisForm({ onSubmit, isLoading }: Props) {
       const otherMain = Object.keys(GOALS_MAP).filter(g => g !== prev.goal);
       const secondaryOpts = Array.from(new Set([...primaryRelated, ...otherMain])).filter(g => g !== prev.tertiaryGoal);
 
-      if (!secondaryOpts.includes(newSecondary)) {
-        newSecondary = secondaryOpts[0] || '';
+      if (newSecondary && !secondaryOpts.includes(newSecondary)) {
+        newSecondary = '';
         changed = true;
       }
 
@@ -124,9 +215,9 @@ export function AnamnesisForm({ onSubmit, isLoading }: Props) {
       const tertiarySet = new Set<string>();
       if (GOALS_MAP[prev.goal]) GOALS_MAP[prev.goal].forEach(g => tertiarySet.add(g));
       
-      if (GOALS_MAP[newSecondary]) {
+      if (newSecondary && GOALS_MAP[newSecondary]) {
         GOALS_MAP[newSecondary].forEach(g => tertiarySet.add(g));
-      } else {
+      } else if (newSecondary) {
         Object.entries(GOALS_MAP).forEach(([mainGoal, subGoals]) => {
           if (subGoals.includes(newSecondary)) {
             tertiarySet.add(mainGoal);
@@ -135,7 +226,7 @@ export function AnamnesisForm({ onSubmit, isLoading }: Props) {
         });
       }
       tertiarySet.delete(prev.goal);
-      tertiarySet.delete(newSecondary);
+      if (newSecondary) tertiarySet.delete(newSecondary);
       const tertiaryOpts = Array.from(tertiarySet);
 
       if (newTertiary && !tertiaryOpts.includes(newTertiary)) {
@@ -161,8 +252,8 @@ export function AnamnesisForm({ onSubmit, isLoading }: Props) {
 
     setFormData(prev => ({
       ...prev,
-      [name]: name === 'age' || name === 'weight' || name === 'height' || name === 'daysPerWeek' || name === 'duration' || name === 'bodyFat' || name === 'targetWeight'
-        ? Number(value) 
+      [name]: (name === 'age' || name === 'weight' || name === 'height' || name === 'daysPerWeek' || name === 'duration' || name === 'bodyFat' || name === 'targetWeight')
+        ? (value === '' ? undefined : Number(value))
         : value
     }));
   };
@@ -197,13 +288,14 @@ export function AnamnesisForm({ onSubmit, isLoading }: Props) {
             </div>
             <div>
               <label className="block text-sm font-medium text-text-muted mb-1">Idade</label>
-              <input type="number" name="age" value={formData.age} onChange={handleChange} required min="14" max="100"
+              <input type="number" name="age" value={formData.age || ''} onChange={handleChange} required min="14" max="100"
                 className="w-full bg-surface border border-border rounded-xl px-4 py-3 text-text-main focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand transition-colors" />
             </div>
             <div>
               <label className="block text-sm font-medium text-text-muted mb-1">Gênero</label>
-              <select name="gender" value={formData.gender} onChange={handleChange}
+              <select name="gender" value={formData.gender} onChange={handleChange} required
                 className="w-full bg-surface border border-border rounded-xl px-4 py-3 text-text-main focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand transition-colors">
+                <option value="">Selecione...</option>
                 <option value="Masculino">Masculino</option>
                 <option value="Feminino">Feminino</option>
                 <option value="Não-binário">Não-binário</option>
@@ -212,12 +304,12 @@ export function AnamnesisForm({ onSubmit, isLoading }: Props) {
             </div>
             <div>
               <label className="block text-sm font-medium text-text-muted mb-1">Peso (kg)</label>
-              <input type="number" name="weight" value={formData.weight} onChange={handleChange} required min="30" max="300" step="0.1"
+              <input type="number" name="weight" value={formData.weight || ''} onChange={handleChange} required min="30" max="300" step="0.1"
                 className="w-full bg-surface border border-border rounded-xl px-4 py-3 text-text-main focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand transition-colors" />
             </div>
             <div>
               <label className="block text-sm font-medium text-text-muted mb-1">Altura (cm)</label>
-              <input type="number" name="height" value={formData.height} onChange={handleChange} required min="100" max="250"
+              <input type="number" name="height" value={formData.height || ''} onChange={handleChange} required min="100" max="250"
                 className="w-full bg-surface border border-border rounded-xl px-4 py-3 text-text-main focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand transition-colors" />
             </div>
             <div>
@@ -241,8 +333,9 @@ export function AnamnesisForm({ onSubmit, isLoading }: Props) {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <label className="block text-sm font-medium text-text-muted mb-1">Objetivo Principal</label>
-              <select name="goal" value={formData.goal} onChange={handleChange}
+              <select name="goal" value={formData.goal} onChange={handleChange} required
                 className="w-full bg-surface border border-border rounded-xl px-4 py-3 text-text-main focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand transition-colors">
+                <option value="">Selecione...</option>
                 {Object.keys(GOALS_MAP).map(goal => (
                   <option key={goal} value={goal}>{goal}</option>
                 ))}
@@ -250,8 +343,9 @@ export function AnamnesisForm({ onSubmit, isLoading }: Props) {
             </div>
             <div>
               <label className="block text-sm font-medium text-text-muted mb-1">Objetivo Secundário</label>
-              <select name="secondaryGoal" value={formData.secondaryGoal} onChange={handleChange}
-                className="w-full bg-surface border border-border rounded-xl px-4 py-3 text-text-main focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand transition-colors">
+              <select name="secondaryGoal" value={formData.secondaryGoal} onChange={handleChange} required disabled={!formData.goal}
+                className="w-full bg-surface border border-border rounded-xl px-4 py-3 text-text-main focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand transition-colors disabled:opacity-50">
+                <option value="">Selecione...</option>
                 {getSecondaryOptions().map(goal => (
                   <option key={goal} value={goal}>{goal}</option>
                 ))}
@@ -259,9 +353,9 @@ export function AnamnesisForm({ onSubmit, isLoading }: Props) {
             </div>
             <div>
               <label className="block text-sm font-medium text-text-muted mb-1">Objetivo Terciário</label>
-              <select name="tertiaryGoal" value={formData.tertiaryGoal} onChange={handleChange}
-                className="w-full bg-surface border border-border rounded-xl px-4 py-3 text-text-main focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand transition-colors">
-                <option value="">Nenhum</option>
+              <select name="tertiaryGoal" value={formData.tertiaryGoal} onChange={handleChange} disabled={!formData.secondaryGoal}
+                className="w-full bg-surface border border-border rounded-xl px-4 py-3 text-text-main focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand transition-colors disabled:opacity-50">
+                <option value="">Nenhum / Selecione...</option>
                 {getTertiaryOptions().map(goal => (
                   <option key={goal} value={goal}>{goal}</option>
                 ))}
@@ -269,8 +363,9 @@ export function AnamnesisForm({ onSubmit, isLoading }: Props) {
             </div>
             <div>
               <label className="block text-sm font-medium text-text-muted mb-1">Nível de Experiência</label>
-              <select name="experience" value={formData.experience} onChange={handleChange}
+              <select name="experience" value={formData.experience} onChange={handleChange} required
                 className="w-full bg-surface border border-border rounded-xl px-4 py-3 text-text-main focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand transition-colors">
+                <option value="">Selecione...</option>
                 <option value="Sedentário">Sedentário (Nunca treinou)</option>
                 <option value="Iniciante">Iniciante (0-6 meses)</option>
                 <option value="Intermediário">Intermediário (6 meses - 2 anos)</option>
@@ -280,8 +375,9 @@ export function AnamnesisForm({ onSubmit, isLoading }: Props) {
             </div>
             <div>
               <label className="block text-sm font-medium text-text-muted mb-1">Status Hormonal</label>
-              <select name="hormonalStatus" value={formData.hormonalStatus} onChange={handleChange}
+              <select name="hormonalStatus" value={formData.hormonalStatus} onChange={handleChange} required
                 className="w-full bg-surface border border-border rounded-xl px-4 py-3 text-text-main focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand transition-colors">
+                <option value="">Selecione...</option>
                 <option value="Natural">Natural</option>
                 <option value="Hormonizado">Hormonizado</option>
                 <option value="Prefiro não informar">Prefiro não informar</option>
@@ -327,13 +423,14 @@ export function AnamnesisForm({ onSubmit, isLoading }: Props) {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <label className="block text-sm font-medium text-text-muted mb-1">Dias por Semana</label>
-              <input type="number" name="daysPerWeek" value={formData.daysPerWeek} onChange={handleChange} required min="1" max="7"
+              <input type="number" name="daysPerWeek" value={formData.daysPerWeek || ''} onChange={handleChange} required min="1" max="7"
                 className="w-full bg-surface border border-border rounded-xl px-4 py-3 text-text-main focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand transition-colors" />
             </div>
             <div>
               <label className="block text-sm font-medium text-text-muted mb-1">Duração (minutos)</label>
-              <select name="duration" value={formData.duration} onChange={handleChange}
+              <select name="duration" value={formData.duration || ''} onChange={handleChange} required
                 className="w-full bg-surface border border-border rounded-xl px-4 py-3 text-text-main focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand transition-colors">
+                <option value="">Selecione...</option>
                 <option value="20">20 min (Express/HIIT)</option>
                 <option value="30">30 min (Intenso/Rápido)</option>
                 <option value="45">45 min</option>
@@ -344,8 +441,9 @@ export function AnamnesisForm({ onSubmit, isLoading }: Props) {
             </div>
             <div>
               <label className="block text-sm font-medium text-text-muted mb-1">Local / Equipamentos</label>
-              <select name="equipment" value={formData.equipment} onChange={handleChange}
+              <select name="equipment" value={formData.equipment} onChange={handleChange} required
                 className="w-full bg-surface border border-border rounded-xl px-4 py-3 text-text-main focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand transition-colors">
+                <option value="">Selecione...</option>
                 <option value="Academia Completa">Academia Completa</option>
                 <option value="Academia de Prédio (Básica)">Academia de Prédio (Básica)</option>
                 <option value="Estúdio Funcional / Crossfit">Estúdio Funcional / Crossfit</option>
@@ -368,8 +466,9 @@ export function AnamnesisForm({ onSubmit, isLoading }: Props) {
               <label className="block text-sm font-medium text-text-muted mb-1 flex items-center gap-2">
                 <Moon className="w-4 h-4" /> Qualidade do Sono
               </label>
-              <select name="sleepQuality" value={formData.sleepQuality} onChange={handleChange}
+              <select name="sleepQuality" value={formData.sleepQuality} onChange={handleChange} required
                 className="w-full bg-surface border border-border rounded-xl px-4 py-3 text-text-main focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand transition-colors">
+                <option value="">Selecione...</option>
                 <option value="Excelente (8h+)">Excelente (8h+)</option>
                 <option value="Boa (7-8h)">Boa (7-8h)</option>
                 <option value="Razoável (5-6h)">Razoável (5-6h)</option>
@@ -380,8 +479,9 @@ export function AnamnesisForm({ onSubmit, isLoading }: Props) {
               <label className="block text-sm font-medium text-text-muted mb-1 flex items-center gap-2">
                 <Brain className="w-4 h-4" /> Nível de Estresse
               </label>
-              <select name="stressLevel" value={formData.stressLevel} onChange={handleChange}
+              <select name="stressLevel" value={formData.stressLevel} onChange={handleChange} required
                 className="w-full bg-surface border border-border rounded-xl px-4 py-3 text-text-main focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand transition-colors">
+                <option value="">Selecione...</option>
                 <option value="Baixo">Baixo (Tranquilo)</option>
                 <option value="Moderado">Moderado (Rotina normal)</option>
                 <option value="Alto">Alto (Pressão constante)</option>
@@ -392,8 +492,9 @@ export function AnamnesisForm({ onSubmit, isLoading }: Props) {
               <label className="block text-sm font-medium text-text-muted mb-1 flex items-center gap-2">
                 <Utensils className="w-4 h-4" /> Alimentação
               </label>
-              <select name="dietType" value={formData.dietType} onChange={handleChange}
+              <select name="dietType" value={formData.dietType} onChange={handleChange} required
                 className="w-full bg-surface border border-border rounded-xl px-4 py-3 text-text-main focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand transition-colors">
+                <option value="">Selecione...</option>
                 <option value="Equilibrada (Sem restrições)">Equilibrada (Sem restrições)</option>
                 <option value="Déficit Calórico (Foco em perda)">Déficit Calórico (Foco em perda)</option>
                 <option value="Superávit Calórico (Foco em ganho)">Superávit Calórico (Foco em ganho)</option>
@@ -427,8 +528,9 @@ export function AnamnesisForm({ onSubmit, isLoading }: Props) {
 
           <div>
             <label className="block text-sm font-medium text-text-muted mb-1">Preferência de Cardio</label>
-            <select name="cardioPreference" value={formData.cardioPreference} onChange={handleChange}
+            <select name="cardioPreference" value={formData.cardioPreference} onChange={handleChange} required
               className="w-full bg-surface border border-border rounded-xl px-4 py-3 text-text-main focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand transition-colors">
+              <option value="">Selecione...</option>
               <option value="Esteira">Esteira</option>
               <option value="Bicicleta">Bicicleta</option>
               <option value="Elíptico">Elíptico</option>
@@ -445,25 +547,145 @@ export function AnamnesisForm({ onSubmit, isLoading }: Props) {
 
         {/* Treino Existente (Opcional) */}
         <div className="space-y-5 bg-bg-main p-6 rounded-2xl border border-border">
-          <h3 className="text-xl font-bold text-brand flex items-center gap-2">
-            <FileText className="w-6 h-6" /> 5. Treino Atual (Opcional)
-          </h3>
+          <div className="flex items-center justify-between">
+            <h3 className="text-xl font-bold text-brand flex items-center gap-2">
+              <FileText className="w-6 h-6" /> 5. Treino Atual (Opcional)
+            </h3>
+            <button 
+              type="button"
+              onClick={() => setShowStructuredInput(!showStructuredInput)}
+              className="text-sm font-bold text-brand hover:underline flex items-center gap-1"
+            >
+              {showStructuredInput ? 'Ocultar Detalhes' : 'Adicionar Detalhes do Treino'}
+              {showStructuredInput ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+            </button>
+          </div>
+          
           <p className="text-sm text-text-muted">
-            Já tem um treino da academia ou de outro profissional? Cole aqui para importar ou pedir para o sistema melhorar.
+            Se você já treina, informe seu treino atual. Isso nos ajuda a manter o que funciona e ajustar o que precisa ser melhorado.
           </p>
           
-          <div>
-            <textarea 
-              name="existingPlan" 
-              value={formData.existingPlan} 
-              onChange={handleChange} 
-              placeholder="Cole seu treino atual aqui (ex: Treino A: Supino 3x10, Agachamento 4x12...)" 
-              rows={4}
-              className="w-full bg-surface border border-border rounded-xl px-4 py-3 text-text-main focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand transition-colors resize-y" 
-            />
-          </div>
+          {!showStructuredInput ? (
+            <div className="space-y-4">
+              <div className="relative">
+                <textarea 
+                  name="existingPlan" 
+                  value={formData.existingPlan} 
+                  onChange={handleChange} 
+                  placeholder="Cole seu treino atual aqui para importação rápida (ex: Supino 3x10, Agachamento 4x12...)" 
+                  rows={3}
+                  className="w-full bg-surface border border-border rounded-xl px-4 py-3 text-text-main focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand transition-colors resize-none" 
+                />
+                {formData.existingPlan && (
+                  <button
+                    type="button"
+                    onClick={parseQuickPaste}
+                    className="absolute bottom-3 right-3 bg-brand text-white px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 shadow-lg"
+                  >
+                    <Sparkles className="w-3 h-3" /> Converter para Lista
+                  </button>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowStructuredInput(true)}
+                className="w-full py-3 border-2 border-dashed border-border rounded-xl text-text-muted hover:border-brand hover:text-brand transition-all flex items-center justify-center gap-2 font-bold"
+              >
+                <Plus className="w-5 h-5" /> Criar Lista de Exercícios Manualmente
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-6">
+              <AnimatePresence>
+                {formData.structuredExistingPlan?.map((day, dIdx) => (
+                  <motion.div 
+                    key={dIdx}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: 20 }}
+                    className="bg-surface border border-border rounded-2xl p-4 space-y-4"
+                  >
+                    <div className="flex items-center justify-between gap-4">
+                      <input 
+                        type="text" 
+                        value={day.dayName} 
+                        onChange={(e) => updateDayName(dIdx, e.target.value)}
+                        className="bg-transparent border-b border-border focus:border-brand text-lg font-bold text-text-main outline-none px-1 py-1 w-full"
+                        placeholder="Nome do Treino (Ex: Treino A)"
+                      />
+                      <button 
+                        type="button" 
+                        onClick={() => removeExistingDay(dIdx)}
+                        className="text-red-500 hover:bg-red-500/10 p-2 rounded-lg transition-colors"
+                      >
+                        <Trash2 className="w-5 h-5" />
+                      </button>
+                    </div>
 
-          {formData.existingPlan && formData.existingPlan.trim().length > 0 && (
+                    <div className="space-y-3">
+                      {day.exercises.map((ex, eIdx) => (
+                        <div key={eIdx} className="grid grid-cols-12 gap-2 items-center">
+                          <div className="col-span-6">
+                            <input 
+                              type="text" 
+                              value={ex.name} 
+                              onChange={(e) => updateExercise(dIdx, eIdx, 'name', e.target.value)}
+                              placeholder="Nome do Exercício"
+                              className="w-full bg-bg-main border border-border rounded-lg px-3 py-2 text-sm text-text-main focus:border-brand outline-none"
+                            />
+                          </div>
+                          <div className="col-span-2">
+                            <input 
+                              type="text" 
+                              value={ex.sets} 
+                              onChange={(e) => updateExercise(dIdx, eIdx, 'sets', e.target.value)}
+                              placeholder="Séries"
+                              className="w-full bg-bg-main border border-border rounded-lg px-3 py-2 text-sm text-text-main focus:border-brand outline-none text-center"
+                            />
+                          </div>
+                          <div className="col-span-3">
+                            <input 
+                              type="text" 
+                              value={ex.reps} 
+                              onChange={(e) => updateExercise(dIdx, eIdx, 'reps', e.target.value)}
+                              placeholder="Reps"
+                              className="w-full bg-bg-main border border-border rounded-lg px-3 py-2 text-sm text-text-main focus:border-brand outline-none text-center"
+                            />
+                          </div>
+                          <div className="col-span-1 flex justify-end">
+                            <button 
+                              type="button" 
+                              onClick={() => removeExerciseFromDay(dIdx, eIdx)}
+                              className="text-text-muted hover:text-red-500 p-1"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                      <button 
+                        type="button"
+                        onClick={() => addExerciseToDay(dIdx)}
+                        className="text-xs font-bold text-brand hover:underline flex items-center gap-1 mt-2"
+                      >
+                        <Plus className="w-3 h-3" /> Adicionar Exercício
+                      </button>
+                    </div>
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+              
+              <button 
+                type="button"
+                onClick={addExistingDay}
+                className="w-full py-3 border-2 border-dashed border-border rounded-xl text-text-muted hover:border-brand hover:text-brand transition-all flex items-center justify-center gap-2 font-bold"
+              >
+                <Plus className="w-5 h-5" /> Adicionar Novo Dia de Treino
+              </button>
+            </div>
+          )}
+
+          {(formData.structuredExistingPlan?.length || 0) > 0 && (
             <div className="flex items-start gap-3 p-4 bg-brand/5 border border-brand/20 rounded-xl">
               <div className="flex items-center h-5 mt-1">
                 <input
@@ -477,10 +699,10 @@ export function AnamnesisForm({ onSubmit, isLoading }: Props) {
               </div>
               <div className="flex flex-col">
                 <label htmlFor="remodelPlan" className="text-sm font-bold text-text-main cursor-pointer">
-                  Analisar e Melhorar este treino
+                  Analisar e Sugerir Melhorias Baseado no Meu Perfil
                 </label>
                 <p className="text-xs text-text-muted mt-1">
-                  Se marcado, nosso sistema vai avaliar seu treino atual e fazer melhorias para você atingir sua meta mais rápido, sem regredir. Se desmarcado, o sistema apenas importará o treino exatamente como está para o aplicativo.
+                  Se marcado, nosso sistema vai avaliar seu treino atual e propor mudanças justificadas. Você poderá revisar cada alteração antes de finalizar.
                 </p>
               </div>
             </div>

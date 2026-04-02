@@ -4,7 +4,7 @@ import { WorkoutPlanView } from './components/WorkoutPlanView';
 import { LandingPage } from './components/LandingPage';
 import { AdminDashboard } from './components/AdminDashboard';
 import { ExerciseLibrary } from './components/ExerciseLibrary';
-import { AnamnesisData, WorkoutPlan } from './services/workoutGenerator';
+import { AnamnesisData, WorkoutPlan, ExistingDay } from './services/workoutGenerator';
 import { generateWorkoutPlanRuleBased } from './services/workoutGenerator';
 import { Logo } from './components/Logo';
 import { LogIn, LogOut, User as UserIcon, Shield, BookOpen, Apple, Users, Palette, TrendingUp, HelpCircle } from 'lucide-react';
@@ -13,18 +13,19 @@ import { signInWithPopup, signOut, onAuthStateChanged, User } from 'firebase/aut
 import { doc, getDoc, setDoc, deleteDoc } from 'firebase/firestore';
 
 import { NutritionalTool } from './components/NutritionalTool';
-
+import { WorkoutComparisonView } from './components/WorkoutComparisonView';
 import { SpeltaGramFeed } from './components/SpeltaGram';
 import { EvolutionCharts } from './components/EvolutionCharts';
 import { UserManual } from './components/UserManual';
 
-type AppState = 'landing' | 'form' | 'plan' | 'admin' | 'library' | 'nutrition' | 'speltagram' | 'evolution' | 'manual';
+type AppState = 'landing' | 'form' | 'plan' | 'admin' | 'library' | 'nutrition' | 'speltagram' | 'evolution' | 'manual' | 'comparison';
 type Theme = 'default' | 'green' | 'blue' | 'gold';
 
 export default function App() {
   const [appState, setAppState] = useState<AppState>('landing');
   const [plan, setPlan] = useState<WorkoutPlan | null>(null);
   const [userData, setUserData] = useState<AnamnesisData | null>(null);
+  const [proposedPlan, setProposedPlan] = useState<WorkoutPlan | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [theme, setTheme] = useState<Theme>('default');
@@ -145,45 +146,63 @@ export default function App() {
     setError(null);
     try {
       const generatedPlan = await generateWorkoutPlanRuleBased(data);
-      setPlan(generatedPlan);
-      setUserData(data);
-      setAppState('plan');
       
-      // Save to Firestore
-      const anamnesisRef = doc(db, `users/${user.uid}/data/anamnesis`);
-      const planRef = doc(db, `users/${user.uid}/data/workoutPlan`);
-      
-      // Deep clean undefined values before saving to Firestore
-      const cleanObject = (obj: any): any => {
-        if (Array.isArray(obj)) {
-          return obj.map(cleanObject);
-        } else if (obj !== null && typeof obj === 'object') {
-          return Object.fromEntries(
-            Object.entries(obj)
-              .filter(([_, v]) => v !== undefined)
-              .map(([k, v]) => [k, cleanObject(v)])
-          );
-        }
-        return obj;
-      };
-
-      const cleanData = cleanObject(data);
-      const cleanPlan = cleanObject(generatedPlan);
-
-      await Promise.all([
-        setDoc(anamnesisRef, { ...cleanData, updatedAt: new Date().toISOString() }),
-        setDoc(planRef, { ...cleanPlan, createdAt: new Date().toISOString() })
-      ]);
-      
-      // Clear old progress
-      const progressRef = doc(db, `users/${user.uid}/data/progress`);
-      await deleteDoc(progressRef).catch(() => {}); // Ignore if doesn't exist
+      if (data.remodelPlan && data.structuredExistingPlan && data.structuredExistingPlan.length > 0) {
+        setProposedPlan(generatedPlan);
+        setUserData(data);
+        setAppState('comparison');
+      } else {
+        setPlan(generatedPlan);
+        setUserData(data);
+        setAppState('plan');
+        
+        // Save to Firestore (only if not going to comparison)
+        await savePlanToFirestore(data, generatedPlan);
+      }
     } catch (err) {
       console.error(err);
       setError(err instanceof Error ? err.message : 'Ocorreu um erro ao gerar seu plano. Por favor, tente novamente.');
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const savePlanToFirestore = async (data: AnamnesisData, finalPlan: WorkoutPlan) => {
+    if (!user) return;
+    
+    const anamnesisRef = doc(db, `users/${user.uid}/data/anamnesis`);
+    const planRef = doc(db, `users/${user.uid}/data/workoutPlan`);
+    
+    const cleanObject = (obj: any): any => {
+      if (Array.isArray(obj)) {
+        return obj.map(cleanObject);
+      } else if (obj !== null && typeof obj === 'object') {
+        return Object.fromEntries(
+          Object.entries(obj)
+            .filter(([_, v]) => v !== undefined)
+            .map(([k, v]) => [k, cleanObject(v)])
+        );
+      }
+      return obj;
+    };
+
+    const cleanData = cleanObject(data);
+    const cleanPlan = cleanObject(finalPlan);
+
+    await Promise.all([
+      setDoc(anamnesisRef, { ...cleanData, updatedAt: new Date().toISOString() }),
+      setDoc(planRef, { ...cleanPlan, createdAt: new Date().toISOString() })
+    ]);
+    
+    const progressRef = doc(db, `users/${user.uid}/data/progress`);
+    await deleteDoc(progressRef).catch(() => {});
+  };
+
+  const handleComparisonConfirm = async (finalPlan: WorkoutPlan) => {
+    if (!user || !userData) return;
+    setPlan(finalPlan);
+    setAppState('plan');
+    await savePlanToFirestore(userData, finalPlan);
   };
 
   const handleUpdatePlan = async (newPlan: WorkoutPlan) => {
@@ -210,22 +229,29 @@ export default function App() {
   };
 
   const handleReset = async () => {
+    // If we have a current plan, we can use it as the "Existing Plan" for the next form
+    const currentPlanAsExisting: ExistingDay[] = plan?.weeklyRoutine.map(day => ({
+      dayName: day.day,
+      exercises: day.exercises?.map(ex => ({
+        name: ex.name,
+        sets: ex.sets.toString(),
+        reps: ex.reps
+      })) || []
+    })) || [];
+
+    const previousUserData = userData;
+
     setPlan(null);
-    setUserData(null);
+    setUserData(previousUserData ? {
+      ...previousUserData,
+      structuredExistingPlan: currentPlanAsExisting,
+      remodelPlan: true // Default to remodel for re-evaluations
+    } : null);
     setError(null);
     setAppState('form');
     
-    if (user) {
-      try {
-        await Promise.all([
-          deleteDoc(doc(db, `users/${user.uid}/data/anamnesis`)),
-          deleteDoc(doc(db, `users/${user.uid}/data/workoutPlan`)),
-          deleteDoc(doc(db, `users/${user.uid}/data/progress`))
-        ]);
-      } catch (err) {
-        console.error("Error deleting data:", err);
-      }
-    }
+    // We don't delete from Firestore here anymore, we just move to the form
+    // The data will be overwritten when the new plan is generated
   };
 
   if (!isAuthReady) {
@@ -378,7 +404,20 @@ export default function App() {
         )}
 
         {appState === 'form' && (
-          <AnamnesisForm onSubmit={handleAnamnesisSubmit} isLoading={isLoading} />
+          <AnamnesisForm 
+            onSubmit={handleAnamnesisSubmit} 
+            isLoading={isLoading} 
+            initialData={userData}
+          />
+        )}
+
+        {appState === 'comparison' && userData && proposedPlan && (
+          <WorkoutComparisonView 
+            userData={userData} 
+            proposedPlan={proposedPlan} 
+            onConfirm={handleComparisonConfirm}
+            onCancel={() => setAppState('form')}
+          />
         )}
 
         {appState === 'plan' && plan && userData && (
