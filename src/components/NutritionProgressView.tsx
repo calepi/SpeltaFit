@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { TrendingUp, Plus, Scale, Battery, Target, Calendar, ArrowRight, Flag } from 'lucide-react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area, BarChart, Bar, ReferenceLine } from 'recharts';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db, auth } from '../firebase';
 import { format, subDays, parseISO } from 'date-fns';
@@ -24,6 +24,7 @@ interface NutritionProgressViewProps {
 
 export function NutritionProgressView({ physicalAnamnesis }: NutritionProgressViewProps) {
   const [entries, setEntries] = useState<TrackingEntry[]>([]);
+  const [savedInitialWeight, setSavedInitialWeight] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
 
@@ -36,6 +37,25 @@ export function NutritionProgressView({ physicalAnamnesis }: NutritionProgressVi
   const [bowelMovement, setBowelMovement] = useState('good');
   const [waterIntake, setWaterIntake] = useState('goal_met');
 
+  const [isEditingMarcoZero, setIsEditingMarcoZero] = useState(false);
+  const [tempMarcoZeroWeight, setTempMarcoZeroWeight] = useState('');
+
+  const handleSaveMarcoZero = async () => {
+    if (!auth.currentUser) return;
+    const newWeight = parseFloat(tempMarcoZeroWeight);
+    if (isNaN(newWeight) || newWeight <= 0) return;
+
+    try {
+      const docRef = doc(db, `users/${auth.currentUser.uid}/data/nutritionTracking`);
+      await setDoc(docRef, { initialWeight: newWeight }, { merge: true });
+      setSavedInitialWeight(newWeight);
+      setIsEditingMarcoZero(false);
+    } catch (error) {
+      console.error("Error saving Marco 0:", error);
+      alert("Erro ao salvar Marco 0.");
+    }
+  };
+
   useEffect(() => {
     loadTrackingData();
   }, []);
@@ -46,10 +66,16 @@ export function NutritionProgressView({ physicalAnamnesis }: NutritionProgressVi
       const docRef = doc(db, `users/${auth.currentUser.uid}/data/nutritionTracking`);
       const docSnap = await getDoc(docRef);
       
-      if (docSnap.exists() && docSnap.data().entries) {
-        // Filter out legacy Marco 0 entries from Firestore
-        const loadedEntries = docSnap.data().entries.filter((e: TrackingEntry) => !e.isMarcoZero);
-        setEntries(loadedEntries);
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        if (data.entries) {
+          // Filter out legacy Marco 0 entries from Firestore
+          const loadedEntries = data.entries.filter((e: TrackingEntry) => !e.isMarcoZero);
+          setEntries(loadedEntries);
+        }
+        if (data.initialWeight) {
+          setSavedInitialWeight(data.initialWeight);
+        }
       }
     } catch (error) {
       console.error("Error loading tracking data:", error);
@@ -78,7 +104,15 @@ export function NutritionProgressView({ physicalAnamnesis }: NutritionProgressVi
 
     try {
       const docRef = doc(db, `users/${auth.currentUser.uid}/data/nutritionTracking`);
-      await setDoc(docRef, { entries: updatedEntries }, { merge: true });
+      
+      const dataToSave: any = { entries: updatedEntries };
+      if (savedInitialWeight === null) {
+        const initialW = parseFloat(physicalAnamnesis?.weight) || parseFloat(weight);
+        dataToSave.initialWeight = initialW;
+        setSavedInitialWeight(initialW);
+      }
+
+      await setDoc(docRef, dataToSave, { merge: true });
       setEntries(updatedEntries);
       setShowForm(false);
       setWeight('');
@@ -99,7 +133,7 @@ export function NutritionProgressView({ physicalAnamnesis }: NutritionProgressVi
     return <div className="flex justify-center py-12"><div className="w-8 h-8 border-4 border-brand border-t-transparent rounded-full animate-spin"></div></div>;
   }
 
-  const anamnesisWeight = parseFloat(physicalAnamnesis?.weight) || 0;
+  const anamnesisWeight = savedInitialWeight !== null ? savedInitialWeight : (parseFloat(physicalAnamnesis?.weight) || 0);
   
   const effectiveEntries = [...entries];
   if (anamnesisWeight > 0) {
@@ -137,9 +171,19 @@ export function NutritionProgressView({ physicalAnamnesis }: NutritionProgressVi
       score = 100;
     }
 
+    let waterNum = 0;
+    if (e.waterIntake === 'goal_met') waterNum = 100;
+    else if (e.waterIntake === 'half') waterNum = 50;
+
+    let sleepNum = 0;
+    if (e.sleepQuality === 'good') sleepNum = 100;
+    else if (e.sleepQuality === 'average') sleepNum = 50;
+
     return {
       ...e,
       adherenceNum: adherenceVal,
+      waterNum,
+      sleepNum,
       wellnessScore: Math.round(score),
       displayDate: format(parseISO(e.date), 'dd/MM', { locale: ptBR })
     };
@@ -205,11 +249,39 @@ export function NutritionProgressView({ physicalAnamnesis }: NutritionProgressVi
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <div className="p-6 rounded-3xl bg-bg-main border border-border flex flex-col justify-center">
-            <span className="text-sm font-bold text-text-muted uppercase tracking-widest mb-1 flex items-center gap-2">
-              <Flag className="w-4 h-4" /> Marco 0
-            </span>
-            <span className="text-3xl font-black">{initialWeight.toFixed(1)} kg</span>
+          <div className="p-6 rounded-3xl bg-bg-main border border-border flex flex-col justify-center relative group">
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-sm font-bold text-text-muted uppercase tracking-widest flex items-center gap-2">
+                <Flag className="w-4 h-4" /> Marco 0
+              </span>
+              {!isEditingMarcoZero && (
+                <button 
+                  onClick={() => {
+                    setTempMarcoZeroWeight(initialWeight.toString());
+                    setIsEditingMarcoZero(true);
+                  }}
+                  className="text-xs text-brand opacity-0 group-hover:opacity-100 transition-opacity font-bold"
+                >
+                  Editar
+                </button>
+              )}
+            </div>
+            {isEditingMarcoZero ? (
+              <div className="flex items-center gap-2 mt-1">
+                <input 
+                  type="number" 
+                  step="0.1"
+                  value={tempMarcoZeroWeight}
+                  onChange={e => setTempMarcoZeroWeight(e.target.value)}
+                  className="w-20 bg-surface border border-border rounded-lg px-2 py-1 font-bold text-lg focus:border-brand outline-none"
+                  autoFocus
+                />
+                <button onClick={handleSaveMarcoZero} className="text-xs bg-brand text-white px-2 py-1 rounded-lg font-bold">Salvar</button>
+                <button onClick={() => setIsEditingMarcoZero(false)} className="text-xs text-text-muted px-2 py-1 font-bold">Cancelar</button>
+              </div>
+            ) : (
+              <span className="text-3xl font-black">{initialWeight.toFixed(1)} kg</span>
+            )}
             <span className="text-xs text-text-muted mt-1">Peso inicial</span>
           </div>
           
@@ -295,24 +367,24 @@ export function NutritionProgressView({ physicalAnamnesis }: NutritionProgressVi
               className="w-full bg-bg-main border border-border rounded-xl px-4 py-3 font-bold focus:border-brand outline-none appearance-none"
             >
               <option value="100">Seguindo 100% o plano</option>
-              <option value="75">Tive pequenos furos (ex: 1 ref. livre)</option>
-              <option value="50">Seguindo mais ou menos (metade do dia)</option>
-              <option value="25">Comi totalmente fora do plano</option>
+              <option value="75">Tendo pequenos furos (ex: 1 ref. livre)</option>
+              <option value="50">Seguindo parcialmente (metade do dia)</option>
+              <option value="25">Comendo totalmente fora do plano</option>
             </select>
           </div>
 
           <div className="space-y-2">
             <label className="text-sm font-bold text-text-muted flex items-center gap-2">
-              <Battery className="w-4 h-4" /> Como você se sentiu hoje?
+              <Battery className="w-4 h-4" /> Como você tem se sentido?
             </label>
             <select 
               value={energyLevel}
               onChange={e => setEnergyLevel(e.target.value)}
               className="w-full bg-bg-main border border-border rounded-xl px-4 py-3 font-bold focus:border-brand outline-none appearance-none"
             >
-              <option value="high">Cheio de energia / Disposto</option>
-              <option value="normal">Normal / Estável</option>
-              <option value="low">Muito cansado / Fadigado</option>
+              <option value="high">Me sentindo cheio de energia / Disposto</option>
+              <option value="normal">Me sentindo normal / Estável</option>
+              <option value="low">Me sentindo muito cansado / Fadigado</option>
             </select>
           </div>
 
@@ -325,9 +397,9 @@ export function NutritionProgressView({ physicalAnamnesis }: NutritionProgressVi
               onChange={e => setSleepQuality(e.target.value)}
               className="w-full bg-bg-main border border-border rounded-xl px-4 py-3 font-bold focus:border-brand outline-none appearance-none"
             >
-              <option value="good">Dormi muito bem (Acordei descansado)</option>
-              <option value="average">Razoável (Acordei algumas vezes)</option>
-              <option value="bad">Ruim (Insônia ou acordei cansado)</option>
+              <option value="good">Dormindo muito bem (Acordando descansado)</option>
+              <option value="average">Dormindo razoavelmente (Acordando algumas vezes)</option>
+              <option value="bad">Dormindo mal (Insônia ou acordando cansado)</option>
             </select>
           </div>
 
@@ -340,9 +412,9 @@ export function NutritionProgressView({ physicalAnamnesis }: NutritionProgressVi
               onChange={e => setBowelMovement(e.target.value)}
               className="w-full bg-bg-main border border-border rounded-xl px-4 py-3 font-bold focus:border-brand outline-none appearance-none"
             >
-              <option value="good">Normal (Fui ao banheiro sem problemas)</option>
+              <option value="good">Normal (Indo ao banheiro sem problemas)</option>
               <option value="irregular">Irregular (Preso ou solto demais)</option>
-              <option value="bad">Ruim (Não fui ou tive muito desconforto)</option>
+              <option value="bad">Ruim (Não indo ou tendo muito desconforto)</option>
             </select>
           </div>
 
@@ -355,9 +427,9 @@ export function NutritionProgressView({ physicalAnamnesis }: NutritionProgressVi
               onChange={e => setWaterIntake(e.target.value)}
               className="w-full bg-bg-main border border-border rounded-xl px-4 py-3 font-bold focus:border-brand outline-none appearance-none"
             >
-              <option value="goal_met">Bati a meta ({waterGoalLiters}L ou mais)</option>
-              <option value="half">Tomei um pouco (Cerca da metade da meta)</option>
-              <option value="low">Quase não tomei água (Menos de 1L)</option>
+              <option value="goal_met">Batendo a meta ({waterGoalLiters}L ou mais)</option>
+              <option value="half">Tomando um pouco (Cerca da metade da meta)</option>
+              <option value="low">Quase não tomando água (Menos de 1L)</option>
             </select>
           </div>
 
@@ -399,10 +471,10 @@ export function NutritionProgressView({ physicalAnamnesis }: NutritionProgressVi
                     contentStyle={{ backgroundColor: '#1A1A1A', border: '1px solid #333', borderRadius: '1rem', fontWeight: 'bold' }}
                     itemStyle={{ color: '#FF5722' }}
                   />
-                  <Line type="monotone" dataKey="weight" name="Peso (kg)" stroke="#FF5722" strokeWidth={4} dot={{ r: 4, fill: '#FF5722', strokeWidth: 2, stroke: '#1A1A1A' }} activeDot={{ r: 6 }} />
                   {targetWeight && (
-                    <Line type="monotone" dataKey={() => targetWeight} name="Meta (kg)" stroke="#4CAF50" strokeWidth={2} strokeDasharray="5 5" dot={false} />
+                    <ReferenceLine y={targetWeight} label={{ position: 'top', value: 'Meta', fill: '#4CAF50', fontSize: 12, fontWeight: 'bold' }} stroke="#4CAF50" strokeDasharray="5 5" strokeWidth={2} />
                   )}
+                  <Line type="monotone" dataKey="weight" name="Peso (kg)" stroke="#FF5722" strokeWidth={4} dot={{ r: 4, fill: '#FF5722', strokeWidth: 2, stroke: '#1A1A1A' }} activeDot={{ r: 6 }} />
                 </LineChart>
               </ResponsiveContainer>
             ) : (
@@ -563,6 +635,83 @@ export function NutritionProgressView({ physicalAnamnesis }: NutritionProgressVi
             </p>
           </div>
         )}
+      </div>
+
+      {/* Water and Sleep Charts */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* Water Intake Chart */}
+        <div className="bg-surface border border-border rounded-[2.5rem] p-8 shadow-xl">
+          <div className="flex items-center gap-3 mb-8">
+            <div className="p-3 rounded-2xl bg-blue-500/10 text-blue-500">
+              <Battery className="w-6 h-6" />
+            </div>
+            <h3 className="text-xl font-black tracking-tight">Ingestão de Água</h3>
+          </div>
+          <div className="h-64 w-full">
+            {chartData.length > 1 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={chartData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} />
+                  <XAxis dataKey="displayDate" stroke="#888" fontSize={12} tickLine={false} axisLine={false} />
+                  <YAxis stroke="#888" fontSize={12} tickLine={false} axisLine={false} domain={[0, 100]} />
+                  <Tooltip 
+                    contentStyle={{ backgroundColor: '#1A1A1A', border: '1px solid #333', borderRadius: '1rem', fontWeight: 'bold' }}
+                    itemStyle={{ color: '#3B82F6' }}
+                    formatter={(value: number) => {
+                      if (value === 100) return ['Meta Batida', 'Água'];
+                      if (value === 50) return ['Metade da Meta', 'Água'];
+                      return ['Baixa Ingestão', 'Água'];
+                    }}
+                  />
+                  <Bar dataKey="waterNum" name="Água" fill="#3B82F6" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="w-full h-full flex flex-col items-center justify-center text-text-muted text-center px-4">
+                <Battery className="w-12 h-12 mb-4 opacity-20" />
+                <p className="font-bold mb-1">Gráfico em construção</p>
+                <p className="text-sm">Adicione mais um registro em outro dia para visualizar a linha do tempo.</p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Sleep Quality Chart */}
+        <div className="bg-surface border border-border rounded-[2.5rem] p-8 shadow-xl">
+          <div className="flex items-center gap-3 mb-8">
+            <div className="p-3 rounded-2xl bg-purple-500/10 text-purple-500">
+              <Calendar className="w-6 h-6" />
+            </div>
+            <h3 className="text-xl font-black tracking-tight">Qualidade do Sono</h3>
+          </div>
+          <div className="h-64 w-full">
+            {chartData.length > 1 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={chartData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} />
+                  <XAxis dataKey="displayDate" stroke="#888" fontSize={12} tickLine={false} axisLine={false} />
+                  <YAxis stroke="#888" fontSize={12} tickLine={false} axisLine={false} domain={[0, 100]} />
+                  <Tooltip 
+                    contentStyle={{ backgroundColor: '#1A1A1A', border: '1px solid #333', borderRadius: '1rem', fontWeight: 'bold' }}
+                    itemStyle={{ color: '#A855F7' }}
+                    formatter={(value: number) => {
+                      if (value === 100) return ['Bom', 'Sono'];
+                      if (value === 50) return ['Razoável', 'Sono'];
+                      return ['Ruim', 'Sono'];
+                    }}
+                  />
+                  <Bar dataKey="sleepNum" name="Sono" fill="#A855F7" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="w-full h-full flex flex-col items-center justify-center text-text-muted text-center px-4">
+                <Calendar className="w-12 h-12 mb-4 opacity-20" />
+                <p className="font-bold mb-1">Gráfico em construção</p>
+                <p className="text-sm">Adicione mais um registro em outro dia para visualizar a linha do tempo.</p>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* History Table */}

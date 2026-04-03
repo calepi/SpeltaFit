@@ -158,11 +158,11 @@ export async function generateDietPlan(
       const v = getRandom(getFoodOptions('vegetal'));
 
       const prepOptions = [
-        'Grelhado com ervas finas',
-        'Cozido no vapor',
-        'Assado com especiarias',
-        'Refogado com alho e cebola',
-        'Salteado no azeite'
+        'Grelhado na frigideira com um fio de azeite',
+        'Cozido com sal e temperos naturais',
+        'Assado no forno com cebola e alho',
+        'Refogado simples com alho e cebola',
+        'Feito na Airfryer'
       ];
       const randomPrep = prepOptions[Math.floor(Math.random() * prepOptions.length)];
 

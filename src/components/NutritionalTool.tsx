@@ -122,15 +122,15 @@ export function NutritionalTool({ physicalAnamnesis, onBack }: NutritionalToolPr
   return (
     <div className="min-h-screen pb-20">
       {/* Navigation Header */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex items-center justify-between print:hidden">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 print:hidden">
         <button 
           onClick={onBack}
-          className="flex items-center gap-2 text-text-muted hover:text-text-main transition-colors font-bold"
+          className="flex items-center gap-2 text-text-muted hover:text-text-main transition-colors font-bold shrink-0"
         >
           <ChevronLeft className="w-5 h-5" />
-          Voltar para Treinos
+          <span>Voltar<span className="hidden md:inline"> para Treinos</span></span>
         </button>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2 md:gap-4 overflow-x-auto w-full md:w-auto pb-2 md:pb-0 hide-scrollbar">
           <NavButton active={view === 'dashboard'} onClick={() => setView('dashboard')} icon={<LayoutDashboard className="w-4 h-4" />} label="Geral" />
           <NavButton active={view === 'plan'} onClick={() => dietPlan ? setView('plan') : setView('form')} icon={<Apple className="w-4 h-4" />} label="Dieta" />
           <NavButton active={view === 'recipes'} onClick={() => setView('recipes')} icon={<BookOpen className="w-4 h-4" />} label="Receitas" />

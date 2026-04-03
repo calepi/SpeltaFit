@@ -47,9 +47,14 @@ export function RecipeView({ dietPlan }: RecipeViewProps) {
       const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
       
       const prompt = `
-        Atue como um chef e nutricionista esportivo.
-        Com base no seguinte plano alimentar do usuário, gere 4 receitas criativas, saborosas e fáceis de fazer que utilizem os ingredientes sugeridos no plano ou substituições saudáveis equivalentes.
-        As receitas devem se encaixar nas categorias: 'cafe_da_manha', 'almoco_jantar', 'lanche' ou 'pre_pos_treino'.
+        Atue como um chef e nutricionista esportivo focado na realidade brasileira.
+        Com base no seguinte plano alimentar do usuário, gere 4 receitas criativas, saborosas, mas EXTREMAMENTE FÁCEIS E BARATAS de fazer.
+        
+        REGRAS OBRIGATÓRIAS:
+        1. Use APENAS ingredientes simples do dia a dia do brasileiro (ex: arroz, feijão, frango, ovo, patinho, aveia, banana, maçã, pão francês, tapioca, queijo minas/muçarela, alface, tomate).
+        2. NÃO use ingredientes caros, difíceis de achar ou "gourmet" (ex: salmão, aspargos, quinoa, amêndoas, leite vegetal caro, temperos raros).
+        3. As receitas devem ser práticas para quem trabalha e tem pouco tempo.
+        4. As receitas devem se encaixar nas categorias: 'cafe_da_manha', 'almoco_jantar', 'lanche' ou 'pre_pos_treino'.
         
         Plano Alimentar:
         ${JSON.stringify(dietPlan.meals)}
