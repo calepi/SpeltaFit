@@ -46,25 +46,10 @@ export function NutritionProgressView({ physicalAnamnesis }: NutritionProgressVi
       const docRef = doc(db, `users/${auth.currentUser.uid}/data/nutritionTracking`);
       const docSnap = await getDoc(docRef);
       
-      if (docSnap.exists() && docSnap.data().entries && docSnap.data().entries.length > 0) {
-        setEntries(docSnap.data().entries);
-      } else {
-        // Create Marco 0 if no entries exist
-        const initialWeight = parseFloat(physicalAnamnesis?.weight) || 0;
-        if (initialWeight > 0) {
-          const marcoZero: TrackingEntry = {
-            date: format(new Date(), 'yyyy-MM-dd'),
-            weight: initialWeight,
-            adherence: '100',
-            energyLevel: 'normal',
-            sleepQuality: 'good',
-            bowelMovement: 'good',
-            waterIntake: 'goal_met',
-            isMarcoZero: true
-          };
-          setEntries([marcoZero]);
-          await setDoc(docRef, { entries: [marcoZero] });
-        }
+      if (docSnap.exists() && docSnap.data().entries) {
+        // Filter out legacy Marco 0 entries from Firestore
+        const loadedEntries = docSnap.data().entries.filter((e: TrackingEntry) => !e.isMarcoZero);
+        setEntries(loadedEntries);
       }
     } catch (error) {
       console.error("Error loading tracking data:", error);
@@ -114,7 +99,27 @@ export function NutritionProgressView({ physicalAnamnesis }: NutritionProgressVi
     return <div className="flex justify-center py-12"><div className="w-8 h-8 border-4 border-brand border-t-transparent rounded-full animate-spin"></div></div>;
   }
 
-  const chartData = entries.map(e => {
+  const anamnesisWeight = parseFloat(physicalAnamnesis?.weight) || 0;
+  
+  const effectiveEntries = [...entries];
+  if (anamnesisWeight > 0) {
+    let m0Date = format(new Date(), 'yyyy-MM-dd');
+    if (effectiveEntries.length > 0) {
+      m0Date = format(subDays(parseISO(effectiveEntries[0].date), 1), 'yyyy-MM-dd');
+    }
+    effectiveEntries.unshift({
+      date: m0Date,
+      weight: anamnesisWeight,
+      adherence: '100',
+      energyLevel: 'normal',
+      sleepQuality: 'good',
+      bowelMovement: 'good',
+      waterIntake: 'goal_met',
+      isMarcoZero: true
+    });
+  }
+
+  const chartData = effectiveEntries.map(e => {
     let score = 0;
     const adherenceVal = parseInt(e.adherence as string) || 100;
     score += (adherenceVal / 100) * 40;
@@ -140,7 +145,7 @@ export function NutritionProgressView({ physicalAnamnesis }: NutritionProgressVi
     };
   });
 
-  const initialWeight = entries.length > 0 ? entries[0].weight : (parseFloat(physicalAnamnesis?.weight) || 0);
+  const initialWeight = anamnesisWeight;
   const currentWeight = entries.length > 0 ? entries[entries.length - 1].weight : initialWeight;
   const weightDiff = currentWeight - initialWeight;
   const goal = physicalAnamnesis?.goal || 'Saúde e Bem-estar';
@@ -561,7 +566,7 @@ export function NutritionProgressView({ physicalAnamnesis }: NutritionProgressVi
       </div>
 
       {/* History Table */}
-      {entries.length > 0 && (
+      {effectiveEntries.length > 0 && (
         <div className="bg-surface border border-border rounded-[2.5rem] p-8 shadow-xl overflow-hidden">
           <div className="flex items-center gap-3 mb-6">
             <div className="p-3 rounded-2xl bg-brand/10 text-brand">
@@ -583,7 +588,7 @@ export function NutritionProgressView({ physicalAnamnesis }: NutritionProgressVi
                 </tr>
               </thead>
               <tbody className="text-sm">
-                {[...entries].reverse().map((entry, idx) => (
+                {[...effectiveEntries].reverse().map((entry, idx) => (
                   <tr key={entry.date} className="border-b border-border/50 last:border-0 hover:bg-bg-main/50 transition-colors">
                     <td className="py-4 font-bold flex items-center gap-2">
                       {format(parseISO(entry.date), 'dd/MM/yyyy')}
