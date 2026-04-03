@@ -124,6 +124,39 @@ export function NutritionProgressView({ physicalAnamnesis }: NutritionProgressVi
   const currentWeight = entries.length > 0 ? entries[entries.length - 1].weight : initialWeight;
   const weightDiff = currentWeight - initialWeight;
   const goal = physicalAnamnesis?.goal || 'Saúde e Bem-estar';
+  const targetWeight = parseFloat(physicalAnamnesis?.targetWeight) || null;
+
+  // Calculate water goal (35ml per kg of current weight)
+  const waterGoalMl = currentWeight * 35;
+  const waterGoalLiters = (waterGoalMl / 1000).toFixed(1);
+
+  // Calculate Wellness Score based on the latest entry
+  let wellnessScore = 0;
+  if (entries.length > 0) {
+    const latest = entries[entries.length - 1];
+    
+    // Adherence (up to 40 pts)
+    const adherenceVal = parseInt(latest.adherence as string) || 100;
+    wellnessScore += (adherenceVal / 100) * 40;
+    
+    // Water (up to 20 pts)
+    if (latest.waterIntake === 'goal_met') wellnessScore += 20;
+    else if (latest.waterIntake === 'half') wellnessScore += 10;
+    
+    // Sleep (up to 20 pts)
+    if (latest.sleepQuality === 'good') wellnessScore += 20;
+    else if (latest.sleepQuality === 'average') wellnessScore += 10;
+    
+    // Energy (up to 10 pts)
+    if (latest.energyLevel === 'high') wellnessScore += 10;
+    else if (latest.energyLevel === 'normal') wellnessScore += 5;
+    
+    // Bowel (up to 10 pts)
+    if (latest.bowelMovement === 'good') wellnessScore += 10;
+    else if (latest.bowelMovement === 'irregular') wellnessScore += 5;
+  } else {
+    wellnessScore = 100; // Default for Marco 0 if no entries
+  }
 
   return (
     <div className="space-y-8">
@@ -146,7 +179,7 @@ export function NutritionProgressView({ physicalAnamnesis }: NutritionProgressVi
           </button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           <div className="p-6 rounded-3xl bg-bg-main border border-border flex flex-col justify-center">
             <span className="text-sm font-bold text-text-muted uppercase tracking-widest mb-1 flex items-center gap-2">
               <Flag className="w-4 h-4" /> Marco 0
@@ -171,6 +204,20 @@ export function NutritionProgressView({ physicalAnamnesis }: NutritionProgressVi
               {weightDiff > 0 ? '+' : ''}{weightDiff.toFixed(1)} kg
             </span>
             <span className="text-xs text-brand/70 mt-1">Desde o início</span>
+          </div>
+
+          <div className="p-6 rounded-3xl bg-green-500/10 border border-green-500/20 flex flex-col justify-center relative overflow-hidden">
+            <div className="absolute -right-4 -bottom-4 opacity-10 text-green-500">
+              <Battery className="w-24 h-24" />
+            </div>
+            <span className="text-sm font-bold text-green-500 uppercase tracking-widest mb-1 flex items-center gap-2 relative z-10">
+              <Battery className="w-4 h-4" /> Score de Saúde
+            </span>
+            <div className="flex items-end gap-1 relative z-10">
+              <span className="text-3xl font-black text-green-500">{Math.round(wellnessScore)}</span>
+              <span className="text-sm font-bold text-green-500/70 mb-1">/100</span>
+            </div>
+            <span className="text-xs text-green-500/70 mt-1 relative z-10">Baseado no último registro</span>
           </div>
         </div>
       </div>
@@ -220,9 +267,9 @@ export function NutritionProgressView({ physicalAnamnesis }: NutritionProgressVi
               onChange={e => setAdherence(e.target.value)}
               className="w-full bg-bg-main border border-border rounded-xl px-4 py-3 font-bold focus:border-brand outline-none appearance-none"
             >
-              <option value="100">Segui 100% o plano</option>
+              <option value="100">Seguindo 100% o plano</option>
               <option value="75">Tive pequenos furos (ex: 1 ref. livre)</option>
-              <option value="50">Segui mais ou menos (metade do dia)</option>
+              <option value="50">Seguindo mais ou menos (metade do dia)</option>
               <option value="25">Comi totalmente fora do plano</option>
             </select>
           </div>
@@ -281,8 +328,8 @@ export function NutritionProgressView({ physicalAnamnesis }: NutritionProgressVi
               onChange={e => setWaterIntake(e.target.value)}
               className="w-full bg-bg-main border border-border rounded-xl px-4 py-3 font-bold focus:border-brand outline-none appearance-none"
             >
-              <option value="goal_met">Bati a meta (2L a 3L+)</option>
-              <option value="half">Tomei um pouco (Cerca de 1L a 1.5L)</option>
+              <option value="goal_met">Bati a meta ({waterGoalLiters}L ou mais)</option>
+              <option value="half">Tomei um pouco (Cerca da metade da meta)</option>
               <option value="low">Quase não tomei água (Menos de 1L)</option>
             </select>
           </div>
@@ -326,15 +373,45 @@ export function NutritionProgressView({ physicalAnamnesis }: NutritionProgressVi
                     itemStyle={{ color: '#FF5722' }}
                   />
                   <Line type="monotone" dataKey="weight" name="Peso (kg)" stroke="#FF5722" strokeWidth={4} dot={{ r: 4, fill: '#FF5722', strokeWidth: 2, stroke: '#1A1A1A' }} activeDot={{ r: 6 }} />
+                  {targetWeight && (
+                    <Line type="monotone" dataKey={() => targetWeight} name="Meta (kg)" stroke="#4CAF50" strokeWidth={2} strokeDasharray="5 5" dot={false} />
+                  )}
                 </LineChart>
               </ResponsiveContainer>
             ) : (
-              <div className="w-full h-full flex flex-col items-center justify-center text-text-muted">
+              <div className="w-full h-full flex flex-col items-center justify-center text-text-muted text-center px-4">
                 <LineChart className="w-12 h-12 mb-4 opacity-20" />
-                <p>Adicione mais registros para ver o gráfico.</p>
+                <p className="font-bold mb-1">Gráfico em construção</p>
+                <p className="text-sm">Adicione mais um registro em outro dia para visualizar a linha do tempo.</p>
               </div>
             )}
           </div>
+          
+          {/* Insights for Weight */}
+          {chartData.length > 1 && targetWeight && (
+            <div className="mt-6 p-4 bg-bg-main rounded-2xl border border-border">
+              <h4 className="font-bold text-sm text-text-muted mb-2 flex items-center gap-2">
+                <TrendingUp className="w-4 h-4" /> Análise de Peso
+              </h4>
+              <p className="text-sm">
+                {goal.toLowerCase().includes('emagrecimento') || goal.toLowerCase().includes('perder') ? (
+                  currentWeight <= targetWeight ? 
+                    <span className="text-green-500 font-bold">Parabéns! Você atingiu sua meta de peso!</span> :
+                    currentWeight < initialWeight ? 
+                      <span>Você já perdeu <strong className="text-brand">{Math.abs(weightDiff).toFixed(1)} kg</strong>. Faltam <strong className="text-brand">{(currentWeight - targetWeight).toFixed(1)} kg</strong> para sua meta. Continue firme!</span> :
+                      <span className="text-yellow-500">Seu peso aumentou ou se manteve. Revise sua adesão à dieta e rotina de treinos.</span>
+                ) : goal.toLowerCase().includes('hipertrofia') || goal.toLowerCase().includes('ganhar') ? (
+                  currentWeight >= targetWeight ? 
+                    <span className="text-green-500 font-bold">Parabéns! Você atingiu sua meta de peso!</span> :
+                    currentWeight > initialWeight ? 
+                      <span>Você já ganhou <strong className="text-brand">{weightDiff.toFixed(1)} kg</strong>. Faltam <strong className="text-brand">{(targetWeight - currentWeight).toFixed(1)} kg</strong> para sua meta. Bom trabalho!</span> :
+                      <span className="text-yellow-500">Seu peso diminuiu ou se manteve. Certifique-se de estar consumindo calorias suficientes.</span>
+                ) : (
+                  <span>Acompanhe sua variação de peso para garantir que está de acordo com seus objetivos de saúde.</span>
+                )}
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Adherence Chart */}
@@ -366,14 +443,95 @@ export function NutritionProgressView({ physicalAnamnesis }: NutritionProgressVi
                 </AreaChart>
               </ResponsiveContainer>
             ) : (
-              <div className="w-full h-full flex flex-col items-center justify-center text-text-muted">
+              <div className="w-full h-full flex flex-col items-center justify-center text-text-muted text-center px-4">
                 <Target className="w-12 h-12 mb-4 opacity-20" />
-                <p>Adicione mais registros para ver o gráfico.</p>
+                <p className="font-bold mb-1">Gráfico em construção</p>
+                <p className="text-sm">Adicione mais um registro em outro dia para visualizar a linha do tempo.</p>
               </div>
             )}
           </div>
+
+          {/* Insights for Adherence */}
+          {chartData.length > 1 && (
+            <div className="mt-6 p-4 bg-bg-main rounded-2xl border border-border">
+              <h4 className="font-bold text-sm text-text-muted mb-2 flex items-center gap-2">
+                <Target className="w-4 h-4" /> Análise de Consistência
+              </h4>
+              <p className="text-sm">
+                {(() => {
+                  const recentEntries = chartData.slice(-3);
+                  const avgAdherence = recentEntries.reduce((acc, curr) => acc + curr.adherenceNum, 0) / recentEntries.length;
+                  
+                  if (avgAdherence >= 90) {
+                    return <span className="text-green-500 font-bold">Excelente! Sua adesão recente está muito alta. Os resultados virão!</span>;
+                  } else if (avgAdherence >= 70) {
+                    return <span>Sua consistência está boa, mas tente evitar furos frequentes para acelerar seus resultados.</span>;
+                  } else {
+                    return <span className="text-yellow-500">Atenção: Sua adesão recente caiu. Lembre-se do seu objetivo principal: {goal}. Tente retomar o foco hoje!</span>;
+                  }
+                })()}
+              </p>
+            </div>
+          )}
         </div>
       </div>
+      {/* History Table */}
+      {entries.length > 0 && (
+        <div className="bg-surface border border-border rounded-[2.5rem] p-8 shadow-xl overflow-hidden">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="p-3 rounded-2xl bg-brand/10 text-brand">
+              <Calendar className="w-6 h-6" />
+            </div>
+            <h3 className="text-xl font-black tracking-tight">Histórico de Registros</h3>
+          </div>
+          
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="border-b border-border text-text-muted text-sm">
+                  <th className="pb-4 font-bold">Data</th>
+                  <th className="pb-4 font-bold">Peso</th>
+                  <th className="pb-4 font-bold">Adesão</th>
+                  <th className="pb-4 font-bold hidden md:table-cell">Energia</th>
+                  <th className="pb-4 font-bold hidden lg:table-cell">Sono</th>
+                  <th className="pb-4 font-bold hidden lg:table-cell">Água</th>
+                </tr>
+              </thead>
+              <tbody className="text-sm">
+                {[...entries].reverse().map((entry, idx) => (
+                  <tr key={entry.date} className="border-b border-border/50 last:border-0 hover:bg-bg-main/50 transition-colors">
+                    <td className="py-4 font-bold flex items-center gap-2">
+                      {format(parseISO(entry.date), 'dd/MM/yyyy')}
+                      {entry.isMarcoZero && <span className="text-[10px] bg-brand/20 text-brand px-2 py-0.5 rounded-full uppercase tracking-wider">Marco 0</span>}
+                    </td>
+                    <td className="py-4 font-bold text-brand">{entry.weight} kg</td>
+                    <td className="py-4">
+                      <div className="flex items-center gap-2">
+                        <div className="w-16 h-2 bg-bg-main rounded-full overflow-hidden">
+                          <div 
+                            className={`h-full ${parseInt(entry.adherence as string) >= 75 ? 'bg-green-500' : parseInt(entry.adherence as string) >= 50 ? 'bg-yellow-500' : 'bg-red-500'}`} 
+                            style={{ width: `${entry.adherence}%` }}
+                          />
+                        </div>
+                        <span className="text-xs text-text-muted">{entry.adherence}%</span>
+                      </div>
+                    </td>
+                    <td className="py-4 hidden md:table-cell capitalize text-text-muted">
+                      {entry.energyLevel === 'high' ? 'Alta' : entry.energyLevel === 'normal' ? 'Normal' : 'Baixa'}
+                    </td>
+                    <td className="py-4 hidden lg:table-cell capitalize text-text-muted">
+                      {entry.sleepQuality === 'good' ? 'Bom' : entry.sleepQuality === 'average' ? 'Razoável' : 'Ruim'}
+                    </td>
+                    <td className="py-4 hidden lg:table-cell capitalize text-text-muted">
+                      {entry.waterIntake === 'goal_met' ? 'Meta Batida' : entry.waterIntake === 'half' ? 'Metade' : 'Baixa'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
