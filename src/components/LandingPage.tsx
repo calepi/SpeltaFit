@@ -13,9 +13,11 @@ interface Props {
   onStart: () => void;
   hasPlan?: boolean;
   onContinue?: () => void;
+  onViewTerms?: () => void;
+  onViewPrivacy?: () => void;
 }
 
-export function LandingPage({ onStart, hasPlan, onContinue }: Props) {
+export function LandingPage({ onStart, hasPlan, onContinue, onViewTerms, onViewPrivacy }: Props) {
   const containerVariants = {
     hidden: { opacity: 0 },
     visible: {
@@ -221,6 +223,20 @@ export function LandingPage({ onStart, hasPlan, onContinue }: Props) {
           </div>
         </div>
       </section>
+
+      {/* Legal Links */}
+      <div className="flex items-center justify-center gap-6 text-sm text-text-muted mt-8">
+        {onViewTerms && (
+          <button onClick={onViewTerms} className="hover:text-brand transition-colors">
+            Termos de Uso
+          </button>
+        )}
+        {onViewPrivacy && (
+          <button onClick={onViewPrivacy} className="hover:text-brand transition-colors">
+            Política de Privacidade
+          </button>
+        )}
+      </div>
 
     </div>
   );

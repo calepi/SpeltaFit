@@ -19,8 +19,11 @@ import { SpeltaGramFeed } from './components/SpeltaGram';
 import { EvolutionCharts } from './components/EvolutionCharts';
 import { UserManual } from './components/UserManual';
 import { GamificationDashboard } from './components/GamificationDashboard';
+import { TermsOfService } from './components/TermsOfService';
+import { PrivacyPolicy } from './components/PrivacyPolicy';
+import { Paywall } from './components/Paywall';
 
-type AppState = 'landing' | 'form' | 'plan' | 'admin' | 'library' | 'nutrition' | 'speltagram' | 'evolution' | 'manual' | 'comparison' | 'gamification' | 'reminders';
+type AppState = 'landing' | 'form' | 'plan' | 'admin' | 'library' | 'nutrition' | 'speltagram' | 'evolution' | 'manual' | 'comparison' | 'gamification' | 'reminders' | 'terms' | 'privacy';
 type Theme = 'default' | 'green' | 'blue' | 'gold';
 
 export default function App() {
@@ -35,6 +38,8 @@ export default function App() {
   // Firebase Auth State
   const [user, setUser] = useState<User | null>(null);
   const [isAuthReady, setIsAuthReady] = useState(false);
+  const [hasSubscription, setHasSubscription] = useState(false);
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
 
   // Load theme from local storage on mount
   useEffect(() => {
@@ -71,6 +76,12 @@ export default function App() {
             role: 'user',
             createdAt: new Date().toISOString()
           }, { merge: true });
+
+          const userDocSnap = await getDoc(userDocRef);
+          if (userDocSnap.exists()) {
+            const userData = userDocSnap.data();
+            setHasSubscription(userData.hasSubscription === true || userData.role === 'admin' || currentUser.email === 'calepi@gmail.com');
+          }
 
           const anamnesisRef = doc(db, `users/${currentUser.uid}/data/anamnesis`);
           const planRef = doc(db, `users/${currentUser.uid}/data/workoutPlan`);
@@ -122,6 +133,7 @@ export default function App() {
       await signOut(auth);
       setPlan(null);
       setUserData(null);
+      setHasSubscription(false);
       setAppState('landing');
       localStorage.removeItem('fitgenius_plan');
       localStorage.removeItem('fitgenius_user');
@@ -130,6 +142,26 @@ export default function App() {
     } catch (err) {
       console.error("Logout error:", err);
     }
+  };
+
+  const handleSubscribe = async () => {
+    if (!user) return;
+    setIsProcessingPayment(true);
+    
+    // Simulate payment processing delay
+    setTimeout(async () => {
+      try {
+        const userDocRef = doc(db, 'users', user.uid);
+        await setDoc(userDocRef, { hasSubscription: true }, { merge: true });
+        setHasSubscription(true);
+        alert("Pagamento aprovado! Bem-vindo ao SpeltaFit Premium.");
+      } catch (error) {
+        console.error("Error updating subscription:", error);
+        alert("Erro ao processar assinatura. Tente novamente.");
+      } finally {
+        setIsProcessingPayment(false);
+      }
+    }, 2000);
   };
 
   const handleThemeChange = (newTheme: Theme) => {
@@ -398,90 +430,110 @@ export default function App() {
           </div>
         )}
 
-        {appState === 'landing' && (
-          <LandingPage 
-            onStart={async () => {
-              if (user) {
-                setAppState('form');
-              } else {
-                try {
-                  await signInWithPopup(auth, googleProvider);
-                  setAppState('form');
-                } catch (err: any) {
-                  console.error("Login error:", err);
-                  if (err.code !== 'auth/popup-closed-by-user' && err.code !== 'auth/cancelled-popup-request') {
-                    alert("Você precisa fazer login para criar um treino.");
+        {user && !hasSubscription && appState !== 'terms' && appState !== 'privacy' ? (
+          <Paywall 
+            onSubscribe={handleSubscribe} 
+            onLogout={handleLogout} 
+            isLoading={isProcessingPayment} 
+          />
+        ) : (
+          <>
+            {appState === 'landing' && (
+              <LandingPage 
+                onStart={async () => {
+                  if (user) {
+                    setAppState('form');
+                  } else {
+                    try {
+                      await signInWithPopup(auth, googleProvider);
+                      setAppState('form');
+                    } catch (err: any) {
+                      console.error("Login error:", err);
+                      if (err.code !== 'auth/popup-closed-by-user' && err.code !== 'auth/cancelled-popup-request') {
+                        alert("Você precisa fazer login para criar um treino.");
+                      }
+                    }
                   }
-                }
-              }
-            }} 
-            hasPlan={!!plan}
-            onContinue={() => setAppState('plan')}
-          />
-        )}
+                }} 
+                hasPlan={!!plan}
+                onContinue={() => setAppState('plan')}
+                onViewTerms={() => setAppState('terms')}
+                onViewPrivacy={() => setAppState('privacy')}
+              />
+            )}
 
-        {appState === 'form' && (
-          <AnamnesisForm 
-            onSubmit={handleAnamnesisSubmit} 
-            isLoading={isLoading} 
-            initialData={userData}
-          />
-        )}
+            {appState === 'form' && (
+              <AnamnesisForm 
+                onSubmit={handleAnamnesisSubmit} 
+                isLoading={isLoading} 
+                initialData={userData}
+              />
+            )}
 
-        {appState === 'comparison' && userData && proposedPlan && (
-          <WorkoutComparisonView 
-            userData={userData} 
-            proposedPlan={proposedPlan} 
-            onConfirm={handleComparisonConfirm}
-            onCancel={() => setAppState('form')}
-          />
-        )}
+            {appState === 'comparison' && userData && proposedPlan && (
+              <WorkoutComparisonView 
+                userData={userData} 
+                proposedPlan={proposedPlan} 
+                onConfirm={handleComparisonConfirm}
+                onCancel={() => setAppState('form')}
+              />
+            )}
 
-        {appState === 'plan' && plan && userData && (
-          <WorkoutPlanView 
-            plan={plan} 
-            user={userData} 
-            onReset={handleReset} 
-            onUpdatePlan={handleUpdatePlan}
-          />
-        )}
+            {appState === 'plan' && plan && userData && (
+              <WorkoutPlanView 
+                plan={plan} 
+                user={userData} 
+                onReset={handleReset} 
+                onUpdatePlan={handleUpdatePlan}
+              />
+            )}
 
-        {appState === 'admin' && user?.email === 'calepi@gmail.com' && (
-          <AdminDashboard />
-        )}
+            {appState === 'admin' && user?.email === 'calepi@gmail.com' && (
+              <AdminDashboard />
+            )}
 
-        {appState === 'library' && (
-          <ExerciseLibrary />
-        )}
+            {appState === 'library' && (
+              <ExerciseLibrary />
+            )}
 
-        {appState === 'nutrition' && userData && (
-          <NutritionalTool 
-            physicalAnamnesis={userData} 
-            onBack={() => setAppState('plan')} 
-          />
-        )}
+            {appState === 'nutrition' && userData && (
+              <NutritionalTool 
+                physicalAnamnesis={userData} 
+                onBack={() => setAppState('plan')} 
+              />
+            )}
 
-        {appState === 'speltagram' && user && (
-          <SpeltaGramFeed 
-            user={user} 
-            isAdmin={user.email === 'calepi@gmail.com'} 
-          />
-        )}
+            {appState === 'speltagram' && user && (
+              <SpeltaGramFeed 
+                user={user} 
+                isAdmin={user.email === 'calepi@gmail.com'} 
+              />
+            )}
 
-        {appState === 'evolution' && user && (
-          <EvolutionCharts userId={user.uid} />
-        )}
+            {appState === 'evolution' && user && (
+              <EvolutionCharts userId={user.uid} />
+            )}
 
-        {appState === 'gamification' && user && (
-          <GamificationDashboard userId={user.uid} />
-        )}
+            {appState === 'gamification' && user && (
+              <GamificationDashboard userId={user.uid} />
+            )}
 
-        {appState === 'reminders' && (
-          <ReminderSettings />
-        )}
+            {appState === 'reminders' && (
+              <ReminderSettings />
+            )}
 
-        {appState === 'manual' && (
-          <UserManual />
+            {appState === 'manual' && (
+              <UserManual />
+            )}
+
+            {appState === 'terms' && (
+              <TermsOfService onBack={() => setAppState('landing')} />
+            )}
+
+            {appState === 'privacy' && (
+              <PrivacyPolicy onBack={() => setAppState('landing')} />
+            )}
+          </>
         )}
       </main>
 
