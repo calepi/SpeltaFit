@@ -114,11 +114,31 @@ export function NutritionProgressView({ physicalAnamnesis }: NutritionProgressVi
     return <div className="flex justify-center py-12"><div className="w-8 h-8 border-4 border-brand border-t-transparent rounded-full animate-spin"></div></div>;
   }
 
-  const chartData = entries.map(e => ({
-    ...e,
-    adherenceNum: typeof e.adherence === 'number' ? e.adherence : (parseInt(e.adherence as string) || 100),
-    displayDate: format(parseISO(e.date), 'dd/MM', { locale: ptBR })
-  }));
+  const chartData = entries.map(e => {
+    let score = 0;
+    const adherenceVal = parseInt(e.adherence as string) || 100;
+    score += (adherenceVal / 100) * 40;
+    if (e.waterIntake === 'goal_met') score += 20;
+    else if (e.waterIntake === 'half') score += 10;
+    if (e.sleepQuality === 'good') score += 20;
+    else if (e.sleepQuality === 'average') score += 10;
+    if (e.energyLevel === 'high') score += 10;
+    else if (e.energyLevel === 'normal') score += 5;
+    if (e.bowelMovement === 'good') score += 10;
+    else if (e.bowelMovement === 'irregular') score += 5;
+
+    // If it's Marco 0 and no other data was provided, default to 100
+    if (e.isMarcoZero && !e.sleepQuality) {
+      score = 100;
+    }
+
+    return {
+      ...e,
+      adherenceNum: adherenceVal,
+      wellnessScore: Math.round(score),
+      displayDate: format(parseISO(e.date), 'dd/MM', { locale: ptBR })
+    };
+  });
 
   const initialWeight = entries.length > 0 ? entries[0].weight : (parseFloat(physicalAnamnesis?.weight) || 0);
   const currentWeight = entries.length > 0 ? entries[entries.length - 1].weight : initialWeight;
@@ -203,7 +223,9 @@ export function NutritionProgressView({ physicalAnamnesis }: NutritionProgressVi
             <span className="text-3xl font-black text-brand">
               {weightDiff > 0 ? '+' : ''}{weightDiff.toFixed(1)} kg
             </span>
-            <span className="text-xs text-brand/70 mt-1">Desde o início</span>
+            <span className="text-xs text-brand/70 mt-1">
+              {entries.length <= 1 ? "Adicione mais registros para ver a variação" : "Desde o Marco 0"}
+            </span>
           </div>
 
           <div className="p-6 rounded-3xl bg-green-500/10 border border-green-500/20 flex flex-col justify-center relative overflow-hidden">
@@ -475,6 +497,69 @@ export function NutritionProgressView({ physicalAnamnesis }: NutritionProgressVi
           )}
         </div>
       </div>
+
+      {/* Wellness Score Chart */}
+      <div className="bg-surface border border-border rounded-[2.5rem] p-8 shadow-xl">
+        <div className="flex items-center gap-3 mb-8">
+          <div className="p-3 rounded-2xl bg-green-500/10 text-green-500">
+            <Battery className="w-6 h-6" />
+          </div>
+          <h3 className="text-xl font-black tracking-tight">Evolução do Score de Saúde</h3>
+        </div>
+        <div className="h-64 w-full">
+          {chartData.length > 1 ? (
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={chartData}>
+                <defs>
+                  <linearGradient id="colorWellness" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#22C55E" stopOpacity={0.3}/>
+                    <stop offset="95%" stopColor="#22C55E" stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} />
+                <XAxis dataKey="displayDate" stroke="#888" fontSize={12} tickLine={false} axisLine={false} />
+                <YAxis stroke="#888" fontSize={12} tickLine={false} axisLine={false} domain={[0, 100]} />
+                <Tooltip 
+                  contentStyle={{ backgroundColor: '#1A1A1A', border: '1px solid #333', borderRadius: '1rem', fontWeight: 'bold' }}
+                  itemStyle={{ color: '#22C55E' }}
+                />
+                <Area type="monotone" dataKey="wellnessScore" name="Score" stroke="#22C55E" strokeWidth={4} fillOpacity={1} fill="url(#colorWellness)" />
+              </AreaChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="w-full h-full flex flex-col items-center justify-center text-text-muted text-center px-4">
+              <Battery className="w-12 h-12 mb-4 opacity-20" />
+              <p className="font-bold mb-1">Gráfico em construção</p>
+              <p className="text-sm">Adicione mais um registro em outro dia para visualizar a linha do tempo.</p>
+            </div>
+          )}
+        </div>
+        
+        {/* Insights for Wellness Score */}
+        {chartData.length > 1 && (
+          <div className="mt-6 p-4 bg-bg-main rounded-2xl border border-border">
+            <h4 className="font-bold text-sm text-text-muted mb-2 flex items-center gap-2">
+              <Battery className="w-4 h-4" /> Análise de Saúde Global
+            </h4>
+            <p className="text-sm">
+              {(() => {
+                const latestScore = chartData[chartData.length - 1].wellnessScore;
+                const previousScore = chartData[chartData.length - 2].wellnessScore;
+                const diff = latestScore - previousScore;
+                
+                if (latestScore >= 80) {
+                  return <span className="text-green-500 font-bold">Seu corpo está funcionando de forma otimizada! Ótimo sono, energia e hidratação.</span>;
+                } else if (diff > 0) {
+                  return <span className="text-blue-500">Seus hábitos estão melhorando (+{diff} pts). Continue focando na hidratação e sono.</span>;
+                } else {
+                  return <span className="text-yellow-500">Seu score de saúde caiu. Tente beber mais água e priorizar seu descanso hoje.</span>;
+                }
+              })()}
+            </p>
+          </div>
+        )}
+      </div>
+
       {/* History Table */}
       {entries.length > 0 && (
         <div className="bg-surface border border-border rounded-[2.5rem] p-8 shadow-xl overflow-hidden">

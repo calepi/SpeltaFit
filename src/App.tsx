@@ -7,7 +7,7 @@ import { ExerciseLibrary } from './components/ExerciseLibrary';
 import { AnamnesisData, WorkoutPlan, ExistingDay } from './services/workoutGenerator';
 import { generateWorkoutPlanRuleBased } from './services/workoutGenerator';
 import { Logo } from './components/Logo';
-import { LogIn, LogOut, User as UserIcon, Shield, BookOpen, Apple, Users, Palette, TrendingUp, HelpCircle, Trophy, Bell } from 'lucide-react';
+import { LogIn, LogOut, User as UserIcon, Shield, BookOpen, Apple, Users, Palette, TrendingUp, HelpCircle, Trophy, Bell, Menu, X } from 'lucide-react';
 import { ReminderSettings } from './components/ReminderSettings';
 import { auth, db, googleProvider } from './firebase';
 import { signInWithPopup, signOut, onAuthStateChanged, User } from 'firebase/auth';
@@ -40,6 +40,7 @@ export default function App() {
   const [isAuthReady, setIsAuthReady] = useState(false);
   const [hasSubscription, setHasSubscription] = useState(false);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   // Load theme from local storage on mount
   useEffect(() => {
@@ -306,12 +307,14 @@ export default function App() {
             onClick={() => {
               window.scrollTo(0,0);
               setAppState('landing');
+              setIsMobileMenuOpen(false);
             }}
           >
             <Logo size="sm" />
           </div>
 
-            <div className="flex items-center gap-2">
+          {/* Desktop Navigation */}
+          <div className="hidden md:flex items-center gap-2">
             {user && (
               <>
                 <button 
@@ -360,15 +363,15 @@ export default function App() {
               </>
             )}
             {user ? (
-              <div className="flex items-center gap-3 mr-2">
-                <div className="hidden sm:flex flex-col items-end">
+              <div className="flex items-center gap-3 ml-2 border-l border-border pl-4">
+                <div className="hidden lg:flex flex-col items-end">
                   <span className="text-sm font-bold text-text-main">{user.displayName}</span>
                   <span className="text-xs text-text-muted">{user.email}</span>
                 </div>
                 {user.email === 'calepi@gmail.com' && (
                   <button 
                     onClick={() => setAppState('admin')}
-                    className={`p-2 ml-1 rounded-xl transition-colors ${appState === 'admin' ? 'bg-brand text-text-inverse' : 'bg-brand/10 text-brand hover:bg-brand/20'}`}
+                    className={`p-2 rounded-xl transition-colors ${appState === 'admin' ? 'bg-brand text-text-inverse' : 'bg-brand/10 text-brand hover:bg-brand/20'}`}
                     title="Painel do Treinador"
                   >
                     <Shield className="w-5 h-5" />
@@ -376,7 +379,7 @@ export default function App() {
                 )}
                 <button 
                   onClick={() => setAppState('library')}
-                  className={`p-2 ml-1 rounded-xl transition-colors ${appState === 'library' ? 'bg-brand text-text-inverse' : 'bg-brand/10 text-brand hover:bg-brand/20'}`}
+                  className={`p-2 rounded-xl transition-colors ${appState === 'library' ? 'bg-brand text-text-inverse' : 'bg-brand/10 text-brand hover:bg-brand/20'}`}
                   title="Biblioteca de Exercícios"
                 >
                   <BookOpen className="w-5 h-5" />
@@ -390,7 +393,7 @@ export default function App() {
                 )}
                 <button 
                   onClick={handleLogout}
-                  className="p-2 ml-1 rounded-full hover:bg-red-500/10 text-text-muted hover:text-red-500 transition-colors"
+                  className="p-2 rounded-full hover:bg-red-500/10 text-text-muted hover:text-red-500 transition-colors"
                   title="Sair"
                 >
                   <LogOut className="w-5 h-5" />
@@ -399,17 +402,16 @@ export default function App() {
             ) : (
               <button 
                 onClick={handleLogin}
-                className="flex items-center gap-2 px-4 py-2 mr-2 rounded-xl bg-brand/10 text-brand hover:bg-brand/20 transition-colors font-bold text-sm"
+                className="flex items-center gap-2 px-4 py-2 ml-2 rounded-xl bg-brand/10 text-brand hover:bg-brand/20 transition-colors font-bold text-sm"
               >
                 <LogIn className="w-4 h-4" />
-                <span className="hidden sm:inline">Entrar</span>
+                <span>Entrar</span>
               </button>
             )}
 
-            <div className="group relative">
+            <div className="group relative ml-2">
               <button className="p-2 rounded-full hover:bg-surface transition-colors flex items-center gap-2 text-text-muted hover:text-text-main">
                 <Palette className="w-5 h-5" />
-                <span className="hidden sm:inline text-sm font-medium">Tema</span>
               </button>
               <div className="absolute right-0 top-full mt-2 bg-surface border border-border rounded-xl shadow-xl p-2 hidden group-hover:flex flex-col gap-1 min-w-[120px]">
                 <button onClick={() => handleThemeChange('default')} className={`px-3 py-2 rounded-lg text-sm text-left hover:bg-bg-main transition-colors ${theme === 'default' ? 'text-brand font-bold' : 'text-text-main'}`}>Laranja (Padrão)</button>
@@ -419,7 +421,133 @@ export default function App() {
               </div>
             </div>
           </div>
+
+          {/* Mobile Menu Toggle */}
+          <div className="md:hidden flex items-center gap-2">
+            {user && user.photoURL ? (
+              <img src={user.photoURL} alt="User" className="w-8 h-8 rounded-full border border-border" referrerPolicy="no-referrer" />
+            ) : user ? (
+              <div className="w-8 h-8 rounded-full bg-brand/20 text-brand flex items-center justify-center">
+                <UserIcon className="w-4 h-4" />
+              </div>
+            ) : null}
+            <button 
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              className="p-2 rounded-xl bg-surface border border-border text-text-main hover:bg-bg-main transition-colors"
+            >
+              {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+            </button>
+          </div>
         </div>
+
+        {/* Mobile Menu Dropdown */}
+        {isMobileMenuOpen && (
+          <div className="md:hidden border-t border-border bg-surface px-4 py-4 space-y-4 shadow-xl absolute w-full left-0 top-full">
+            {user ? (
+              <>
+                <div className="grid grid-cols-4 gap-2">
+                  <button 
+                    onClick={() => { setAppState('gamification'); setIsMobileMenuOpen(false); }}
+                    className={`flex flex-col items-center justify-center gap-1 p-3 rounded-xl transition-colors ${appState === 'gamification' ? 'bg-brand text-text-inverse' : 'bg-bg-main text-text-main hover:bg-brand/10 hover:text-brand'}`}
+                  >
+                    <Trophy className="w-6 h-6" />
+                    <span className="text-[10px] font-bold">Ranking</span>
+                  </button>
+                  <button 
+                    onClick={() => { setAppState('reminders'); setIsMobileMenuOpen(false); }}
+                    className={`flex flex-col items-center justify-center gap-1 p-3 rounded-xl transition-colors ${appState === 'reminders' ? 'bg-brand text-text-inverse' : 'bg-bg-main text-text-main hover:bg-brand/10 hover:text-brand'}`}
+                  >
+                    <Bell className="w-6 h-6" />
+                    <span className="text-[10px] font-bold">Lembretes</span>
+                  </button>
+                  <button 
+                    onClick={() => { setAppState('evolution'); setIsMobileMenuOpen(false); }}
+                    className={`flex flex-col items-center justify-center gap-1 p-3 rounded-xl transition-colors ${appState === 'evolution' ? 'bg-brand text-text-inverse' : 'bg-bg-main text-text-main hover:bg-brand/10 hover:text-brand'}`}
+                  >
+                    <TrendingUp className="w-6 h-6" />
+                    <span className="text-[10px] font-bold">Evolução</span>
+                  </button>
+                  <button 
+                    onClick={() => { setAppState('speltagram'); setIsMobileMenuOpen(false); }}
+                    className={`flex flex-col items-center justify-center gap-1 p-3 rounded-xl transition-colors ${appState === 'speltagram' ? 'bg-brand text-text-inverse' : 'bg-bg-main text-text-main hover:bg-brand/10 hover:text-brand'}`}
+                  >
+                    <Users className="w-6 h-6" />
+                    <span className="text-[10px] font-bold">Social</span>
+                  </button>
+                  <button 
+                    onClick={() => { setAppState('nutrition'); setIsMobileMenuOpen(false); }}
+                    className={`flex flex-col items-center justify-center gap-1 p-3 rounded-xl transition-colors ${appState === 'nutrition' ? 'bg-brand text-text-inverse' : 'bg-bg-main text-text-main hover:bg-brand/10 hover:text-brand'}`}
+                  >
+                    <Apple className="w-6 h-6" />
+                    <span className="text-[10px] font-bold">Nutrição</span>
+                  </button>
+                  <button 
+                    onClick={() => { setAppState('library'); setIsMobileMenuOpen(false); }}
+                    className={`flex flex-col items-center justify-center gap-1 p-3 rounded-xl transition-colors ${appState === 'library' ? 'bg-brand text-text-inverse' : 'bg-bg-main text-text-main hover:bg-brand/10 hover:text-brand'}`}
+                  >
+                    <BookOpen className="w-6 h-6" />
+                    <span className="text-[10px] font-bold">Exercícios</span>
+                  </button>
+                  <button 
+                    onClick={() => { setAppState('manual'); setIsMobileMenuOpen(false); }}
+                    className={`flex flex-col items-center justify-center gap-1 p-3 rounded-xl transition-colors ${appState === 'manual' ? 'bg-brand text-text-inverse' : 'bg-bg-main text-text-main hover:bg-brand/10 hover:text-brand'}`}
+                  >
+                    <HelpCircle className="w-6 h-6" />
+                    <span className="text-[10px] font-bold">Manual</span>
+                  </button>
+                  {user.email === 'calepi@gmail.com' && (
+                    <button 
+                      onClick={() => { setAppState('admin'); setIsMobileMenuOpen(false); }}
+                      className={`flex flex-col items-center justify-center gap-1 p-3 rounded-xl transition-colors ${appState === 'admin' ? 'bg-brand text-text-inverse' : 'bg-bg-main text-text-main hover:bg-brand/10 hover:text-brand'}`}
+                    >
+                      <Shield className="w-6 h-6" />
+                      <span className="text-[10px] font-bold">Admin</span>
+                    </button>
+                  )}
+                </div>
+                
+                <div className="border-t border-border pt-4 flex flex-col gap-2">
+                  <div className="flex items-center justify-between px-2">
+                    <span className="text-sm font-bold text-text-main">Tema</span>
+                    <div className="flex gap-2">
+                      <button onClick={() => { handleThemeChange('default'); setIsMobileMenuOpen(false); }} className={`w-6 h-6 rounded-full bg-[#FF5722] ${theme === 'default' ? 'ring-2 ring-offset-2 ring-offset-surface ring-[#FF5722]' : ''}`} />
+                      <button onClick={() => { handleThemeChange('green'); setIsMobileMenuOpen(false); }} className={`w-6 h-6 rounded-full bg-[#10B981] ${theme === 'green' ? 'ring-2 ring-offset-2 ring-offset-surface ring-[#10B981]' : ''}`} />
+                      <button onClick={() => { handleThemeChange('blue'); setIsMobileMenuOpen(false); }} className={`w-6 h-6 rounded-full bg-[#3B82F6] ${theme === 'blue' ? 'ring-2 ring-offset-2 ring-offset-surface ring-[#3B82F6]' : ''}`} />
+                      <button onClick={() => { handleThemeChange('gold'); setIsMobileMenuOpen(false); }} className={`w-6 h-6 rounded-full bg-[#F59E0B] ${theme === 'gold' ? 'ring-2 ring-offset-2 ring-offset-surface ring-[#F59E0B]' : ''}`} />
+                    </div>
+                  </div>
+                  
+                  <button 
+                    onClick={() => { handleLogout(); setIsMobileMenuOpen(false); }}
+                    className="flex items-center justify-center gap-2 w-full py-3 mt-2 rounded-xl bg-red-500/10 text-red-500 font-bold hover:bg-red-500/20 transition-colors"
+                  >
+                    <LogOut className="w-5 h-5" />
+                    Sair da Conta
+                  </button>
+                </div>
+              </>
+            ) : (
+              <div className="flex flex-col gap-4">
+                <button 
+                  onClick={() => { handleLogin(); setIsMobileMenuOpen(false); }}
+                  className="flex items-center justify-center gap-2 w-full py-3 rounded-xl bg-brand text-text-inverse font-bold hover:bg-brand-hover transition-colors"
+                >
+                  <LogIn className="w-5 h-5" />
+                  Entrar com Google
+                </button>
+                <div className="flex items-center justify-between px-2">
+                  <span className="text-sm font-bold text-text-main">Tema</span>
+                  <div className="flex gap-2">
+                    <button onClick={() => { handleThemeChange('default'); setIsMobileMenuOpen(false); }} className={`w-6 h-6 rounded-full bg-[#FF5722] ${theme === 'default' ? 'ring-2 ring-offset-2 ring-offset-surface ring-[#FF5722]' : ''}`} />
+                    <button onClick={() => { handleThemeChange('green'); setIsMobileMenuOpen(false); }} className={`w-6 h-6 rounded-full bg-[#10B981] ${theme === 'green' ? 'ring-2 ring-offset-2 ring-offset-surface ring-[#10B981]' : ''}`} />
+                    <button onClick={() => { handleThemeChange('blue'); setIsMobileMenuOpen(false); }} className={`w-6 h-6 rounded-full bg-[#3B82F6] ${theme === 'blue' ? 'ring-2 ring-offset-2 ring-offset-surface ring-[#3B82F6]' : ''}`} />
+                    <button onClick={() => { handleThemeChange('gold'); setIsMobileMenuOpen(false); }} className={`w-6 h-6 rounded-full bg-[#F59E0B] ${theme === 'gold' ? 'ring-2 ring-offset-2 ring-offset-surface ring-[#F59E0B]' : ''}`} />
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </header>
 
       {/* Main Content */}
