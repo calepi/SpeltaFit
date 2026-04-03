@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { NutritionalAnamnesisForm } from './NutritionalAnamnesisForm';
 import { DietPlanView } from './DietPlanView';
 import { RecipeView } from './RecipeView';
+import { NutritionProgressView } from './NutritionProgressView';
 import { NutritionalAnamnesis, DietPlan, generateDietPlan } from '../services/nutritionGenerator';
 import { doc, getDoc, setDoc, deleteDoc } from 'firebase/firestore';
 import { db, auth } from '../firebase';
@@ -215,6 +216,17 @@ export function NutritionalTool({ physicalAnamnesis, onBack }: NutritionalToolPr
             </motion.div>
           )}
 
+          {view === 'progress' && (
+            <motion.div 
+              key="progress"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+            >
+              <NutritionProgressView />
+            </motion.div>
+          )}
+
           {view === 'recipes' && (
             <motion.div 
               key="recipes"
@@ -222,7 +234,7 @@ export function NutritionalTool({ physicalAnamnesis, onBack }: NutritionalToolPr
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
             >
-              <RecipeView />
+              <RecipeView dietPlan={dietPlan} />
             </motion.div>
           )}
         </AnimatePresence>

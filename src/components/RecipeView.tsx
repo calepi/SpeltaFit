@@ -1,14 +1,108 @@
-import React from 'react';
-import { Utensils, Clock, Flame, Info, ChevronRight, Search, Filter } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Utensils, Clock, Flame, Info, ChevronRight, Search, Filter, Sparkles, RefreshCw } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { RECIPE_DB, Recipe } from '../data/recipeDatabase';
+import { DietPlan } from '../services/nutritionGenerator';
+import { GoogleGenAI, Type } from '@google/genai';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { db, auth } from '../firebase';
 
-export function RecipeView() {
-  const [selectedCategory, setSelectedCategory] = React.useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = React.useState('');
-  const [selectedRecipe, setSelectedRecipe] = React.useState<Recipe | null>(null);
+interface RecipeViewProps {
+  dietPlan: DietPlan | null;
+}
 
-  const filteredRecipes = RECIPE_DB.filter(recipe => {
+export function RecipeView({ dietPlan }: RecipeViewProps) {
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
+  
+  const [generatedRecipes, setGeneratedRecipes] = useState<Recipe[]>([]);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    loadGeneratedRecipes();
+  }, []);
+
+  const loadGeneratedRecipes = async () => {
+    if (!auth.currentUser) return;
+    try {
+      const docRef = doc(db, `users/${auth.currentUser.uid}/data/recipes`);
+      const docSnap = await getDoc(docRef);
+      if (docSnap.exists()) {
+        setGeneratedRecipes(docSnap.data().recipes || []);
+      }
+    } catch (err) {
+      console.error("Error loading recipes:", err);
+    }
+  };
+
+  const generateRecipesWithAI = async () => {
+    if (!dietPlan || !auth.currentUser) return;
+    
+    setIsGenerating(true);
+    setError(null);
+    
+    try {
+      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+      
+      const prompt = `
+        Atue como um chef e nutricionista esportivo.
+        Com base no seguinte plano alimentar do usuário, gere 4 receitas criativas, saborosas e fáceis de fazer que utilizem os ingredientes sugeridos no plano ou substituições saudáveis equivalentes.
+        As receitas devem se encaixar nas categorias: 'cafe_da_manha', 'almoco_jantar', 'lanche' ou 'pre_pos_treino'.
+        
+        Plano Alimentar:
+        ${JSON.stringify(dietPlan.meals)}
+        
+        Retorne um array JSON com as receitas.
+      `;
+
+      const response = await ai.models.generateContent({
+        model: "gemini-3-flash-preview",
+        contents: prompt,
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                id: { type: Type.STRING, description: "Um ID único como 'rec_1'" },
+                name: { type: Type.STRING },
+                description: { type: Type.STRING },
+                category: { type: Type.STRING, description: "cafe_da_manha, almoco_jantar, lanche, ou pre_pos_treino" },
+                prepTime: { type: Type.STRING, description: "Ex: '15 min'" },
+                calories: { type: Type.NUMBER },
+                protein: { type: Type.NUMBER },
+                carbs: { type: Type.NUMBER },
+                fats: { type: Type.NUMBER },
+                ingredients: { type: Type.ARRAY, items: { type: Type.STRING } },
+                instructions: { type: Type.ARRAY, items: { type: Type.STRING } }
+              },
+              required: ["id", "name", "description", "category", "prepTime", "calories", "protein", "carbs", "fats", "ingredients", "instructions"]
+            }
+          }
+        }
+      });
+
+      const newRecipes = JSON.parse(response.text.trim()) as Recipe[];
+      
+      // Save to Firestore
+      const docRef = doc(db, `users/${auth.currentUser.uid}/data/recipes`);
+      await setDoc(docRef, { recipes: newRecipes });
+      
+      setGeneratedRecipes(newRecipes);
+    } catch (err) {
+      console.error("Error generating recipes:", err);
+      setError("Não foi possível gerar receitas no momento. Tente novamente mais tarde.");
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const allRecipes = [...generatedRecipes, ...RECIPE_DB];
+
+  const filteredRecipes = allRecipes.filter(recipe => {
     const matchesCategory = !selectedCategory || recipe.category === selectedCategory;
     const matchesSearch = recipe.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
                          recipe.ingredients.some(i => i.toLowerCase().includes(searchQuery.toLowerCase()));
@@ -31,7 +125,7 @@ export function RecipeView() {
             <div className="p-3 rounded-2xl bg-brand/10 text-brand">
               <Utensils className="w-6 h-6" />
             </div>
-            <h3 className="text-2xl font-black tracking-tight">Receitas Rápidas SpeltaFit</h3>
+            <h3 className="text-2xl font-black tracking-tight">Receitas SpeltaFit</h3>
           </div>
           <div className="relative flex-1 max-w-md">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-text-muted" />
@@ -44,6 +138,37 @@ export function RecipeView() {
             />
           </div>
         </div>
+
+        {dietPlan && (
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-6 bg-brand/5 border border-brand/20 rounded-2xl">
+            <div>
+              <h4 className="font-bold text-text-main flex items-center gap-2">
+                <Sparkles className="w-5 h-5 text-brand" /> 
+                Receitas Inteligentes
+              </h4>
+              <p className="text-sm text-text-muted mt-1">
+                Gere receitas exclusivas baseadas nos ingredientes do seu plano alimentar atual.
+              </p>
+            </div>
+            <button
+              onClick={generateRecipesWithAI}
+              disabled={isGenerating}
+              className="px-6 py-3 bg-brand text-text-inverse rounded-xl font-bold hover:bg-brand-hover transition-colors flex items-center gap-2 disabled:opacity-70 whitespace-nowrap"
+            >
+              {isGenerating ? (
+                <><RefreshCw className="w-5 h-5 animate-spin" /> Gerando...</>
+              ) : (
+                <><Sparkles className="w-5 h-5" /> Gerar com IA</>
+              )}
+            </button>
+          </div>
+        )}
+
+        {error && (
+          <div className="p-4 bg-red-500/10 border border-red-500/20 text-red-500 rounded-xl text-sm font-bold">
+            {error}
+          </div>
+        )}
 
         <div className="flex flex-wrap gap-2">
           <button 
