@@ -228,7 +228,7 @@ export function NutritionalTool({ physicalAnamnesis, onBack }: NutritionalToolPr
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
             >
-              <NutritionProgressView />
+              <NutritionProgressView physicalAnamnesis={physicalAnamnesis} />
             </motion.div>
           )}
 
