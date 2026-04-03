@@ -175,17 +175,22 @@ export function NutritionalTool({ physicalAnamnesis, onBack }: NutritionalToolPr
                 </button>
               </div>
 
-              <div className="bg-surface border border-border rounded-[2.5rem] p-8 shadow-xl">
-                <div className="p-4 rounded-2xl bg-blue-500/10 text-blue-500 w-fit mb-6">
-                  <TrendingUp className="w-8 h-8" />
+              <div className="bg-surface border border-border rounded-[2.5rem] p-8 shadow-xl flex flex-col justify-between">
+                <div>
+                  <div className="p-4 rounded-2xl bg-blue-500/10 text-blue-500 w-fit mb-6">
+                    <TrendingUp className="w-8 h-8" />
+                  </div>
+                  <h2 className="text-3xl font-black tracking-tight mb-4">Acompanhamento</h2>
+                  <p className="text-text-muted mb-8 text-lg">
+                    Monitore seu peso, adesão à dieta e níveis de energia para ajustes precisos.
+                  </p>
                 </div>
-                <h2 className="text-3xl font-black tracking-tight mb-4">Acompanhamento</h2>
-                <p className="text-text-muted mb-8 text-lg">
-                  Monitore seu peso, adesão à dieta e níveis de energia para ajustes precisos.
-                </p>
-                <div className="p-6 rounded-2xl bg-bg-main border border-border text-center">
-                  <span className="text-text-muted font-bold">Funcionalidade em breve</span>
-                </div>
+                <button 
+                  onClick={() => setView('progress')}
+                  className="w-full py-4 rounded-2xl bg-blue-500 text-white font-black hover:scale-[1.02] transition-all shadow-xl shadow-blue-500/20"
+                >
+                  Acessar Diário
+                </button>
               </div>
             </motion.div>
           )}
