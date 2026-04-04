@@ -64,7 +64,9 @@ export function AdminDashboard() {
         const deleteData = async () => {
           try {
             await deleteDoc(doc(db, `users/${uid}/data/anamnesis`));
-            await deleteDoc(doc(db, `users/${uid}/data/plan`));
+            await deleteDoc(doc(db, `users/${uid}/data/workoutPlan`));
+            await deleteDoc(doc(db, `users/${uid}/data/dietPlan`));
+            await deleteDoc(doc(db, `users/${uid}/data/nutritionalAnamnesis`));
             await deleteDoc(doc(db, `users/${uid}/data/progress`));
             await deleteDoc(doc(db, 'users', uid));
           } catch (e) {

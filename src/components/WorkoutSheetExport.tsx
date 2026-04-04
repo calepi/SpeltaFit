@@ -10,6 +10,13 @@ interface Props {
 }
 
 export const WorkoutSheetExport = forwardRef<HTMLDivElement, Props>(({ plan, user, selectedWeek = 1, actualLoads = {} }, ref) => {
+  const getDynamicSets = (baseSets: number | string, currentWeek: number, phaseName?: string) => {
+    if (phaseName && phaseName.includes('Adaptação e Aprendizado Motor') && Number(baseSets) === 1) {
+      return currentWeek === 1 ? 1 : currentWeek === 2 ? 2 : 3;
+    }
+    return Number(baseSets) || 0;
+  };
+
   return (
     <div ref={ref} className="bg-white text-black font-sans w-full max-w-[1123px] mx-auto box-border" style={{ color: '#000' }}>
       {/* Page 1: Overview */}
@@ -167,7 +174,7 @@ export const WorkoutSheetExport = forwardRef<HTMLDivElement, Props>(({ plan, use
                 </thead>
                 <tbody>
                   {day.exercises.map((ex, i) => {
-                    const setLoads = Array.from({ length: Number(ex.sets) || 0 }).map((_, setIdx) => {
+                    const setLoads = Array.from({ length: getDynamicSets(ex.sets, selectedWeek, plan.phaseName) }).map((_, setIdx) => {
                       const setLoadKey = `w${selectedWeek}-d${idx}-${ex.id}-${setIdx}`;
                       return actualLoads[setLoadKey] || '-';
                     });
@@ -179,7 +186,7 @@ export const WorkoutSheetExport = forwardRef<HTMLDivElement, Props>(({ plan, use
                         {ex.name}
                         {ex.videoUrl && <div className="text-[9px] text-gray-400 mt-0.5 uppercase tracking-tighter">Vídeo disponível no App</div>}
                       </td>
-                      <td className="border border-gray-300 px-3 py-2 text-center font-bold whitespace-nowrap">{ex.sets} x {ex.reps}</td>
+                      <td className="border border-gray-300 px-3 py-2 text-center font-bold whitespace-nowrap">{getDynamicSets(ex.sets, selectedWeek, plan.phaseName)} x {ex.reps}</td>
                       <td className="border border-gray-300 px-3 py-2 text-center">{ex.rest}</td>
                       <td className="border border-gray-300 px-3 py-2 text-center">{ex.suggestedLoad}</td>
                       <td className="border border-gray-300 px-3 py-2 text-center font-bold text-brand">{actualLoadDisplay}</td>

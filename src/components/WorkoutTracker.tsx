@@ -429,12 +429,19 @@ export function WorkoutTracker({ plan, user, onUpdatePlan, readOnly = false, stu
   const activePlan = isEditing ? editedPlan : plan;
   const dayData = activePlan?.weeklyRoutine?.[selectedDay];
 
+  const getDynamicSets = (baseSets: number | string, currentWeek: number, phaseName?: string) => {
+    if (phaseName && phaseName.includes('Adaptação e Aprendizado Motor') && Number(baseSets) === 1) {
+      return currentWeek === 1 ? 1 : currentWeek === 2 ? 2 : 3;
+    }
+    return Number(baseSets) || 0;
+  };
+
   // Calculate progress for the selected day
-  const totalSetsForDay = Array.isArray(dayData?.exercises) ? dayData.exercises.reduce((acc, ex) => acc + (ex ? (Number(ex.sets) || 0) : 0), 0) : 0;
+  const totalSetsForDay = Array.isArray(dayData?.exercises) ? dayData.exercises.reduce((acc, ex) => acc + (ex ? getDynamicSets(ex.sets, selectedWeek, activePlan?.phaseName) : 0), 0) : 0;
   const completedSetsForDay = Array.isArray(dayData?.exercises) ? dayData.exercises.reduce((acc, ex) => {
     if (!ex) return acc;
     let completed = 0;
-    const setsCount = Number(ex.sets) || 0;
+    const setsCount = getDynamicSets(ex.sets, selectedWeek, activePlan?.phaseName);
     for (let i = 0; i < setsCount; i++) {
       if (completedSets && completedSets[getSetKey(ex.id, i)]) completed++;
     }
@@ -808,7 +815,7 @@ export function WorkoutTracker({ plan, user, onUpdatePlan, readOnly = false, stu
                                   <div className="flex flex-wrap gap-2 mt-2">
                                     <div className="flex items-center gap-1 bg-brand/10 text-brand text-[10px] font-black px-3 py-1.5 rounded-xl uppercase tracking-widest border border-brand/20">
                                       <Activity className="w-3 h-3" />
-                                      {ex.sets} Séries
+                                      {getDynamicSets(ex.sets, selectedWeek, activePlan?.phaseName)} Séries
                                     </div>
                                     <div className="flex items-center gap-1 bg-blue-500/10 text-blue-500 text-[10px] font-black px-3 py-1.5 rounded-xl uppercase tracking-widest border border-blue-500/20">
                                       <Dumbbell className="w-3 h-3" />
@@ -857,7 +864,7 @@ export function WorkoutTracker({ plan, user, onUpdatePlan, readOnly = false, stu
                                     <input type="text" value={ex.reps} onChange={(e) => updateEditedExercise(selectedDay, exIdx, 'reps', e.target.value)} className="w-12 bg-transparent text-center" />
                                   </div>
                                 ) : (
-                                  <>{ex.sets}x{ex.reps}</>
+                                  <>{getDynamicSets(ex.sets, selectedWeek, activePlan?.phaseName)}x{ex.reps}</>
                                 )}
                               </div>
                               <div className="flex items-center gap-1.5 bg-bg-main border border-border/50 text-text-main px-3 py-1.5 rounded-xl text-[11px] font-bold shadow-sm">
@@ -956,7 +963,7 @@ export function WorkoutTracker({ plan, user, onUpdatePlan, readOnly = false, stu
                                 </div>
                                 
                                 <div className="space-y-3">
-                                  {Array.from({ length: Number(ex.sets) || 0 }).map((_, setIdx) => {
+                                  {Array.from({ length: getDynamicSets(ex.sets, selectedWeek, activePlan?.phaseName) }).map((_, setIdx) => {
                                     const isCompleted = completedSets && completedSets[getSetKey(ex.id, setIdx)];
                                     return (
                                       <div key={setIdx} className="flex items-center gap-3 bg-surface p-3 rounded-2xl border border-border/50">

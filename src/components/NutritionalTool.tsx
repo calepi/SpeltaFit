@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { NutritionalAnamnesisForm } from './NutritionalAnamnesisForm';
 import { DietPlanView } from './DietPlanView';
 import { RecipeView } from './RecipeView';
 import { NutritionProgressView } from './NutritionProgressView';
@@ -14,7 +13,7 @@ interface NutritionalToolProps {
   onBack: () => void;
 }
 
-type ViewState = 'dashboard' | 'form' | 'plan' | 'history' | 'progress' | 'recipes';
+type ViewState = 'dashboard' | 'plan' | 'history' | 'progress' | 'recipes';
 
 export function NutritionalTool({ physicalAnamnesis, onBack }: NutritionalToolProps) {
   const [view, setView] = useState<ViewState>('dashboard');
@@ -22,6 +21,8 @@ export function NutritionalTool({ physicalAnamnesis, onBack }: NutritionalToolPr
   const [dietPlan, setDietPlan] = useState<DietPlan | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const [showResetModal, setShowResetModal] = useState(false);
 
   useEffect(() => {
     const loadData = async () => {
@@ -39,7 +40,6 @@ export function NutritionalTool({ physicalAnamnesis, onBack }: NutritionalToolPr
         if (anamnesisSnap.exists()) setNutritionalAnamnesis(anamnesisSnap.data() as NutritionalAnamnesis);
         if (planSnap.exists()) {
           setDietPlan(planSnap.data() as DietPlan);
-          // Do not auto-redirect to 'plan' view to allow users to see the dashboard/landing first
         }
       } catch (err) {
         console.error("Error loading nutrition data:", err);
@@ -50,54 +50,10 @@ export function NutritionalTool({ physicalAnamnesis, onBack }: NutritionalToolPr
     loadData();
   }, []);
 
-  const handleAnamnesisSubmit = async (data: NutritionalAnamnesis) => {
-    if (!auth.currentUser) return;
-    setIsLoading(true);
-    setError(null);
-    try {
-      const generatedPlan = await generateDietPlan(physicalAnamnesis, data);
-      
-      // Deep clean undefined values before saving to Firestore
-      const cleanObject = (obj: any): any => {
-        if (Array.isArray(obj)) {
-          return obj.map(cleanObject);
-        } else if (obj !== null && typeof obj === 'object') {
-          return Object.fromEntries(
-            Object.entries(obj)
-              .filter(([_, v]) => v !== undefined)
-              .map(([k, v]) => [k, cleanObject(v)])
-          );
-        }
-        return obj;
-      };
-
-      const cleanData = cleanObject(data);
-      const cleanPlan = cleanObject(generatedPlan);
-
-      setDietPlan(cleanPlan);
-      setNutritionalAnamnesis(cleanData);
-      setView('plan');
-
-      // Save to Firestore
-      const anamnesisRef = doc(db, `users/${auth.currentUser.uid}/data/nutritionalAnamnesis`);
-      const planRef = doc(db, `users/${auth.currentUser.uid}/data/dietPlan`);
-
-      await Promise.all([
-        setDoc(anamnesisRef, cleanData),
-        setDoc(planRef, cleanPlan)
-      ]);
-    } catch (err: any) {
-      console.error("Error generating/saving diet plan:", err);
-      const errorMessage = err?.message || "Erro desconhecido";
-      setError(`Erro ao gerar plano nutricional: ${errorMessage}. Verifique sua conexão e tente novamente.`);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   const handleReset = async () => {
     if (!auth.currentUser) return;
     
+    setShowResetModal(false);
     setIsLoading(true);
     try {
       const anamnesisRef = doc(db, `users/${auth.currentUser.uid}/data/nutritionalAnamnesis`);
@@ -110,7 +66,7 @@ export function NutritionalTool({ physicalAnamnesis, onBack }: NutritionalToolPr
       
       setDietPlan(null);
       setNutritionalAnamnesis(null);
-      setView('form'); // Go directly to form to start over
+      onBack(); // Redirect to main anamnesis
     } catch (err) {
       console.error("Error resetting plan:", err);
       setError("Erro ao resetar plano. Tente novamente.");
@@ -131,8 +87,8 @@ export function NutritionalTool({ physicalAnamnesis, onBack }: NutritionalToolPr
           <span>Voltar<span className="hidden md:inline"> para Treinos</span></span>
         </button>
         <div className="flex items-center gap-2 md:gap-4 overflow-x-auto w-full md:w-auto pb-2 md:pb-0 hide-scrollbar">
-          <NavButton active={view === 'dashboard'} onClick={() => setView('dashboard')} icon={<LayoutDashboard className="w-4 h-4" />} label="Geral" />
-          <NavButton active={view === 'plan'} onClick={() => dietPlan ? setView('plan') : setView('form')} icon={<Apple className="w-4 h-4" />} label="Dieta" />
+          <NavButton active={view === 'dashboard'} onClick={() => setView('dashboard')} icon={<LayoutDashboard className="w-4 h-4" />} label="Visão Geral" />
+          <NavButton active={view === 'plan'} onClick={() => dietPlan ? setView('plan') : alert('Gere seu treino e dieta primeiro na página principal.')} icon={<Apple className="w-4 h-4" />} label="Dieta" />
           <NavButton active={view === 'recipes'} onClick={() => setView('recipes')} icon={<BookOpen className="w-4 h-4" />} label="Receitas" />
           <NavButton active={view === 'progress'} onClick={() => setView('progress')} icon={<TrendingUp className="w-4 h-4" />} label="Evolução" />
         </div>
@@ -160,18 +116,18 @@ export function NutritionalTool({ physicalAnamnesis, onBack }: NutritionalToolPr
                   <div className="p-4 rounded-2xl bg-brand/10 text-brand w-fit mb-6">
                     <Apple className="w-8 h-8" />
                   </div>
-                  <h2 className="text-3xl font-black tracking-tight mb-4">Seu Plano Nutricional</h2>
+                  <h2 className="text-3xl font-black tracking-tight mb-4">SpeltaNutri</h2>
                   <p className="text-text-muted mb-8 text-lg">
                     {dietPlan 
                       ? "Seu cardápio está pronto! Clique para visualizar suas refeições e recomendações."
-                      : "Ainda não geramos seu plano nutricional. Responda algumas perguntas para começarmos."}
+                      : "Ainda não geramos seu plano nutricional. Para gerar seu treino e dieta integrados, você precisa criar um novo planejamento."}
                   </p>
                 </div>
                 <button 
-                  onClick={() => dietPlan ? setView('plan') : setView('form')}
+                  onClick={() => dietPlan ? setView('plan') : onBack()}
                   className="w-full py-4 rounded-2xl bg-brand text-text-inverse font-black hover:scale-[1.02] transition-all shadow-xl shadow-brand/20"
                 >
-                  {dietPlan ? "Ver Cardápio" : "Começar Agora"}
+                  {dietPlan ? "Ver Cardápio" : "Voltar para Treinos"}
                 </button>
               </div>
 
@@ -195,21 +151,6 @@ export function NutritionalTool({ physicalAnamnesis, onBack }: NutritionalToolPr
             </motion.div>
           )}
 
-          {view === 'form' && (
-            <motion.div 
-              key="form"
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-            >
-              <NutritionalAnamnesisForm 
-                onSubmit={handleAnamnesisSubmit} 
-                isLoading={isLoading} 
-                userGoal={physicalAnamnesis?.goal}
-              />
-            </motion.div>
-          )}
-
           {view === 'plan' && dietPlan && (
             <motion.div 
               key="plan"
@@ -217,7 +158,7 @@ export function NutritionalTool({ physicalAnamnesis, onBack }: NutritionalToolPr
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
             >
-              <DietPlanView plan={dietPlan} onReset={handleReset} />
+              <DietPlanView plan={dietPlan} onReset={() => setShowResetModal(true)} />
             </motion.div>
           )}
 
@@ -243,6 +184,36 @@ export function NutritionalTool({ physicalAnamnesis, onBack }: NutritionalToolPr
             </motion.div>
           )}
         </AnimatePresence>
+
+        {showResetModal && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-surface rounded-3xl p-8 max-w-md w-full border border-border shadow-2xl">
+              <div className="flex items-center gap-4 mb-6 text-brand">
+                <div className="p-3 bg-brand/10 rounded-xl">
+                  <AlertCircle className="w-8 h-8" />
+                </div>
+                <h3 className="text-2xl font-black">Novo Planejamento</h3>
+              </div>
+              <p className="text-text-main mb-8 font-medium">
+                Para gerar um novo planejamento nutricional, você precisa preencher a anamnese completa novamente. Deseja continuar?
+              </p>
+              <div className="flex gap-4">
+                <button
+                  onClick={() => setShowResetModal(false)}
+                  className="flex-1 py-3 px-4 bg-bg-main text-text-main rounded-xl font-bold hover:bg-surface border border-border transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleReset}
+                  className="flex-1 py-3 px-4 bg-brand text-text-inverse rounded-xl font-bold hover:opacity-90 transition-opacity"
+                >
+                  Sim, Continuar
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </main>
     </div>
   );

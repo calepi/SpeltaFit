@@ -6,6 +6,7 @@ import { AdminDashboard } from './components/AdminDashboard';
 import { ExerciseLibrary } from './components/ExerciseLibrary';
 import { AnamnesisData, WorkoutPlan, ExistingDay } from './services/workoutGenerator';
 import { generateWorkoutPlanRuleBased } from './services/workoutGenerator';
+import { generateDietPlan } from './services/nutritionGenerator';
 import { Logo } from './components/Logo';
 import { LogIn, LogOut, User as UserIcon, Shield, BookOpen, Apple, Users, Palette, TrendingUp, HelpCircle, Trophy, Bell, Menu, X } from 'lucide-react';
 import { ReminderSettings } from './components/ReminderSettings';
@@ -188,6 +189,20 @@ export default function App() {
 
       const generatedPlan = await generateWorkoutPlanRuleBased(finalData);
       
+      // Generate Diet Plan
+      const nutritionalData = {
+        mealCount: finalData.mealCount,
+        dietType: finalData.dietType,
+        allergies: finalData.allergies || '',
+        dislikes: finalData.dislikes || '',
+        budget: finalData.budget,
+        cookingTime: finalData.cookingTime,
+        supplements: typeof finalData.supplements === 'string' ? finalData.supplements.split(',').map(s => s.trim()) : finalData.supplements,
+        waterIntake: finalData.waterIntake,
+        updatedAt: new Date().toISOString()
+      };
+      const generatedDietPlan = await generateDietPlan(finalData, nutritionalData);
+      
       if (finalData.remodelPlan && finalData.structuredExistingPlan && finalData.structuredExistingPlan.length > 0) {
         setProposedPlan(generatedPlan);
         setUserData(finalData);
@@ -198,7 +213,7 @@ export default function App() {
         setAppState('plan');
         
         // Save to Firestore (only if not going to comparison)
-        await savePlanToFirestore(finalData, generatedPlan);
+        await savePlanToFirestore(finalData, generatedPlan, generatedDietPlan, nutritionalData);
       }
     } catch (err) {
       console.error(err);
@@ -208,11 +223,13 @@ export default function App() {
     }
   };
 
-  const savePlanToFirestore = async (data: AnamnesisData, finalPlan: WorkoutPlan) => {
+  const savePlanToFirestore = async (data: AnamnesisData, finalPlan: WorkoutPlan, dietPlan?: any, nutritionalData?: any) => {
     if (!user) return;
     
     const anamnesisRef = doc(db, `users/${user.uid}/data/anamnesis`);
     const planRef = doc(db, `users/${user.uid}/data/workoutPlan`);
+    const dietPlanRef = doc(db, `users/${user.uid}/data/dietPlan`);
+    const nutritionalAnamnesisRef = doc(db, `users/${user.uid}/data/nutritionalAnamnesis`);
     
     const cleanObject = (obj: any): any => {
       if (Array.isArray(obj)) {
@@ -229,11 +246,22 @@ export default function App() {
 
     const cleanData = cleanObject(data);
     const cleanPlan = cleanObject(finalPlan);
-
-    await Promise.all([
+    
+    const promises = [
       setDoc(anamnesisRef, { ...cleanData, updatedAt: new Date().toISOString() }),
       setDoc(planRef, { ...cleanPlan, createdAt: new Date().toISOString() })
-    ]);
+    ];
+
+    if (dietPlan && nutritionalData) {
+      const cleanDietPlan = cleanObject(dietPlan);
+      const cleanNutritionalData = cleanObject(nutritionalData);
+      promises.push(
+        setDoc(dietPlanRef, { ...cleanDietPlan, createdAt: new Date().toISOString() }),
+        setDoc(nutritionalAnamnesisRef, { ...cleanNutritionalData, updatedAt: new Date().toISOString() })
+      );
+    }
+
+    await Promise.all(promises);
     
     const progressRef = doc(db, `users/${user.uid}/data/progress`);
     await deleteDoc(progressRef).catch(() => {});
@@ -243,7 +271,22 @@ export default function App() {
     if (!user || !userData) return;
     setPlan(finalPlan);
     setAppState('plan');
-    await savePlanToFirestore(userData, finalPlan);
+    
+    // For comparison confirm, we also need to generate the diet plan if it wasn't saved yet
+    const nutritionalData = {
+      mealCount: userData.mealCount,
+      dietType: userData.dietType,
+      allergies: userData.allergies || '',
+      dislikes: userData.dislikes || '',
+      budget: userData.budget,
+      cookingTime: userData.cookingTime,
+      supplements: typeof userData.supplements === 'string' ? userData.supplements.split(',').map(s => s.trim()) : userData.supplements,
+      waterIntake: userData.waterIntake,
+      updatedAt: new Date().toISOString()
+    };
+    const generatedDietPlan = await generateDietPlan(userData, nutritionalData);
+    
+    await savePlanToFirestore(userData, finalPlan, generatedDietPlan, nutritionalData);
   };
 
   const handleUpdatePlan = async (newPlan: WorkoutPlan) => {
@@ -485,7 +528,7 @@ export default function App() {
                     className={`flex flex-col items-center justify-center gap-1 p-3 rounded-xl transition-colors ${appState === 'nutrition' ? 'bg-brand text-text-inverse' : 'bg-bg-main text-text-main hover:bg-brand/10 hover:text-brand'}`}
                   >
                     <Apple className="w-6 h-6" />
-                    <span className="text-[10px] font-bold">Nutrição</span>
+                    <span className="text-[10px] font-bold">SpeltaNutri</span>
                   </button>
                   <button 
                     onClick={() => { setAppState('library'); setIsMobileMenuOpen(false); }}

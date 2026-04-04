@@ -545,11 +545,74 @@ export function AnamnesisForm({ onSubmit, isLoading, initialData }: Props) {
           </div>
         </div>
 
+        {/* SpeltaNutri - Análise Nutricional Integrada */}
+        <div className="space-y-5 bg-bg-main p-6 rounded-2xl border border-border">
+          <h3 className="text-xl font-bold text-brand flex items-center gap-2">
+            <Utensils className="w-6 h-6" /> 5. SpeltaNutri (Integração Nutricional)
+          </h3>
+          <p className="text-sm text-text-muted">
+            Para gerar seu cardápio e planejamento alimentar junto com o treino, preencha as informações abaixo.
+          </p>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div>
+              <label className="block text-sm font-bold text-text-main mb-2">Refeições por dia</label>
+              <select name="mealCount" value={formData.mealCount || ''} onChange={handleChange} className="w-full bg-surface border border-border rounded-xl px-4 py-3 text-text-main focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand transition-colors" required>
+                <option value="">Selecione...</option>
+                <option value="3">3 Refeições (Café, Almoço, Jantar)</option>
+                <option value="4">4 Refeições (Com lanche da tarde)</option>
+                <option value="5">5 Refeições (Lanches manhã e tarde)</option>
+                <option value="6">6 Refeições (Com ceia)</option>
+              </select>
+            </div>
+            
+            <div>
+              <label className="block text-sm font-bold text-text-main mb-2">Alergias ou Intolerâncias</label>
+              <input type="text" name="allergies" value={formData.allergies || ''} onChange={handleChange} placeholder="Ex: Lactose, Glúten, Amendoim (Deixe em branco se não tiver)" className="w-full bg-surface border border-border rounded-xl px-4 py-3 text-text-main focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand transition-colors" />
+            </div>
+
+            <div>
+              <label className="block text-sm font-bold text-text-main mb-2">Alimentos que não gosta</label>
+              <input type="text" name="dislikes" value={formData.dislikes || ''} onChange={handleChange} placeholder="Ex: Brócolis, Peixe, Ovo" className="w-full bg-surface border border-border rounded-xl px-4 py-3 text-text-main focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand transition-colors" />
+            </div>
+
+            <div>
+              <label className="block text-sm font-bold text-text-main mb-2">Orçamento para Dieta</label>
+              <select name="budget" value={formData.budget || ''} onChange={handleChange} className="w-full bg-surface border border-border rounded-xl px-4 py-3 text-text-main focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand transition-colors" required>
+                <option value="">Selecione...</option>
+                <option value="Baixo">Baixo (Foco em alimentos básicos e acessíveis)</option>
+                <option value="Médio">Médio (Equilíbrio entre custo e variedade)</option>
+                <option value="Alto">Alto (Sem restrições de custo)</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-bold text-text-main mb-2">Tempo para cozinhar</label>
+              <select name="cookingTime" value={formData.cookingTime || ''} onChange={handleChange} className="w-full bg-surface border border-border rounded-xl px-4 py-3 text-text-main focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand transition-colors" required>
+                <option value="">Selecione...</option>
+                <option value="Muito pouco">Muito pouco (Preciso de refeições rápidas/prontas)</option>
+                <option value="Moderado">Moderado (Posso cozinhar algumas refeições)</option>
+                <option value="Alto">Alto (Gosto de cozinhar e preparar marmitas)</option>
+              </select>
+            </div>
+            
+            <div>
+              <label className="block text-sm font-bold text-text-main mb-2">Suplementação Atual</label>
+              <input type="text" name="supplements" value={formData.supplements || ''} onChange={handleChange} placeholder="Ex: Whey, Creatina, Ômega 3 (Deixe em branco se não usar)" className="w-full bg-surface border border-border rounded-xl px-4 py-3 text-text-main focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand transition-colors" />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-bold text-text-main mb-2">Consumo de Água Atual (Litros/dia)</label>
+              <input type="number" name="waterIntake" value={formData.waterIntake || ''} onChange={handleChange} placeholder="Ex: 2" step="0.1" min="0" className="w-full bg-surface border border-border rounded-xl px-4 py-3 text-text-main focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand transition-colors" />
+            </div>
+          </div>
+        </div>
+
         {/* Treino Existente (Opcional) */}
         <div className="space-y-5 bg-bg-main p-6 rounded-2xl border border-border">
           <div className="flex items-center justify-between">
             <h3 className="text-xl font-bold text-brand flex items-center gap-2">
-              <FileText className="w-6 h-6" /> 5. Treino Atual (Opcional)
+              <FileText className="w-6 h-6" /> 6. Treino Atual (Opcional)
             </h3>
             <button 
               type="button"

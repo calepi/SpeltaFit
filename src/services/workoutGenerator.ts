@@ -39,6 +39,15 @@ export interface AnamnesisData {
   structuredExistingPlan?: ExistingDay[]; // New structured format
   remodelPlan?: boolean;
   trainingStartDate?: string; // Data de início para controle de meses (Mês 1, 2, 3)
+  
+  // Nutritional fields (Integrated)
+  mealCount?: number;
+  allergies?: string;
+  dislikes?: string;
+  budget?: string;
+  cookingTime?: string;
+  supplements?: string[];
+  waterIntake?: number;
 }
 
 export interface WorkoutPlan {
@@ -232,11 +241,6 @@ export async function generateWorkoutPlanRuleBased(data: AnamnesisData, blacklis
         { id: 'agachamento_livre', name: 'Agachamento Livre ou Leg Press', group: 'pernas_quadriceps', method: 'Série Normal', sets: 1, reps: '12-15', rir: 'RIR 3', suggestedLoad: 'Leve', rest: '90s', notes: 'Desça de forma controlada.' },
         { id: 'cadeira_flexora', name: 'Cadeira Flexora', group: 'pernas_posterior', method: 'Série Normal', sets: 1, reps: '12-15', rir: 'RIR 3', suggestedLoad: 'Leve', rest: '90s', notes: 'Foco na contração do posterior.' }
       ];
-
-      // Ajuste dinâmico de séries baseado na semana (semana 1=1, semana 2=2, semana 3/4=3)
-      const currentWeek = Math.ceil((now.getDate()) / 7); // Simplificação para o mês atual
-      const dynamicSets = currentWeek === 1 ? 1 : currentWeek === 2 ? 2 : 3;
-      exercises.forEach(ex => ex.sets = dynamicSets);
 
       for (let i = 1; i <= 3; i++) {
         weeklyRoutine.push({
