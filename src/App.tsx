@@ -264,7 +264,11 @@ export default function App() {
     await Promise.all(promises);
     
     const progressRef = doc(db, `users/${user.uid}/data/progress`);
-    await deleteDoc(progressRef).catch(() => {});
+    const nutritionTrackingRef = doc(db, `users/${user.uid}/data/nutritionTracking`);
+    await Promise.all([
+      deleteDoc(progressRef).catch(() => {}),
+      deleteDoc(nutritionTrackingRef).catch(() => {})
+    ]);
   };
 
   const handleComparisonConfirm = async (finalPlan: WorkoutPlan) => {

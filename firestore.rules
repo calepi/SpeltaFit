@@ -205,7 +205,7 @@ service cloud.firestore {
       let data = request.resource.data;
       return hasRequiredFields(['goal', 'calories', 'macros', 'meals', 'createdAt']) &&
              data.goal is string && data.goal.size() < 100 &&
-             data.calories is number && data.calories > 0 &&
+             data.calories is number && data.calories >= 0 &&
              data.macros is map &&
              data.meals is list && data.meals.size() <= 10 &&
              data.createdAt is string &&

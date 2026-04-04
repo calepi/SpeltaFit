@@ -58,10 +58,12 @@ export function NutritionalTool({ physicalAnamnesis, onBack }: NutritionalToolPr
     try {
       const anamnesisRef = doc(db, `users/${auth.currentUser.uid}/data/nutritionalAnamnesis`);
       const planRef = doc(db, `users/${auth.currentUser.uid}/data/dietPlan`);
+      const trackingRef = doc(db, `users/${auth.currentUser.uid}/data/nutritionTracking`);
 
       await Promise.all([
-        deleteDoc(anamnesisRef),
-        deleteDoc(planRef)
+        deleteDoc(anamnesisRef).catch(() => {}),
+        deleteDoc(planRef).catch(() => {}),
+        deleteDoc(trackingRef).catch(() => {})
       ]);
       
       setDietPlan(null);

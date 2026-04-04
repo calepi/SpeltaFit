@@ -63,12 +63,13 @@ export function AdminDashboard() {
         // Delete subcollections manually (Firestore doesn't delete them automatically when deleting parent doc)
         const deleteData = async () => {
           try {
-            await deleteDoc(doc(db, `users/${uid}/data/anamnesis`));
-            await deleteDoc(doc(db, `users/${uid}/data/workoutPlan`));
-            await deleteDoc(doc(db, `users/${uid}/data/dietPlan`));
-            await deleteDoc(doc(db, `users/${uid}/data/nutritionalAnamnesis`));
-            await deleteDoc(doc(db, `users/${uid}/data/progress`));
-            await deleteDoc(doc(db, 'users', uid));
+            await deleteDoc(doc(db, `users/${uid}/data/anamnesis`)).catch(() => {});
+            await deleteDoc(doc(db, `users/${uid}/data/workoutPlan`)).catch(() => {});
+            await deleteDoc(doc(db, `users/${uid}/data/dietPlan`)).catch(() => {});
+            await deleteDoc(doc(db, `users/${uid}/data/nutritionalAnamnesis`)).catch(() => {});
+            await deleteDoc(doc(db, `users/${uid}/data/progress`)).catch(() => {});
+            await deleteDoc(doc(db, `users/${uid}/data/nutritionTracking`)).catch(() => {});
+            await deleteDoc(doc(db, 'users', uid)).catch(() => {});
           } catch (e) {
             console.error(`Error deleting data for user ${uid}`, e);
           }
