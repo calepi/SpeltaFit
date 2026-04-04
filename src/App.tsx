@@ -180,19 +180,25 @@ export default function App() {
     setIsLoading(true);
     setError(null);
     try {
-      const generatedPlan = await generateWorkoutPlanRuleBased(data);
+      // Garantir que a data de início do treino seja definida se for a primeira vez
+      const finalData = { ...data };
+      if (!finalData.trainingStartDate) {
+        finalData.trainingStartDate = new Date().toISOString();
+      }
+
+      const generatedPlan = await generateWorkoutPlanRuleBased(finalData);
       
-      if (data.remodelPlan && data.structuredExistingPlan && data.structuredExistingPlan.length > 0) {
+      if (finalData.remodelPlan && finalData.structuredExistingPlan && finalData.structuredExistingPlan.length > 0) {
         setProposedPlan(generatedPlan);
-        setUserData(data);
+        setUserData(finalData);
         setAppState('comparison');
       } else {
         setPlan(generatedPlan);
-        setUserData(data);
+        setUserData(finalData);
         setAppState('plan');
         
         // Save to Firestore (only if not going to comparison)
-        await savePlanToFirestore(data, generatedPlan);
+        await savePlanToFirestore(finalData, generatedPlan);
       }
     } catch (err) {
       console.error(err);

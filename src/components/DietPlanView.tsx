@@ -79,22 +79,32 @@ export function DietPlanView({ plan, onReset }: DietPlanViewProps) {
           </div>
 
           <div className="grid grid-cols-4 gap-4 text-center">
-            <div className="p-4 border-2 border-gray-100 rounded-2xl">
-              <div className="text-xs font-black text-gray-400 uppercase">Calorias</div>
-              <div className="text-xl font-black">{plan.calories} kcal</div>
-            </div>
-            <div className="p-4 border-2 border-gray-100 rounded-2xl">
-              <div className="text-xs font-black text-gray-400 uppercase">Proteína</div>
-              <div className="text-xl font-black">{plan.macros.protein}g</div>
-            </div>
-            <div className="p-4 border-2 border-gray-100 rounded-2xl">
-              <div className="text-xs font-black text-gray-400 uppercase">Carbos</div>
-              <div className="text-xl font-black">{plan.macros.carbs}g</div>
-            </div>
-            <div className="p-4 border-2 border-gray-100 rounded-2xl">
-              <div className="text-xs font-black text-gray-400 uppercase">Gorduras</div>
-              <div className="text-xl font-black">{plan.macros.fats}g</div>
-            </div>
+            {plan.calories > 0 ? (
+              <>
+                <div className="p-4 border-2 border-gray-100 rounded-2xl">
+                  <div className="text-xs font-black text-gray-400 uppercase">Calorias</div>
+                  <div className="text-xl font-black">{plan.calories} kcal</div>
+                </div>
+                <div className="p-4 border-2 border-gray-100 rounded-2xl">
+                  <div className="text-xs font-black text-gray-400 uppercase">Proteína</div>
+                  <div className="text-xl font-black">{plan.macros.protein}g</div>
+                </div>
+                <div className="p-4 border-2 border-gray-100 rounded-2xl">
+                  <div className="text-xs font-black text-gray-400 uppercase">Carbos</div>
+                  <div className="text-xl font-black">{plan.macros.carbs}g</div>
+                </div>
+                <div className="p-4 border-2 border-gray-100 rounded-2xl">
+                  <div className="text-xs font-black text-gray-400 uppercase">Gorduras</div>
+                  <div className="text-xl font-black">{plan.macros.fats}g</div>
+                </div>
+              </>
+            ) : (
+              <div className="col-span-4 p-6 border-2 border-brand/20 bg-brand/5 rounded-2xl">
+                <div className="text-sm font-black text-brand uppercase mb-1">Fase Atual</div>
+                <div className="text-2xl font-black text-text-main">Ajuste Comportamental</div>
+                <p className="text-xs text-text-muted mt-2">Foco em hábitos e qualidade alimentar antes da contagem de macros.</p>
+              </div>
+            )}
           </div>
 
           <div className="space-y-6">
@@ -215,10 +225,19 @@ export function DietPlanView({ plan, onReset }: DietPlanViewProps) {
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 w-full md:w-auto">
-            <StatCard icon={<Flame className="w-5 h-5" />} label="Calorias" value={`${plan.calories} kcal`} color="brand" />
-            <StatCard icon={<Zap className="w-5 h-5" />} label="Proteína" value={`${plan.macros.protein}g`} color="blue" />
-            <StatCard icon={<Apple className="w-5 h-5" />} label="Carbos" value={`${plan.macros.carbs}g`} color="green" />
-            <StatCard icon={<Droplets className="w-5 h-5" />} label="Gorduras" value={`${plan.macros.fats}g`} color="gold" />
+            {plan.calories > 0 ? (
+              <>
+                <StatCard icon={<Flame className="w-5 h-5" />} label="Calorias" value={`${plan.calories} kcal`} color="brand" />
+                <StatCard icon={<Zap className="w-5 h-5" />} label="Proteína" value={`${plan.macros.protein}g`} color="blue" />
+                <StatCard icon={<Apple className="w-5 h-5" />} label="Carbos" value={`${plan.macros.carbs}g`} color="green" />
+                <StatCard icon={<Droplets className="w-5 h-5" />} label="Gorduras" value={`${plan.macros.fats}g`} color="gold" />
+              </>
+            ) : (
+              <div className="col-span-2 sm:col-span-4 bg-brand/5 border border-brand/20 p-4 rounded-2xl text-center">
+                <div className="text-[10px] font-black text-brand uppercase mb-1">Fase Atual</div>
+                <div className="text-lg font-black text-text-main">Ajuste Comportamental</div>
+              </div>
+            )}
           </div>
         </div>
       </div>

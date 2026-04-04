@@ -59,6 +59,54 @@ export async function generateDietPlan(
   const goal = (anamnesis.goal || 'Saúde').toLowerCase();
   const activityLevel = Number(anamnesis.daysPerWeek) || 3;
   const userLevel = (anamnesis.experience || 'Iniciante').toLowerCase();
+  const isSedentaryBeginner = userLevel.includes('iniciante') || userLevel.includes('sedentário');
+
+  // Calcular o mês atual do protocolo baseado na data de início
+  const startDate = anamnesis.trainingStartDate ? new Date(anamnesis.trainingStartDate) : new Date();
+  const now = new Date();
+  const diffMonths = Math.max(1, Math.floor((now.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24 * 30)) + 1);
+  const currentMonth = diffMonths > 3 ? 3 : diffMonths; // Protocolo de 3 meses
+
+  // --- LÓGICA ESPECÍFICA PROTOCOLO NUTRICIONAL 2026 (SEDENTÁRIOS/INICIANTES) ---
+  if (isSedentaryBeginner && currentMonth < 3) {
+    const recommendations = currentMonth === 1 
+      ? `
+        ### Mês 1: Ajustes Comportamentais (Protocolo 2026)
+        Nesta fase, não focaremos em pesar comida, mas em mudar hábitos:
+        - **Água:** Beba pelo menos ${Math.round(weight * 40 / 1000)} litros por dia.
+        - **Frutas:** Coma pelo menos 2 porções de frutas variadas ao dia.
+        - **Industrializados:** Evite alimentos ultraprocessados (bolachas, salgadinhos, refrigerantes).
+        - **Proteína:** Tente incluir uma fonte de proteína (ovo, frango, carne) em todas as refeições principais.
+        - **Vegetais:** Metade do seu prato no almoço e jantar deve ser de vegetais/salada.
+      `.trim()
+      : `
+        ### Mês 2: Introdução à Proteína e Consistência (Protocolo 2026)
+        - **Foco Proteico:** Agora que você já bebe água e come vegetais, vamos focar na proteína.
+        - **Whey Protein:** Se tiver dificuldade em bater a proteína, use 1 dose de Whey Protein após o treino.
+        - **Açúcar:** Reduza o consumo de açúcar adicionado (café, sucos).
+        - **Sono:** Priorize 8 horas de sono para recuperação muscular.
+      `.trim();
+
+    return {
+      goal: anamnesis.goal || 'Mudança de Hábitos',
+      calories: 0, // Não calculado no mês 1 e 2 para iniciantes
+      macros: { protein: 0, carbs: 0, fats: 0 },
+      meals: [
+        {
+          name: 'Orientações Gerais',
+          time: 'Dia Todo',
+          foods: [
+            { item: 'Água', quantity: `${Math.round(weight * 40)}ml`, calories: 0, protein: 0, carbs: 0, fats: 0, prep: 'Distribuir ao longo do dia' },
+            { item: 'Frutas Variadas', quantity: '2 porções', calories: 0, protein: 0, carbs: 0, fats: 0, prep: 'Lanches entre refeições' },
+            { item: 'Saladas e Vegetais', quantity: 'À vontade', calories: 0, protein: 0, carbs: 0, fats: 0, prep: 'Almoço e Jantar' }
+          ]
+        }
+      ],
+      supplementation: currentMonth === 2 ? "Whey Protein (1 dose após o treino)" : "Nenhuma necessária ainda",
+      recommendations,
+      createdAt: new Date().toISOString()
+    };
+  }
 
   // 1. Calcular TMB (Mifflin-St Jeor)
   let bmr = (10 * weight) + (6.25 * height) - (5 * age);

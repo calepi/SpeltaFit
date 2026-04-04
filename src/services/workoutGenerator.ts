@@ -38,6 +38,7 @@ export interface AnamnesisData {
   existingPlan?: string; // Keep for legacy/quick paste
   structuredExistingPlan?: ExistingDay[]; // New structured format
   remodelPlan?: boolean;
+  trainingStartDate?: string; // Data de início para controle de meses (Mês 1, 2, 3)
 }
 
 export interface WorkoutPlan {
@@ -211,6 +212,134 @@ function getTrainingParameters(hormonalStatus: string, allGoals: string) {
 // --- GERADOR PRINCIPAL ---
 
 export async function generateWorkoutPlanRuleBased(data: AnamnesisData, blacklist: string[] = []): Promise<WorkoutPlan> {
+  const expLower = data.experience.toLowerCase();
+  const isSedentaryBeginner = expLower.includes('iniciante') || expLower.includes('sedentário');
+  
+  // Calcular o mês atual do protocolo baseado na data de início
+  const startDate = data.trainingStartDate ? new Date(data.trainingStartDate) : new Date();
+  const now = new Date();
+  const diffMonths = Math.max(1, Math.floor((now.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24 * 30)) + 1);
+  const currentMonth = diffMonths > 3 ? 3 : diffMonths; // Protocolo de 3 meses
+
+  // --- LÓGICA ESPECÍFICA PROTOCOLO 2026 (SEDENTÁRIOS/INICIANTES) ---
+  if (isSedentaryBeginner) {
+    if (currentMonth === 1) {
+      // MÊS 1: ADAPTAÇÃO TOTAL (FULL BODY 4 EXERCÍCIOS)
+      const weeklyRoutine: WorkoutPlan['weeklyRoutine'] = [];
+      const exercises = [
+        { id: 'supino_halteres', name: 'Supino Reto com Halteres', group: 'peito', method: 'Série Normal', sets: 1, reps: '12-15', rir: 'RIR 3', suggestedLoad: 'Leve', rest: '90s', notes: 'Foco total na técnica. Mês 1: Semana 1 (1 série), Semana 2 (2 séries), Semana 3+ (3 séries).' },
+        { id: 'puxada_frente', name: 'Puxada Aberta no Pulldown', group: 'costas', method: 'Série Normal', sets: 1, reps: '12-15', rir: 'RIR 3', suggestedLoad: 'Leve', rest: '90s', notes: 'Mantenha os ombros longe das orelhas.' },
+        { id: 'agachamento_livre', name: 'Agachamento Livre ou Leg Press', group: 'pernas_quadriceps', method: 'Série Normal', sets: 1, reps: '12-15', rir: 'RIR 3', suggestedLoad: 'Leve', rest: '90s', notes: 'Desça de forma controlada.' },
+        { id: 'cadeira_flexora', name: 'Cadeira Flexora', group: 'pernas_posterior', method: 'Série Normal', sets: 1, reps: '12-15', rir: 'RIR 3', suggestedLoad: 'Leve', rest: '90s', notes: 'Foco na contração do posterior.' }
+      ];
+
+      // Ajuste dinâmico de séries baseado na semana (semana 1=1, semana 2=2, semana 3/4=3)
+      const currentWeek = Math.ceil((now.getDate()) / 7); // Simplificação para o mês atual
+      const dynamicSets = currentWeek === 1 ? 1 : currentWeek === 2 ? 2 : 3;
+      exercises.forEach(ex => ex.sets = dynamicSets);
+
+      for (let i = 1; i <= 3; i++) {
+        weeklyRoutine.push({
+          day: `Dia ${i}`,
+          focus: 'Full Body - Adaptação (Mês 1)',
+          exercises: exercises.map(ex => ({ ...ex, executionDetails: 'Execução controlada, foco no aprendizado motor.' })),
+          cardio: { type: 'Caminhada', method: 'LISS', duration: '15 min', intensity: 'Leve' }
+        });
+      }
+
+      return {
+        phaseName: 'Mês 1: Adaptação e Aprendizado Motor (Protocolo 2026)',
+        durationWeeks: 4,
+        strategySummary: 'Foco em aprender os 4 movimentos base. Progressão de volume semanal (1 -> 2 -> 3 séries). Sem falha muscular.',
+        progressiveOverloadPlan: 'Semana 1: 1 série. Semana 2: 2 séries. Semana 3 e 4: 3 séries. Mantenha a mesma carga.',
+        monitoringGuidelines: 'Não deve haver dor articular. A dor muscular deve ser mínima.',
+        weeklyRoutine
+      };
+    }
+
+    if (currentMonth === 2) {
+      // MÊS 2: EVOLUÇÃO (FULL BODY + ISOLADOS + CARDIO 20MIN)
+      const weeklyRoutine: WorkoutPlan['weeklyRoutine'] = [];
+      const exercises = [
+        { id: 'supino_halteres', name: 'Supino Reto com Halteres', group: 'peito', method: 'Série Normal', sets: 3, reps: '10-12', rir: 'RIR 2', suggestedLoad: 'Moderada', rest: '90s', notes: 'Aumente levemente a carga.' },
+        { id: 'puxada_frente', name: 'Puxada Aberta no Pulldown', group: 'costas', method: 'Série Normal', sets: 3, reps: '10-12', rir: 'RIR 2', suggestedLoad: 'Moderada', rest: '90s', notes: 'Foco na contração das costas.' },
+        { id: 'leg_press', name: 'Leg Press 45', group: 'pernas_quadriceps', method: 'Série Normal', sets: 3, reps: '10-12', rir: 'RIR 2', suggestedLoad: 'Moderada', rest: '90s', notes: 'Amplitude máxima.' },
+        { id: 'mesa_flexora', name: 'Mesa Flexora', group: 'pernas_posterior', method: 'Série Normal', sets: 3, reps: '10-12', rir: 'RIR 2', suggestedLoad: 'Moderada', rest: '90s', notes: 'Controle a descida.' },
+        { id: 'rosca_direta', name: 'Rosca Direta com Halteres', group: 'biceps', method: 'Série Normal', sets: 2, reps: '12-15', rir: 'RIR 2', suggestedLoad: 'Leve', rest: '60s', notes: 'Isolador de bíceps.' },
+        { id: 'triceps_corda', name: 'Tríceps Corda', group: 'triceps', method: 'Série Normal', sets: 2, reps: '12-15', rir: 'RIR 2', suggestedLoad: 'Leve', rest: '60s', notes: 'Isolador de tríceps.' },
+        { id: 'elevacao_lateral', name: 'Elevação Lateral', group: 'ombros', method: 'Série Normal', sets: 2, reps: '12-15', rir: 'RIR 2', suggestedLoad: 'Leve', rest: '60s', notes: 'Foco no deltóide lateral.' }
+      ];
+
+      for (let i = 1; i <= 3; i++) {
+        weeklyRoutine.push({
+          day: `Dia ${i}`,
+          focus: 'Full Body + Isolados (Mês 2)',
+          exercises: exercises.map(ex => ({ ...ex, executionDetails: 'Execução controlada, início de progressão de carga.' })),
+          cardio: { type: 'Esteira', method: 'LISS', duration: '20 min', intensity: 'Moderada' }
+        });
+      }
+
+      return {
+        phaseName: 'Mês 2: Consolidação e Hipertrofia Inicial (Protocolo 2026)',
+        durationWeeks: 4,
+        strategySummary: 'Introdução de exercícios isolados para braços e ombros. Aumento do cardio para 20 minutos.',
+        progressiveOverloadPlan: 'Tente aumentar 1kg de cada lado nos exercícios base a cada 2 semanas.',
+        monitoringGuidelines: 'Percepção de esforço deve subir para 7-8.',
+        weeklyRoutine
+      };
+    }
+
+    if (currentMonth === 3) {
+      // MÊS 3: PERFORMANCE (ABC 6X)
+      const abc = [
+        { focus: 'Push (Peito, Ombros, Tríceps)', groups: [{ name: 'peito', count: 3 }, { name: 'ombros', count: 2 }, { name: 'triceps', count: 2 }] },
+        { focus: 'Pull (Costas, Bíceps, Posterior)', groups: [{ name: 'costas', count: 3 }, { name: 'biceps', count: 2 }, { name: 'ombros', count: 1 }] },
+        { focus: 'Legs (Pernas Completas)', groups: [{ name: 'pernas_quadriceps', count: 3 }, { name: 'pernas_posterior', count: 2 }, { name: 'panturrilhas', count: 2 }] },
+      ];
+      
+      const weeklyRoutine: WorkoutPlan['weeklyRoutine'] = [];
+      for (let i = 0; i < 6; i++) {
+        const daySplit = abc[i % 3];
+        const exercises: any[] = [];
+        daySplit.groups.forEach(g => {
+          const selected = filterExercises(g.name as any, data.equipment, g.count, blacklist, 'intermediário', false);
+          selected.forEach(ex => {
+            exercises.push({
+              id: ex.id + '_' + Math.random().toString(36).substr(2, 5),
+              name: ex.name,
+              group: ex.group,
+              method: 'Série Normal',
+              sets: 3,
+              reps: '10-12',
+              rir: 'RIR 1-2',
+              suggestedLoad: 'Alta',
+              rest: '90s',
+              notes: (ex as any).description,
+              executionDetails: (ex as any).execution
+            });
+          });
+        });
+
+        weeklyRoutine.push({
+          day: `Dia ${i + 1}`,
+          focus: daySplit.focus,
+          exercises,
+          cardio: { type: 'Esteira', method: 'HIIT', duration: '15 min', intensity: 'Alta' }
+        });
+      }
+
+      return {
+        phaseName: 'Mês 3: Performance e Divisão ABC (Protocolo 2026)',
+        durationWeeks: 4,
+        strategySummary: 'Divisão ABC para maior volume por grupamento muscular. Foco em estética e força.',
+        progressiveOverloadPlan: 'Progressão de carga semanal. Anote seus pesos.',
+        monitoringGuidelines: 'Foco em bater recordes pessoais com segurança.',
+        weeklyRoutine
+      };
+    }
+  }
+
+  // --- LÓGICA PADRÃO PARA OUTROS NÍVEIS ---
   const allGoals = [data.goal, data.secondaryGoal, data.tertiaryGoal || ''].join(' ').toLowerCase();
   const params = getTrainingParameters(data.hormonalStatus, allGoals);
   const isWeightLoss = allGoals.includes('emagrecimento') || allGoals.includes('definição');
@@ -222,7 +351,6 @@ export async function generateWorkoutPlanRuleBased(data: AnamnesisData, blacklis
   
   // Determinar a duração do ciclo (em semanas) com base na experiência e objetivos
   let durationWeeks = 4;
-  const expLower = data.experience.toLowerCase();
   if (expLower.includes('iniciante')) {
     durationWeeks = 4; // Iniciantes precisam de reavaliação mais frequente (Mensal)
   } else if (expLower.includes('intermediário')) {
@@ -392,10 +520,10 @@ export async function generateWorkoutPlanRuleBased(data: AnamnesisData, blacklis
   });
 
   const isHormonized = data.hormonalStatus.toLowerCase().includes('hormonizado') || data.hormonalStatus.toLowerCase().includes('sim');
-  const isBeginner = data.experience.toLowerCase().includes('iniciante');
+  const isBeginner = data.experience.toLowerCase().includes('iniciante') || data.experience.toLowerCase().includes('sedentário');
 
   const strategySummary = isBeginner 
-    ? `Estratégia de Base (Iniciante): O foco principal agora é o aprendizado motor e a construção de uma base sólida. Seu corpo está se adaptando aos movimentos. Não tenha pressa em colocar muito peso. A prioridade é a execução perfeita, a postura e a conexão mente-músculo. O volume de treino é ajustado para não gerar dores extremas, permitindo que você consiga treinar com consistência e sem risco de lesões.`
+    ? `Protocolo SpeltaFit 2026 (Mês ${currentMonth}): Você está na fase de ${currentMonth === 1 ? 'Adaptação e Aprendizado Motor' : currentMonth === 2 ? 'Consolidação e Evolução' : 'Performance e Divisão ABC'}. O foco agora é construir uma base sólida e segura. Seu corpo está se adaptando aos movimentos base. A prioridade é a execução perfeita e a consistência, preparando seu metabolismo para desafios maiores nos próximos meses.`
     : isHormonized 
       ? `Estratégia de Alta Intensidade (Hormonizado): Seu perfil permite uma recuperação acelerada, mas exige um estímulo de altíssima intensidade para gerar quebra de platô. O volume de treino (quantidade de séries) é reduzido propositalmente para que você possa focar em CARGA MÁXIMA e FALHA TOTAL em todas as séries de trabalho. O objetivo é extrair o máximo de dano muscular no menor tempo possível.`
       : `Estratégia de Hipertrofia Otimizada (Natural): Como atleta natural, seu corpo precisa de estímulos frequentes, mas com um controle rigoroso de fadiga do Sistema Nervoso Central (SNC). O volume é moderado/alto, mas você não deve falhar em todas as séries. Trabalharemos com uma margem de segurança (RIR 1-2) na maioria dos exercícios para garantir que você consiga treinar o mesmo músculo mais vezes na semana sem overtraining.`;
