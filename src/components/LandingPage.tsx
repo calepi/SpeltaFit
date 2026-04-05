@@ -4,7 +4,8 @@ import {
   Dumbbell, ArrowRight, Zap, Target, Activity, 
   BrainCircuit, ClipboardList, LineChart, BookOpen, 
   Download, Cloud, Palette, CheckCircle2, Sparkles,
-  Smartphone, ShieldCheck, Edit3, History
+  Smartphone, ShieldCheck, Edit3, History, Cpu, Database,
+  Apple, Users
 } from 'lucide-react';
 
 import { Logo } from './Logo';
@@ -46,12 +47,12 @@ export function LandingPage({ onStart, hasPlan, onContinue, onViewTerms, onViewP
         </div>
         
         <h1 className="text-5xl md:text-7xl font-black text-text-main mb-6 tracking-tight leading-tight">
-          Sua Evolução <br/>
-          <span className="text-brand">Sistema Inteligente</span>
+          Performance Humana <br/>
+          <span className="text-brand">Baseada em Dados</span>
         </h1>
         
         <p className="text-xl md:text-2xl text-text-muted mb-12 max-w-3xl mx-auto leading-relaxed">
-          O SpeltaFit cria, gerencia e adapta seus treinos com precisão. Registre cargas, edite exercícios e acompanhe seu progresso real a cada sessão.
+          O SpeltaFit utiliza motores de regras determinísticos baseados em fisiologia do exercício e nutrição esportiva para gerar planos precisos, sem depender de "IAs genéricas".
         </p>
 
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
@@ -87,21 +88,21 @@ export function LandingPage({ onStart, hasPlan, onContinue, onViewTerms, onViewP
           <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center relative z-10">
             <div>
               <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-brand/10 text-brand font-bold text-sm mb-6">
-                <BrainCircuit className="w-5 h-5" />
-                Sistema de Treinamento Inteligente
+                <Cpu className="w-5 h-5" />
+                Motores Determinísticos
               </div>
               <h2 className="text-3xl md:text-4xl font-black text-text-main mb-6 leading-tight">
-                Treinos que se Adaptam a Você
+                Engenharia de Treino e Nutrição
               </h2>
               <p className="text-lg text-text-muted mb-6 leading-relaxed">
-                Nosso sistema não apenas cria o treino inicial, ele entende seu perfil para prescrever a periodização ideal, permitindo que você ajuste e evolua com o tempo.
+                Nossos algoritmos não "adivinham". Eles calculam. Utilizamos heurísticas validadas cientificamente para determinar volume, intensidade e macronutrientes.
               </p>
               <ul className="space-y-4">
                 {[
-                  'Prescrição baseada em idade, peso, limitações e experiência.',
-                  'Volume e intensidade calculados para o seu objetivo específico.',
-                  'Flexibilidade total: edite exercícios, séries e repetições a qualquer momento.',
-                  'Acompanhamento de carga (Overload) para garantir progressão contínua.'
+                  'Cálculo de TMB via Mifflin-St Jeor com fatores de atividade precisos.',
+                  'Volume de treino (séries/semana) ajustado por nível de experiência e estresse.',
+                  'Seleção de exercícios filtrada por equipamento disponível e biomecânica.',
+                  'Protocolo 2026: Progressão estruturada de 3 meses para sedentários.'
                 ].map((item, i) => (
                   <li key={i} className="flex items-start gap-3">
                     <CheckCircle2 className="w-6 h-6 text-brand shrink-0" />
@@ -111,15 +112,15 @@ export function LandingPage({ onStart, hasPlan, onContinue, onViewTerms, onViewP
               </ul>
             </div>
             <div className="bg-bg-main rounded-2xl p-8 border border-border shadow-inner">
-              <h3 className="text-2xl font-black text-text-main mb-4">Controle Total</h3>
+              <h3 className="text-2xl font-black text-text-main mb-4">Controle Total e Transparência</h3>
               <p className="text-text-muted text-lg leading-relaxed mb-6">
-                O sistema sugere, mas você no comando. Troque exercícios que não se adaptaram bem, ajuste o número de séries no dia que estiver mais cansado e registre cada kg levantado para ver sua evolução real.
+                O sistema sugere a base ideal, mas você tem o controle final. Edite exercícios, ajuste cargas e substitua alimentos mantendo o balanço de macronutrientes intacto.
               </p>
               <div className="flex items-center gap-4 p-4 bg-surface rounded-xl border border-border">
-                <Edit3 className="w-10 h-10 text-brand" />
+                <Database className="w-10 h-10 text-brand" />
                 <div>
-                  <p className="font-bold text-text-main">100% Editável</p>
-                  <p className="text-sm text-text-muted">Seu treino, suas regras. Ajuste tudo na hora.</p>
+                  <p className="font-bold text-text-main">Dados Seguros (Firestore)</p>
+                  <p className="text-sm text-text-muted">Sua evolução salva na nuvem com isolamento total de dados.</p>
                 </div>
               </div>
             </div>
@@ -136,10 +137,10 @@ export function LandingPage({ onStart, hasPlan, onContinue, onViewTerms, onViewP
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           {[
-            { icon: ClipboardList, title: '1. Avaliação', desc: 'Conte sobre você, seus objetivos e limitações para o sistema.' },
-            { icon: Sparkles, title: '2. Prescrição', desc: 'Receba um plano completo, periodizado e focado no seu objetivo.' },
-            { icon: Activity, title: '3. Execução', desc: 'Vá para a academia, marque as séries feitas e anote as cargas.' },
-            { icon: LineChart, title: '4. Progressão', desc: 'Acompanhe seu histórico, faça check-ins diários e evolua.' }
+            { icon: ClipboardList, title: '1. Coleta de Dados', desc: 'Anamnese física e nutricional detalhada para alimentar os motores de regras.' },
+            { icon: Cpu, title: '2. Processamento', desc: 'Algoritmos calculam seu volume de treino e necessidades calóricas exatas.' },
+            { icon: Activity, title: '3. Execução', desc: 'Vá para a academia, marque as séries feitas e anote as cargas no Tracker.' },
+            { icon: LineChart, title: '4. Progressão', desc: 'Acompanhe seu histórico de cargas e peso corporal em gráficos interativos.' }
           ].map((step, i) => (
             <div key={i} className="relative flex flex-col items-center text-center">
               <div className="w-20 h-20 bg-surface border-2 border-brand rounded-full flex items-center justify-center mb-6 shadow-lg relative z-10">
@@ -156,7 +157,7 @@ export function LandingPage({ onStart, hasPlan, onContinue, onViewTerms, onViewP
       {/* Funcionalidades Detalhadas */}
       <section className="w-full max-w-6xl mx-auto px-4">
         <div className="text-center mb-16">
-          <h2 className="text-4xl font-black text-text-main mb-4">Arsenal Completo</h2>
+          <h2 className="text-4xl font-black text-text-main mb-4">Ecossistema Completo</h2>
           <p className="text-xl text-text-muted">Ferramentas projetadas para quem treina de verdade.</p>
         </div>
 
@@ -168,15 +169,15 @@ export function LandingPage({ onStart, hasPlan, onContinue, onViewTerms, onViewP
           className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
         >
           {[
-            { icon: BrainCircuit, title: 'Sistema Personalizado', desc: 'Treinos gerados com seleção inteligente de exercícios, séries e métodos avançados.' },
-            { icon: Edit3, title: 'Edição Livre', desc: 'Não gostou de um exercício? Troque. Quer fazer mais séries? Adicione. Você tem controle total sobre o plano gerado.' },
+            { icon: Cpu, title: 'Motores de Regras', desc: 'Geração de treinos e dietas baseada em algoritmos determinísticos, sem alucinações de IA.' },
+            { icon: Apple, title: 'Motor de Substituição', desc: 'Troque alimentos da sua dieta mantendo o balanço exato de macronutrientes através de cálculos automáticos.' },
+            { icon: Target, title: 'Gamificação (XP e Níveis)', desc: 'Ganhe XP por treinos concluídos, hidratação e refeições perfeitas. Suba de nível e desbloqueie conquistas.' },
             { icon: Activity, title: 'Tracker Interativo', desc: 'Marque séries concluídas com um toque e registre a carga exata utilizada em cada exercício.' },
-            { icon: History, title: 'Histórico de Cargas', desc: 'O app lembra a carga que você usou no último treino para você focar apenas em progredir.' },
-            { icon: BookOpen, title: 'Guia de Execução', desc: 'Dúvidas de como fazer? Acesse instruções detalhadas para cada exercício prescrito.' },
-            { icon: CheckCircle2, title: 'Check-in Diário', desc: 'Registre seu esforço (PSE) e anotações após cada treino para monitorar sua recuperação.' },
-            { icon: Cloud, title: 'Sincronização em Nuvem', desc: 'Seus dados, treinos e histórico salvos com segurança. Acesse de qualquer dispositivo.' },
+            { icon: History, title: 'Progressive Overload', desc: 'O app lembra a carga que você usou no último treino para você focar apenas em progredir (Volume Load).' },
+            { icon: Users, title: 'SpeltaGram', desc: 'Rede social interna para alunos. Compartilhe sua evolução, curta e comente nas postagens da comunidade.' },
+            { icon: BookOpen, title: 'Documentação Técnica', desc: 'Acesse o Manual do Usuário e a Documentação Oficial detalhando todas as fórmulas matemáticas utilizadas.' },
             { icon: Palette, title: 'Múltiplos Temas', desc: 'Personalize a interface escolhendo entre os temas Laranja, Verde, Azul ou Dourado.' },
-            { icon: ShieldCheck, title: 'Painel do Treinador', desc: 'Área exclusiva para administradores gerenciarem alunos e acompanharem resultados.' }
+            { icon: ShieldCheck, title: 'Painel do Treinador', desc: 'Área exclusiva para administradores gerenciarem alunos, acompanharem resultados e acessarem a documentação técnica.' }
           ].map((feature, i) => (
             <motion.div key={i} variants={itemVariants} className="bg-surface p-8 rounded-3xl border border-border hover:border-brand/50 transition-colors shadow-sm hover:shadow-md group">
               <div className="w-14 h-14 bg-brand/10 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
@@ -194,10 +195,10 @@ export function LandingPage({ onStart, hasPlan, onContinue, onViewTerms, onViewP
         <div className="absolute inset-0 bg-black/10"></div>
         <div className="relative z-10">
           <h2 className="text-4xl md:text-5xl font-black text-white mb-6 leading-tight">
-            Pronto para evoluir de verdade?
+            Pronto para evoluir com dados reais?
           </h2>
           <p className="text-xl text-white/90 mb-10 max-w-2xl mx-auto">
-            Abandone as fichas de papel e planilhas confusas. Tenha seu treino inteligente na palma da mão.
+            Abandone as fichas de papel e planilhas confusas. Tenha seu treino e nutrição calculados com precisão na palma da mão.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             {hasPlan && onContinue && (

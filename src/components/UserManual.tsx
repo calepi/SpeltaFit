@@ -34,7 +34,7 @@ export function UserManual() {
   const sections = [
     { id: 'intro', label: 'Introdução', icon: <Book className="w-4 h-4" /> },
     { id: 'performance', label: 'Performance Humana', icon: <TrendingUp className="w-4 h-4" /> },
-    { id: 'anamnesis', label: 'IA e Anamnese', icon: <Zap className="w-4 h-4" /> },
+    { id: 'anamnesis', label: 'Motores e Anamnese', icon: <Zap className="w-4 h-4" /> },
     { id: 'workout', label: 'Guia de Treino', icon: <Dumbbell className="w-4 h-4" /> },
     { id: 'nutrition', label: 'Nutrição Avançada', icon: <Apple className="w-4 h-4" /> },
     { id: 'evolution', label: 'Evolução e Dados', icon: <TrendingUp className="w-4 h-4" /> },
@@ -67,7 +67,7 @@ export function UserManual() {
           </h1>
           <p className="text-text-muted max-w-2xl text-lg font-medium">
             Este é o guia completo e exaustivo sobre como dominar a ferramenta SpeltaFit. 
-            Aqui você aprenderá desde os conceitos básicos até as lógicas avançadas da nossa IA.
+            Aqui você aprenderá desde os conceitos básicos até as lógicas avançadas dos nossos motores determinísticos.
           </p>
         </div>
       </div>
@@ -165,12 +165,12 @@ function IntroSection() {
       <SectionTitle icon={<Book className="w-6 h-6" />}>Bem-vindo ao SpeltaFit</SectionTitle>
       <p className="text-lg leading-relaxed text-text-muted">
         O SpeltaFit não é apenas um aplicativo de treino; é um sistema de gestão de performance humana. 
-        Nossa filosofia baseia-se em três pilares: <strong>Dados</strong>, <strong>Consistência</strong> e <strong>Inteligência Artificial</strong>.
+        Nossa filosofia baseia-se em três pilares: <strong>Dados</strong>, <strong>Consistência</strong> e <strong>Algoritmos Determinísticos</strong>.
       </p>
       
       <SubTitle>O que esperar deste manual?</SubTitle>
       <p>
-        Este documento foi expandido para cobrir todas as nuances da ferramenta. Você aprenderá como a IA toma decisões, 
+        Este documento foi expandido para cobrir todas as nuances da ferramenta. Você aprenderá como nossos motores de regras tomam decisões, 
         como interpretar os gráficos de evolução e como utilizar o motor de substituição nutricional para nunca mais 
         sair da dieta por falta de opção.
       </p>
@@ -192,25 +192,25 @@ function IntroSection() {
 function AnamnesisSection() {
   return (
     <div>
-      <SectionTitle icon={<Zap className="w-6 h-6" />}>IA e Anamnese</SectionTitle>
+      <SectionTitle icon={<Zap className="w-6 h-6" />}>Motores e Anamnese</SectionTitle>
       <p>
-        A Anamnese é o ponto de partida. Sem dados precisos aqui, a IA não consegue gerar um plano otimizado.
+        A Anamnese é o ponto de partida. Sem dados precisos aqui, os motores de regras não conseguem gerar um plano otimizado.
       </p>
 
-      <SubTitle>Como a IA calcula seu treino?</SubTitle>
+      <SubTitle>Como o sistema calcula seu treino?</SubTitle>
       <ul className="space-y-4 list-none p-0">
         <li className="flex gap-3">
           <div className="mt-1"><CheckCircle2 className="w-4 h-4 text-brand" /></div>
           <div>
             <span className="font-bold">Volume de Treino:</span> Calculado com base na sua experiência e nível de estresse. 
-            Se você está muito estressado e dorme mal, a IA reduz o volume para evitar o overtraining.
+            Se você está muito estressado e dorme mal, o motor reduz o volume para evitar o overtraining.
           </div>
         </li>
         <li className="flex gap-3">
           <div className="mt-1"><CheckCircle2 className="w-4 h-4 text-brand" /></div>
           <div>
             <span className="font-bold">Seleção de Exercícios:</span> Baseada no seu equipamento disponível. 
-            Se você selecionar "Home Gym", a IA priorizará halteres e elásticos em vez de máquinas complexas.
+            Se você selecionar "Home Gym", o algoritmo priorizará halteres e elásticos em vez de máquinas complexas.
           </div>
         </li>
         <li className="flex gap-3">
@@ -263,12 +263,12 @@ function WorkoutSection() {
       <p>
         Nunca saia da academia sem clicar em <strong>"Finalizar Check-in"</strong>. É neste momento que:
         1. O sistema salva seu peso do dia.
-        2. A IA registra sua consistência.
+        2. O motor registra sua consistência e XP.
         3. O treino "A" vira "B" para o dia seguinte.
       </p>
 
       <InfoBox title="Configuração de Descanso" type="info">
-        O tempo de descanso sugerido pela IA (ex: 60s ou 120s) não é aleatório. 
+        O tempo de descanso sugerido pelo sistema (ex: 60s ou 120s) não é aleatório. 
         Exercícios compostos (Agachamento) têm descansos maiores para recuperação do sistema nervoso central.
       </InfoBox>
     </div>
@@ -280,6 +280,31 @@ function NutritionSection() {
     <div>
       <SectionTitle icon={<Apple className="w-6 h-6" />}>Nutrição Avançada</SectionTitle>
       
+      <SubTitle>Tipos de Dieta Suportados</SubTitle>
+      <p className="mb-4">O SpeltaFit oferece suporte a diversas estratégias nutricionais, calculando automaticamente os macronutrientes ideais para cada uma:</p>
+      <ul className="space-y-4 list-none p-0 mb-8">
+        <li className="flex gap-3">
+          <div className="mt-1"><CheckCircle2 className="w-4 h-4 text-brand" /></div>
+          <div><strong>Padrão (Balanceada):</strong> Distribuição equilibrada de macros, ideal para a maioria dos objetivos.</div>
+        </li>
+        <li className="flex gap-3">
+          <div className="mt-1"><CheckCircle2 className="w-4 h-4 text-brand" /></div>
+          <div><strong>Low Carb & Cetogênica:</strong> Foco em redução de carboidratos e aumento de gorduras boas.</div>
+        </li>
+        <li className="flex gap-3">
+          <div className="mt-1"><CheckCircle2 className="w-4 h-4 text-brand" /></div>
+          <div><strong>Dieta da Proteína (Hiperproteica):</strong> Aumenta a ingestão de proteínas (até 3g/kg) para maximizar a saciedade e manutenção muscular.</div>
+        </li>
+        <li className="flex gap-3">
+          <div className="mt-1"><CheckCircle2 className="w-4 h-4 text-brand" /></div>
+          <div><strong>Jejum Intermitente (16/8):</strong> Condensa as refeições em uma janela de 8 horas, facilitando o déficit calórico.</div>
+        </li>
+        <li className="flex gap-3">
+          <div className="mt-1"><CheckCircle2 className="w-4 h-4 text-brand" /></div>
+          <div><strong>Mediterrânea & DASH:</strong> Foco em saúde cardiovascular, priorizando gorduras saudáveis e controle de sódio.</div>
+        </li>
+      </ul>
+
       <SubTitle>O Motor de Substituição</SubTitle>
       <p>
         A maior causa de desistência de dietas é a monotonia. O SpeltaFit resolve isso com o <strong>Substitution Engine</strong>.
@@ -332,7 +357,7 @@ function EvolutionSection() {
           <h5 className="font-black text-xs uppercase text-brand">Gráfico de Peso</h5>
           <p className="text-sm text-text-muted">
             Não se assuste com oscilações diárias. Foque na <strong>tendência semanal</strong>. 
-            A IA ignora picos isolados causados por retenção hídrica.
+            O sistema calcula médias móveis para ignorar picos isolados causados por retenção hídrica.
           </p>
         </div>
         <div className="space-y-2">
@@ -344,10 +369,10 @@ function EvolutionSection() {
         </div>
       </div>
 
-      <SubTitle>Insights da IA</SubTitle>
+      <SubTitle>Insights do Sistema</SubTitle>
       <p>
         Abaixo dos gráficos, você verá cards de "Insights". Eles são gerados cruzando seus dados de treino 
-        com seus dados de peso.
+        com seus dados de peso usando regras pré-definidas.
       </p>
       <InfoBox title="Exemplo de Insight" type="info">
         "Seu peso subiu 500g, mas suas cargas no Supino e Agachamento subiram 10%. 
@@ -393,7 +418,7 @@ function PerformanceSection() {
       <SectionTitle icon={<TrendingUp className="w-6 h-6" />}>Performance Humana</SectionTitle>
       <p className="text-lg leading-relaxed text-text-muted">
         O SpeltaFit não é apenas um aplicativo de treino; é um sistema de gestão de performance humana. 
-        Nossa filosofia baseia-se em três pilares: <strong>Dados</strong>, <strong>Consistência</strong> e <strong>Inteligência Artificial</strong>.
+        Nossa filosofia baseia-se em três pilares: <strong>Dados</strong>, <strong>Consistência</strong> e <strong>Algoritmos Determinísticos</strong>.
       </p>
 
       <div className="space-y-4 my-8">
@@ -410,9 +435,9 @@ function PerformanceSection() {
           </p>
         </div>
         <div className="bg-bg-main p-6 rounded-2xl border border-border">
-          <h3 className="font-bold text-text-main mb-2">3. Inteligência Artificial: O Cérebro do Sistema</h3>
+          <h3 className="font-bold text-text-main mb-2">3. Algoritmos: O Cérebro do Sistema</h3>
           <p className="text-sm text-text-muted">
-            Nossos algoritmos analisam seu perfil antropométrico, nível de estresse e qualidade do sono para sugerir ajustes que otimizam sua recuperação e ganho de massa.
+            Nossos motores determinísticos analisam seu perfil antropométrico, nível de estresse e qualidade do sono para sugerir ajustes que otimizam sua recuperação e ganho de massa.
           </p>
         </div>
       </div>
