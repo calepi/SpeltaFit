@@ -10,6 +10,7 @@ import { generateDietPlan } from './services/nutritionGenerator';
 import { Logo } from './components/Logo';
 import { LogIn, LogOut, User as UserIcon, Shield, BookOpen, Apple, Users, Palette, TrendingUp, HelpCircle, Trophy, Bell, Menu, X } from 'lucide-react';
 import { ReminderSettings } from './components/ReminderSettings';
+import { ReminderManager } from './components/ReminderManager';
 import { auth, db, googleProvider } from './firebase';
 import { signInWithPopup, signOut, onAuthStateChanged, User } from 'firebase/auth';
 import { doc, getDoc, setDoc, deleteDoc } from 'firebase/firestore';
@@ -19,12 +20,13 @@ import { WorkoutComparisonView } from './components/WorkoutComparisonView';
 import { SpeltaGramFeed } from './components/SpeltaGram';
 import { EvolutionCharts } from './components/EvolutionCharts';
 import { UserManual } from './components/UserManual';
+import { TechnicalDocumentation } from './components/TechnicalDocumentation';
 import { GamificationDashboard } from './components/GamificationDashboard';
 import { TermsOfService } from './components/TermsOfService';
 import { PrivacyPolicy } from './components/PrivacyPolicy';
 import { Paywall } from './components/Paywall';
 
-type AppState = 'landing' | 'form' | 'plan' | 'admin' | 'library' | 'nutrition' | 'speltagram' | 'evolution' | 'manual' | 'comparison' | 'gamification' | 'reminders' | 'terms' | 'privacy';
+type AppState = 'landing' | 'form' | 'plan' | 'admin' | 'library' | 'nutrition' | 'speltagram' | 'evolution' | 'manual' | 'documentation' | 'comparison' | 'gamification' | 'reminders' | 'terms' | 'privacy';
 type Theme = 'default' | 'green' | 'blue' | 'gold';
 
 export default function App() {
@@ -197,7 +199,7 @@ export default function App() {
         dislikes: finalData.dislikes || '',
         budget: finalData.budget,
         cookingTime: finalData.cookingTime,
-        supplements: typeof finalData.supplements === 'string' ? finalData.supplements.split(',').map(s => s.trim()) : finalData.supplements,
+        supplements: Array.isArray(finalData.supplements) ? finalData.supplements : (typeof finalData.supplements === 'string' ? (finalData.supplements as string).split(',').map(s => s.trim()) : []),
         waterIntake: finalData.waterIntake,
         updatedAt: new Date().toISOString()
       };
@@ -284,7 +286,7 @@ export default function App() {
       dislikes: userData.dislikes || '',
       budget: userData.budget,
       cookingTime: userData.cookingTime,
-      supplements: typeof userData.supplements === 'string' ? userData.supplements.split(',').map(s => s.trim()) : userData.supplements,
+      supplements: Array.isArray(userData.supplements) ? userData.supplements : (typeof userData.supplements === 'string' ? (userData.supplements as string).split(',').map(s => s.trim()) : []),
       waterIntake: userData.waterIntake,
       updatedAt: new Date().toISOString()
     };
@@ -317,6 +319,8 @@ export default function App() {
   };
 
   const handleReset = async () => {
+    if (!user) return;
+
     // If we have a current plan, we can use it as the "Existing Plan" for the next form
     const currentPlanAsExisting: ExistingDay[] = plan?.weeklyRoutine.map(day => ({
       dayName: day.day,
@@ -329,6 +333,7 @@ export default function App() {
 
     const previousUserData = userData;
 
+    // 1. Clear local state
     setPlan(null);
     setUserData(previousUserData ? {
       ...previousUserData,
@@ -338,8 +343,24 @@ export default function App() {
     setError(null);
     setAppState('form');
     
-    // We don't delete from Firestore here anymore, we just move to the form
-    // The data will be overwritten when the new plan is generated
+    // 2. Delete from Firestore for a clean reset
+    try {
+      const anamnesisRef = doc(db, `users/${user.uid}/data/anamnesis`);
+      const planRef = doc(db, `users/${user.uid}/data/workoutPlan`);
+      const dietPlanRef = doc(db, `users/${user.uid}/data/dietPlan`);
+      const nutritionalAnamnesisRef = doc(db, `users/${user.uid}/data/nutritionalAnamnesis`);
+      const trackingRef = doc(db, `users/${user.uid}/data/nutritionTracking`); // If this exists as a doc
+      
+      await Promise.all([
+        deleteDoc(anamnesisRef).catch(() => {}),
+        deleteDoc(planRef).catch(() => {}),
+        deleteDoc(dietPlanRef).catch(() => {}),
+        deleteDoc(nutritionalAnamnesisRef).catch(() => {}),
+        deleteDoc(trackingRef).catch(() => {})
+      ]);
+    } catch (err) {
+      console.error("Error resetting plan in Firestore:", err);
+    }
   };
 
   if (!isAuthReady) {
@@ -670,7 +691,7 @@ export default function App() {
             )}
 
             {appState === 'admin' && user?.email === 'calepi@gmail.com' && (
-              <AdminDashboard />
+              <AdminDashboard onViewDocumentation={() => setAppState('documentation')} />
             )}
 
             {appState === 'library' && (
@@ -681,6 +702,7 @@ export default function App() {
               <NutritionalTool 
                 physicalAnamnesis={userData} 
                 onBack={() => setAppState('plan')} 
+                onReset={handleReset}
               />
             )}
 
@@ -707,6 +729,10 @@ export default function App() {
               <UserManual />
             )}
 
+            {appState === 'documentation' && (
+              <TechnicalDocumentation onBack={() => setAppState('admin')} />
+            )}
+
             {appState === 'terms' && (
               <TermsOfService onBack={() => setAppState('landing')} />
             )}
@@ -726,6 +752,9 @@ export default function App() {
           </p>
         </div>
       </footer>
+
+      {/* Reminder Manager (Background Logic) */}
+      <ReminderManager />
     </div>
   );
 }

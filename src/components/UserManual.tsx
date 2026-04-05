@@ -18,12 +18,18 @@ import {
   Clock,
   Flame,
   Search,
-  MessageSquare
+  MessageSquare,
+  Printer,
+  FileText
 } from 'lucide-react';
 import { motion } from 'motion/react';
 
 export function UserManual() {
   const [activeSection, setActiveSection] = React.useState('intro');
+
+  const handlePrint = () => {
+    window.print();
+  };
 
   const sections = [
     { id: 'intro', label: 'Introdução', icon: <Book className="w-4 h-4" /> },
@@ -43,8 +49,17 @@ export function UserManual() {
       <div className="bg-surface border border-border rounded-[2.5rem] p-8 md:p-12 shadow-xl relative overflow-hidden">
         <div className="absolute top-0 right-0 w-1/3 h-full bg-gradient-to-l from-brand/5 to-transparent pointer-events-none" />
         <div className="relative z-10 space-y-4">
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-brand/10 text-brand text-xs font-black uppercase tracking-widest">
-            Documentação Oficial
+          <div className="flex items-center justify-between">
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-brand/10 text-brand text-xs font-black uppercase tracking-widest">
+              Documentação Oficial
+            </div>
+            <button 
+              onClick={handlePrint}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-brand text-text-inverse hover:scale-105 transition-all font-bold shadow-lg shadow-brand/20 print:hidden"
+            >
+              <Printer className="w-4 h-4" />
+              Exportar PDF
+            </button>
           </div>
           <h1 className="text-4xl md:text-6xl font-black tracking-tight leading-tight">
             Manual do Usuário <br />
@@ -471,6 +486,11 @@ function ConfigSection() {
         Caso a interface pareça "travada", você pode usar o botão de <strong>Reset</strong> na aba de treino. 
         Isso limpará os dados locais e forçará uma nova sincronização com o banco de dados.
       </p>
+
+      <InfoBox title="Documentação Técnica" type="info">
+        Para desenvolvedores e gestores que desejam entender os motores de regras e a estrutura do banco de dados, 
+        acesse a <strong>Documentação Técnica Completa</strong> no Painel do Administrador.
+      </InfoBox>
 
       <InfoBox title="Suporte Técnico" type="warning">
         Em caso de erros críticos de permissão (Permission Denied), verifique se o seu e-mail 

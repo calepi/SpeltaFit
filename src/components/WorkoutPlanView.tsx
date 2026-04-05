@@ -102,7 +102,7 @@ export function WorkoutPlanView({ plan, user, onReset, onUpdatePlan, readOnly = 
                 className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-3 text-sm font-bold text-red-500 bg-red-500/10 hover:bg-red-500/20 rounded-xl transition-all shadow-sm"
               >
                 <AlertTriangle className="w-5 h-5" />
-                Limpar Tudo
+                Novo Planejamento
               </button>
             )}
             <button 
@@ -221,7 +221,7 @@ export function WorkoutPlanView({ plan, user, onReset, onUpdatePlan, readOnly = 
                   onClick={() => setShowResetModal(true)}
                   className="text-sm font-bold text-red-500 hover:text-red-600 px-4 py-2 bg-red-500/10 hover:bg-red-500/20 rounded-xl transition-colors"
                 >
-                  Refazer Anamnese
+                  Novo Planejamento
                 </button>
               )}
             </div>

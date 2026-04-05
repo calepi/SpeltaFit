@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { collection, getDocs, doc, getDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { AnamnesisData, WorkoutPlan } from '../services/workoutGenerator';
-import { Users, Activity, Target, Calendar, ChevronRight, ArrowLeft, Search, Dumbbell, Trash2 } from 'lucide-react';
+import { Users, Activity, Target, Calendar, ChevronRight, ArrowLeft, Search, Dumbbell, Trash2, FileText } from 'lucide-react';
 import { motion } from 'motion/react';
 import { WorkoutPlanView } from './WorkoutPlanView';
 
@@ -21,7 +21,11 @@ interface StudentData {
   progress: any | null;
 }
 
-export function AdminDashboard() {
+interface AdminDashboardProps {
+  onViewDocumentation?: () => void;
+}
+
+export function AdminDashboard({ onViewDocumentation }: AdminDashboardProps) {
   const [students, setStudents] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedStudent, setSelectedStudent] = useState<StudentData | null>(null);
@@ -219,6 +223,21 @@ export function AdminDashboard() {
             <p className="text-2xl font-black text-text-main">{students.length}</p>
           </div>
         </div>
+
+        {onViewDocumentation && (
+          <button 
+            onClick={onViewDocumentation}
+            className="bg-surface p-6 rounded-2xl border border-border shadow-sm flex items-center gap-4 hover:border-brand transition-all group text-left"
+          >
+            <div className="p-4 bg-blue-500/10 text-blue-500 rounded-xl group-hover:bg-blue-500 group-hover:text-white transition-all">
+              <FileText className="w-6 h-6" />
+            </div>
+            <div>
+              <p className="text-sm text-text-muted font-bold">Documentação</p>
+              <p className="text-lg font-black text-text-main">Motores e DB</p>
+            </div>
+          </button>
+        )}
       </div>
 
       <div className="bg-surface border border-border rounded-3xl overflow-hidden shadow-xl">

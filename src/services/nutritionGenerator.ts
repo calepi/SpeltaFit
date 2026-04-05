@@ -136,10 +136,12 @@ export async function generateDietPlan(
   
   targetCalories += calorieAdjustment;
 
-  // 4. Calcular Macros (g/kg) baseados no Nível e Objetivo
+  // 4. Calcular Macros (g/kg) baseados no Nível, Objetivo e Tipo de Dieta
   let protGPerKg = 2.0;
   let fatGPerKg = 0.8;
   
+  const dietType = (nutritionalAnamnesis.dietType || 'Onívora').toLowerCase();
+
   if (goal.includes('emagrecimento')) {
     protGPerKg = userLevel === 'avançado' ? 2.5 : 2.2; 
     fatGPerKg = 0.7;
@@ -148,18 +150,48 @@ export async function generateDietPlan(
     fatGPerKg = 1.0;
   }
 
+  // Ajustes por Tipo de Dieta
+  if (dietType.includes('hiperproteica') || dietType.includes('proteína')) {
+    protGPerKg += 0.5; // Aumenta proteína significativamente
+    fatGPerKg -= 0.1; 
+  } else if (dietType.includes('low carb')) {
+    protGPerKg += 0.2;
+    fatGPerKg += 0.3;
+  } else if (dietType.includes('cetogênica')) {
+    protGPerKg = 1.8; 
+    fatGPerKg = 1.5; 
+  } else if (dietType.includes('carnívora')) {
+    protGPerKg = 2.8; // Proteína muito alta
+    fatGPerKg = 1.2; // Gordura moderada/alta
+  } else if (dietType.includes('mediterrânea')) {
+    protGPerKg = 1.8;
+    fatGPerKg = 1.2; // Foco em gorduras boas
+  }
+
   const proteinTotal = weight * protGPerKg;
   const fatsTotal = weight * fatGPerKg;
   const proteinCal = proteinTotal * 4;
   const fatsCal = fatsTotal * 9;
-  const carbsCal = Math.max(targetCalories - proteinCal - fatsCal, 500); // Mínimo de carbos para energia
+  
+  let carbsCal = Math.max(targetCalories - proteinCal - fatsCal, 100); 
+  
+  // Ajuste final de carbos para dietas específicas
+  if (dietType.includes('cetogênica')) {
+    carbsCal = Math.min(carbsCal, 200); // Máximo de 50g de carbo (200 cal)
+  } else if (dietType.includes('low carb')) {
+    carbsCal = Math.min(carbsCal, targetCalories * 0.2); // Máximo 20% das cal em carbo
+  } else if (dietType.includes('carnívora')) {
+    carbsCal = 0; // Zero carbo
+  }
+
   const carbsTotal = carbsCal / 4;
 
   // 5. Distribuir em Refeições
   const mealCount = nutritionalAnamnesis.mealCount || 4;
   const meals: Meal[] = [];
+  const isIntermittentFasting = dietType.includes('jejum');
   
-  const mealNames = [
+  let mealNames = [
     { name: 'Café da Manhã', time: '08:00', type: 'breakfast' },
     { name: 'Almoço', time: '12:30', type: 'main' },
     { name: 'Lanche da Tarde', time: '16:00', type: 'snack' },
@@ -167,6 +199,17 @@ export async function generateDietPlan(
     { name: 'Ceia', time: '22:30', type: 'snack' },
     { name: 'Pré-Treino', time: '1 hora antes', type: 'pre-workout' }
   ];
+
+  if (isIntermittentFasting) {
+    // Janela de alimentação 16/8 (12:00 às 20:00 por padrão)
+    mealNames = [
+      { name: 'Almoço (Quebra do Jejum)', time: '12:00', type: 'main' },
+      { name: 'Lanche da Tarde', time: '15:30', type: 'snack' },
+      { name: 'Lanche Pré-Jantar', time: '18:00', type: 'snack' },
+      { name: 'Jantar (Última Refeição)', time: '19:45', type: 'main' },
+      { name: 'Pré-Treino', time: 'Dentro da janela', type: 'pre-workout' }
+    ];
+  }
 
   const isVegetarian = nutritionalAnamnesis.dietType?.toLowerCase().includes('vegetariana');
   const dislikes = nutritionalAnamnesis.dislikes?.toLowerCase() || '';
@@ -414,6 +457,11 @@ export async function generateDietPlan(
 
   const recommendations = `
     - Hidratação: Beba pelo menos ${Math.round(weight * 40 / 1000)} litros de água por dia.
+    ${isIntermittentFasting ? '- Jejum Intermitente: Mantenha sua janela de alimentação rigorosamente entre 12:00 e 20:00.' : ''}
+    ${dietType.includes('hiperproteica') ? '- Dieta da Proteína: Priorize carnes magras, ovos e laticínios em todas as refeições.' : ''}
+    ${dietType.includes('carnívora') ? '- Carnívora: Foco total em proteínas animais e gorduras naturais. Evite qualquer vegetal ou grão.' : ''}
+    ${dietType.includes('mediterrânea') ? '- Mediterrânea: Use azeite de oliva extra virgem generosamente e consuma oleaginosas diariamente.' : ''}
+    ${dietType.includes('dash') ? '- DASH: Foco total na redução de sódio. Evite embutidos, conservas e use o mínimo de sal possível.' : ''}
     - Consistência: Tente seguir os horários das refeições em pelo menos 80% do tempo.
     - Qualidade: Priorize alimentos "de verdade" (descasque mais, embale menos).
     - Sal: Use com moderação, prefira temperos naturais (alho, cebola, ervas).

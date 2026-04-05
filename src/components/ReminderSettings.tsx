@@ -1,5 +1,5 @@
 import React from 'react';
-import { Bell, Clock, Droplets, Utensils, Zap, Save, CheckCircle2 } from 'lucide-react';
+import { Bell, Clock, Droplets, Utensils, Zap, Save, CheckCircle2, Volume2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface Reminder {
@@ -11,14 +11,18 @@ interface Reminder {
 }
 
 export function ReminderSettings() {
-  const [reminders, setReminders] = React.useState<Reminder[]>([
-    { id: '1', type: 'water', time: '09:00', enabled: true, label: 'Hidratação Matinal' },
-    { id: '2', type: 'water', time: '11:00', enabled: true, label: 'Hidratação Pré-Almoço' },
-    { id: '3', type: 'meal', time: '12:30', enabled: true, label: 'Almoço Planejado' },
-    { id: '4', type: 'water', time: '15:00', enabled: true, label: 'Hidratação Tarde' },
-    { id: '5', type: 'workout', time: '18:00', enabled: true, label: 'Hora de Treinar!' },
-    { id: '6', type: 'meal', time: '20:00', enabled: true, label: 'Jantar Leve' },
-  ]);
+  const [reminders, setReminders] = React.useState<Reminder[]>(() => {
+    const saved = localStorage.getItem('fitgenius_reminders');
+    if (saved) return JSON.parse(saved);
+    return [
+      { id: '1', type: 'water', time: '09:00', enabled: true, label: 'Hidratação Matinal' },
+      { id: '2', type: 'water', time: '11:00', enabled: true, label: 'Hidratação Pré-Almoço' },
+      { id: '3', type: 'meal', time: '12:30', enabled: true, label: 'Almoço Planejado' },
+      { id: '4', type: 'water', time: '15:00', enabled: true, label: 'Hidratação Tarde' },
+      { id: '5', type: 'workout', time: '18:00', enabled: true, label: 'Hora de Treinar!' },
+      { id: '6', type: 'meal', time: '20:00', enabled: true, label: 'Jantar Leve' },
+    ];
+  });
   const [showSaved, setShowSaved] = React.useState(false);
 
   const toggleReminder = (id: string) => {
@@ -30,7 +34,7 @@ export function ReminderSettings() {
   };
 
   const handleSave = () => {
-    // In a real app, save to Firestore
+    localStorage.setItem('fitgenius_reminders', JSON.stringify(reminders));
     setShowSaved(true);
     setTimeout(() => setShowSaved(false), 3000);
   };
@@ -51,6 +55,27 @@ export function ReminderSettings() {
           >
             <Save className="w-5 h-5" />
             Salvar Configurações
+          </button>
+        </div>
+
+        <div className="flex flex-wrap gap-3">
+          <button 
+            onClick={() => {
+              const testReminder = {
+                id: 'test-' + Date.now(),
+                type: 'workout' as const,
+                time: 'TEST',
+                enabled: true,
+                label: 'Teste de Alarme SpeltaFit'
+              };
+              localStorage.setItem('fitgenius_reminders_trigger_test', JSON.stringify(testReminder));
+              // Dispatch storage event manually because localStorage.setItem doesn't trigger it on the same window
+              window.dispatchEvent(new Event('storage'));
+            }}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-surface border border-border text-text-main font-bold hover:bg-bg-main transition-all text-sm"
+          >
+            <Volume2 className="w-4 h-4" />
+            Testar Som e Alerta
           </button>
         </div>
 
