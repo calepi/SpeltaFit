@@ -4,6 +4,7 @@ import { motion } from 'motion/react';
 import { Target, TrendingUp, Info, FileText, Calendar, AlertTriangle, User } from 'lucide-react';
 import { WorkoutSheetExport } from './WorkoutSheetExport';
 import { WorkoutTracker } from './WorkoutTracker';
+import html2pdf from 'html2pdf.js';
 
 interface Props {
   plan: WorkoutPlan;
@@ -27,51 +28,31 @@ export function WorkoutPlanView({ plan, user, onReset, onUpdatePlan, readOnly = 
     try {
       setIsExporting(true);
       
-      const printWindow = window.open('', '_blank');
-      if (!printWindow) {
-        alert('Por favor, permita popups para gerar o PDF.');
-        setIsExporting(false);
-        return;
-      }
+      // Temporarily make the element visible for html2canvas
+      exportRef.current.style.opacity = '1';
+      exportRef.current.style.position = 'static';
+      exportRef.current.style.zIndex = '1';
 
-      const htmlContent = exportRef.current.innerHTML;
-      
-      // Get all style tags from the current document to inject into the print window
-      const styles = Array.from(document.querySelectorAll('style, link[rel="stylesheet"]'))
-        .map(s => s.outerHTML)
-        .join('\n');
+      const opt = {
+        margin:       10,
+        filename:     `SpeltaFit_Treino_${user.name.replace(/\s+/g, '_')}.pdf`,
+        image:        { type: 'jpeg' as const, quality: 0.98 },
+        html2canvas:  { scale: 2, useCORS: true },
+        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'landscape' as const }
+      };
 
-      printWindow.document.write(`
-        <!DOCTYPE html>
-        <html>
-          <head>
-            <title>SpeltaFit - Ficha de Treino</title>
-            ${styles}
-            <style>
-              @media print {
-                body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-                @page { margin: 15mm; size: A4 landscape; }
-              }
-            </style>
-          </head>
-          <body class="bg-white text-black">
-            ${htmlContent}
-            <script>
-              window.onload = () => {
-                setTimeout(() => {
-                  window.print();
-                  // window.close(); // Let the user close it manually if they want
-                }, 500);
-              };
-            </script>
-          </body>
-        </html>
-      `);
-      printWindow.document.close();
+      await html2pdf().set(opt).from(exportRef.current).save();
+
     } catch (err) {
       console.error('Failed to export PDF', err);
-      alert('Erro ao preparar a impressão. Tente novamente.');
+      alert('Erro ao gerar o PDF. Tente novamente.');
     } finally {
+      // Restore hidden state
+      if (exportRef.current) {
+        exportRef.current.style.opacity = '0';
+        exportRef.current.style.position = 'absolute';
+        exportRef.current.style.zIndex = '-50';
+      }
       setIsExporting(false);
     }
   };

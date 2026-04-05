@@ -29,9 +29,9 @@ export function TechnicalDocumentation({ onBack }: TechnicalDocumentationProps) 
     const opt = {
       margin:       10,
       filename:     'SpeltaFit_Documentacao_Tecnica.pdf',
-      image:        { type: 'jpeg', quality: 0.98 },
+      image:        { type: 'jpeg' as const, quality: 0.98 },
       html2canvas:  { scale: 2, useCORS: true },
-      jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+      jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' as const }
     };
 
     // Hide buttons before generating PDF
@@ -48,10 +48,10 @@ export function TechnicalDocumentation({ onBack }: TechnicalDocumentationProps) 
     <div className="max-w-6xl mx-auto space-y-8 pb-20" ref={contentRef}>
       {/* Header */}
       <div className="bg-surface border border-border rounded-[2.5rem] p-8 md:p-12 shadow-xl relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-1/3 h-full bg-gradient-to-l from-brand/5 to-transparent pointer-events-none" />
+        <div className="absolute top-0 right-0 w-1/3 h-full bg-gradient-to-l from-brand-light to-transparent pointer-events-none" />
         <div className="relative z-10 space-y-4">
           <div className="flex items-center justify-between">
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-brand/10 text-brand text-xs font-black uppercase tracking-widest">
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-brand-light text-brand text-xs font-black uppercase tracking-widest">
               Documentação Técnica do Sistema
             </div>
             <div className="flex gap-2 pdf-exclude">
@@ -66,7 +66,7 @@ export function TechnicalDocumentation({ onBack }: TechnicalDocumentationProps) 
               )}
               <button 
                 onClick={handlePrint}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-brand text-text-inverse hover:scale-105 transition-all font-bold shadow-lg shadow-brand/20"
+                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-brand text-text-inverse hover:scale-105 transition-all font-bold shadow-none"
               >
                 <Printer className="w-4 h-4" />
                 Exportar PDF
@@ -87,7 +87,7 @@ export function TechnicalDocumentation({ onBack }: TechnicalDocumentationProps) 
         {/* 1. Motores de Regras */}
         <section className="bg-surface border border-border rounded-[2.5rem] p-8 md:p-12 shadow-xl print:shadow-none print:border-none">
           <div className="flex items-center gap-4 mb-8 border-b border-border pb-6">
-            <div className="p-4 rounded-2xl bg-brand/10 text-brand">
+            <div className="p-4 rounded-2xl bg-brand-light text-brand">
               <Cpu className="w-6 h-6" />
             </div>
             <h2 className="text-3xl font-black tracking-tight m-0 uppercase">Motores de Regras</h2>
@@ -175,7 +175,7 @@ export function TechnicalDocumentation({ onBack }: TechnicalDocumentationProps) 
         {/* 2. Banco de Dados */}
         <section className="bg-surface border border-border rounded-[2.5rem] p-8 md:p-12 shadow-xl print:shadow-none print:border-none">
           <div className="flex items-center gap-4 mb-8 border-b border-border pb-6">
-            <div className="p-4 rounded-2xl bg-blue-500/10 text-blue-500">
+            <div className="p-4 rounded-2xl bg-blue-50 text-blue-500">
               <Database className="w-6 h-6" />
             </div>
             <h2 className="text-3xl font-black tracking-tight m-0 uppercase">Estrutura de Dados (Firestore)</h2>
@@ -233,7 +233,7 @@ export function TechnicalDocumentation({ onBack }: TechnicalDocumentationProps) 
               </table>
             </div>
             
-            <div className="p-6 rounded-3xl bg-blue-500/5 border border-blue-500/20 text-blue-900 mt-6">
+            <div className="p-6 rounded-3xl bg-blue-50 border border-blue-200 text-blue-900 mt-6">
               <h4 className="font-black text-sm uppercase mb-2">Procedimento de Deleção (Wipe)</h4>
               <p className="text-sm">
                 Como o Firestore não deleta subcoleções automaticamente ao deletar o documento pai, o botão "Resetar Banco" no painel Admin executa um script em lote que itera sobre todos os usuários e deleta explicitamente cada documento dentro das subcoleções `/data/*` antes de deletar o documento do usuário.
@@ -245,7 +245,7 @@ export function TechnicalDocumentation({ onBack }: TechnicalDocumentationProps) 
         {/* 3. Segurança e Permissões */}
         <section className="bg-surface border border-border rounded-[2.5rem] p-8 md:p-12 shadow-xl print:shadow-none print:border-none">
           <div className="flex items-center gap-4 mb-8 border-b border-border pb-6">
-            <div className="p-4 rounded-2xl bg-emerald-500/10 text-emerald-500">
+            <div className="p-4 rounded-2xl bg-emerald-50 text-emerald-500">
               <Shield className="w-6 h-6" />
             </div>
             <h2 className="text-3xl font-black tracking-tight m-0 uppercase">Segurança e RBAC</h2>
@@ -269,7 +269,7 @@ export function TechnicalDocumentation({ onBack }: TechnicalDocumentationProps) 
             </div>
           </div>
           
-          <div className="p-6 rounded-3xl bg-emerald-500/5 border border-emerald-500/20 text-emerald-900">
+          <div className="p-6 rounded-3xl bg-emerald-50 border border-emerald-200 text-emerald-900">
             <h4 className="font-black text-sm uppercase mb-2">Procedimento de Autenticação</h4>
             <p className="text-sm">
               A autenticação é gerida exclusivamente pelo Firebase Auth utilizando o Google Provider (`signInWithPopup`). O estado de autenticação é monitorado via `onAuthStateChanged` na raiz da aplicação (`App.tsx`), garantindo que rotas protegidas não sejam renderizadas até que o token JWT seja validado.
@@ -280,7 +280,7 @@ export function TechnicalDocumentation({ onBack }: TechnicalDocumentationProps) 
         {/* 4. Funcionalidades Core */}
         <section className="bg-surface border border-border rounded-[2.5rem] p-8 md:p-12 shadow-xl print:shadow-none print:border-none">
           <div className="flex items-center gap-4 mb-8 border-b border-border pb-6">
-            <div className="p-4 rounded-2xl bg-amber-500/10 text-amber-500">
+            <div className="p-4 rounded-2xl bg-amber-50 text-amber-500">
               <Layers className="w-6 h-6" />
             </div>
             <h2 className="text-3xl font-black tracking-tight m-0 uppercase">Funcionalidades Core e Procedimentos</h2>
@@ -333,7 +333,7 @@ export function TechnicalDocumentation({ onBack }: TechnicalDocumentationProps) 
              </div>
 
              <div className="flex items-start gap-4 p-6 bg-bg-main rounded-3xl border border-border">
-                <div className="p-2 rounded-lg bg-amber-500/10 text-amber-500"><Printer className="w-4 h-4" /></div>
+                <div className="p-2 rounded-lg bg-amber-50 text-amber-500"><Printer className="w-4 h-4" /></div>
                 <div>
                   <h4 className="font-black text-sm uppercase mb-2">Exportação de Fichas (PDF Generation)</h4>
                   <p className="text-sm text-text-muted">

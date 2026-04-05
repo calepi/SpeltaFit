@@ -6,7 +6,7 @@ import { db } from '../firebase';
 
 interface Reminder {
   id: string;
-  type: 'water' | 'meal' | 'workout';
+  type: 'water' | 'meal' | 'workout' | 'custom';
   time: string;
   enabled: boolean;
   label: string;
@@ -119,12 +119,14 @@ export function ReminderManager({ userId }: Props) {
                   className={`p-6 rounded-3xl ${
                     activeReminder.type === 'water' ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/40' :
                     activeReminder.type === 'meal' ? 'bg-green-500 text-white shadow-lg shadow-green-500/40' :
-                    'bg-brand text-white shadow-lg shadow-brand/40'
+                    activeReminder.type === 'workout' ? 'bg-brand text-white shadow-lg shadow-brand/40' :
+                    'bg-purple-500 text-white shadow-lg shadow-purple-500/40'
                   }`}
                 >
                   {activeReminder.type === 'water' ? <Droplets className="w-12 h-12" /> :
                    activeReminder.type === 'meal' ? <Utensils className="w-12 h-12" /> :
-                   <Zap className="w-12 h-12" />}
+                   activeReminder.type === 'workout' ? <Zap className="w-12 h-12" /> :
+                   <Bell className="w-12 h-12" />}
                 </motion.div>
               </div>
 

@@ -35,9 +35,9 @@ export function UserManual() {
     const opt = {
       margin:       10,
       filename:     'SpeltaFit_Manual_do_Usuario.pdf',
-      image:        { type: 'jpeg', quality: 0.98 },
+      image:        { type: 'jpeg' as const, quality: 0.98 },
       html2canvas:  { scale: 2, useCORS: true },
-      jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+      jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' as const }
     };
 
     // Hide buttons before generating PDF
@@ -66,15 +66,15 @@ export function UserManual() {
     <div className="max-w-6xl mx-auto space-y-8 pb-20" ref={contentRef}>
       {/* Header */}
       <div className="bg-surface border border-border rounded-[2.5rem] p-8 md:p-12 shadow-xl relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-1/3 h-full bg-gradient-to-l from-brand/5 to-transparent pointer-events-none" />
+        <div className="absolute top-0 right-0 w-1/3 h-full bg-gradient-to-l from-brand-light to-transparent pointer-events-none" />
         <div className="relative z-10 space-y-4">
           <div className="flex items-center justify-between">
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-brand/10 text-brand text-xs font-black uppercase tracking-widest">
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-brand-light text-brand text-xs font-black uppercase tracking-widest">
               Documentação Oficial
             </div>
             <button 
               onClick={handlePrint}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-brand text-text-inverse hover:scale-105 transition-all font-bold shadow-lg shadow-brand/20 pdf-exclude"
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-brand text-text-inverse hover:scale-105 transition-all font-bold shadow-none pdf-exclude"
             >
               <Printer className="w-4 h-4" />
               Exportar PDF
@@ -100,7 +100,7 @@ export function UserManual() {
               onClick={() => setActiveSection(s.id)}
               className={`w-full flex items-center gap-3 px-6 py-4 rounded-2xl font-black text-sm uppercase tracking-widest transition-all ${
                 activeSection === s.id 
-                  ? 'bg-brand text-text-inverse shadow-lg shadow-brand/20 scale-[1.02]' 
+                  ? 'bg-brand text-text-inverse shadow-none scale-[1.02]' 
                   : 'bg-surface border border-border text-text-muted hover:border-brand/50 hover:text-brand'
               }`}
             >
@@ -138,7 +138,7 @@ export function UserManual() {
 function SectionTitle({ children, icon }: { children: React.ReactNode, icon: React.ReactNode }) {
   return (
     <div className="flex items-center gap-4 mb-8 border-b border-border pb-6">
-      <div className="p-4 rounded-2xl bg-brand/10 text-brand">
+      <div className="p-4 rounded-2xl bg-brand-light text-brand">
         {icon}
       </div>
       <h2 className="text-3xl font-black tracking-tight m-0 uppercase">{children}</h2>
@@ -155,9 +155,9 @@ function SubTitle({ children }: { children: React.ReactNode }) {
 
 function InfoBox({ title, children, type = 'info' }: { title: string, children: React.ReactNode, type?: 'info' | 'warning' | 'success' }) {
   const styles = {
-    info: 'bg-blue-500/5 border-blue-500/20 text-blue-900',
-    warning: 'bg-amber-500/5 border-amber-500/20 text-amber-900',
-    success: 'bg-emerald-500/5 border-emerald-500/20 text-emerald-900'
+    info: 'bg-blue-50 border-blue-200 text-blue-900',
+    warning: 'bg-amber-50 border-amber-200 text-amber-900',
+    success: 'bg-emerald-50 border-emerald-200 text-emerald-900'
   };
   const icons = {
     info: <Info className="w-5 h-5 text-blue-500" />,
