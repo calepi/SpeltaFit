@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { 
   Book, 
   Zap, 
@@ -23,12 +23,31 @@ import {
   FileText
 } from 'lucide-react';
 import { motion } from 'motion/react';
+import html2pdf from 'html2pdf.js';
 
 export function UserManual() {
   const [activeSection, setActiveSection] = React.useState('intro');
+  const contentRef = useRef<HTMLDivElement>(null);
 
   const handlePrint = () => {
-    window.print();
+    if (!contentRef.current) return;
+    
+    const opt = {
+      margin:       10,
+      filename:     'SpeltaFit_Manual_do_Usuario.pdf',
+      image:        { type: 'jpeg', quality: 0.98 },
+      html2canvas:  { scale: 2, useCORS: true },
+      jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    };
+
+    // Hide buttons before generating PDF
+    const buttons = contentRef.current.querySelectorAll('.pdf-exclude');
+    buttons.forEach(btn => (btn as HTMLElement).style.display = 'none');
+
+    html2pdf().set(opt).from(contentRef.current).save().then(() => {
+      // Restore buttons after generating PDF
+      buttons.forEach(btn => (btn as HTMLElement).style.display = '');
+    });
   };
 
   const sections = [
@@ -44,7 +63,7 @@ export function UserManual() {
   ];
 
   return (
-    <div className="max-w-6xl mx-auto space-y-8 pb-20">
+    <div className="max-w-6xl mx-auto space-y-8 pb-20" ref={contentRef}>
       {/* Header */}
       <div className="bg-surface border border-border rounded-[2.5rem] p-8 md:p-12 shadow-xl relative overflow-hidden">
         <div className="absolute top-0 right-0 w-1/3 h-full bg-gradient-to-l from-brand/5 to-transparent pointer-events-none" />
@@ -55,7 +74,7 @@ export function UserManual() {
             </div>
             <button 
               onClick={handlePrint}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-brand text-text-inverse hover:scale-105 transition-all font-bold shadow-lg shadow-brand/20 print:hidden"
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-brand text-text-inverse hover:scale-105 transition-all font-bold shadow-lg shadow-brand/20 pdf-exclude"
             >
               <Printer className="w-4 h-4" />
               Exportar PDF

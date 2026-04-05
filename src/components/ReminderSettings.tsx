@@ -1,6 +1,8 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Bell, Clock, Droplets, Utensils, Zap, Save, CheckCircle2, Volume2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { db } from '../firebase';
 
 interface Reminder {
   id: string;
@@ -10,20 +12,40 @@ interface Reminder {
   label: string;
 }
 
-export function ReminderSettings() {
-  const [reminders, setReminders] = React.useState<Reminder[]>(() => {
-    const saved = localStorage.getItem('fitgenius_reminders');
-    if (saved) return JSON.parse(saved);
-    return [
-      { id: '1', type: 'water', time: '09:00', enabled: true, label: 'Hidratação Matinal' },
-      { id: '2', type: 'water', time: '11:00', enabled: true, label: 'Hidratação Pré-Almoço' },
-      { id: '3', type: 'meal', time: '12:30', enabled: true, label: 'Almoço Planejado' },
-      { id: '4', type: 'water', time: '15:00', enabled: true, label: 'Hidratação Tarde' },
-      { id: '5', type: 'workout', time: '18:00', enabled: true, label: 'Hora de Treinar!' },
-      { id: '6', type: 'meal', time: '20:00', enabled: true, label: 'Jantar Leve' },
-    ];
-  });
-  const [showSaved, setShowSaved] = React.useState(false);
+interface Props {
+  userId: string;
+}
+
+const DEFAULT_REMINDERS: Reminder[] = [
+  { id: '1', type: 'water', time: '09:00', enabled: true, label: 'Hidratação Matinal' },
+  { id: '2', type: 'water', time: '11:00', enabled: true, label: 'Hidratação Pré-Almoço' },
+  { id: '3', type: 'meal', time: '12:30', enabled: true, label: 'Almoço Planejado' },
+  { id: '4', type: 'water', time: '15:00', enabled: true, label: 'Hidratação Tarde' },
+  { id: '5', type: 'workout', time: '18:00', enabled: true, label: 'Hora de Treinar!' },
+  { id: '6', type: 'meal', time: '20:00', enabled: true, label: 'Jantar Leve' },
+];
+
+export function ReminderSettings({ userId }: Props) {
+  const [reminders, setReminders] = useState<Reminder[]>(DEFAULT_REMINDERS);
+  const [showSaved, setShowSaved] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadReminders = async () => {
+      try {
+        const docRef = doc(db, `users/${userId}/data/reminders`);
+        const snap = await getDoc(docRef);
+        if (snap.exists()) {
+          setReminders(snap.data().reminders || DEFAULT_REMINDERS);
+        }
+      } catch (err) {
+        console.error("Error loading reminders:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadReminders();
+  }, [userId]);
 
   const toggleReminder = (id: string) => {
     setReminders(prev => prev.map(r => r.id === id ? { ...r, enabled: !r.enabled } : r));
@@ -33,11 +55,40 @@ export function ReminderSettings() {
     setReminders(prev => prev.map(r => r.id === id ? { ...r, time } : r));
   };
 
-  const handleSave = () => {
-    localStorage.setItem('fitgenius_reminders', JSON.stringify(reminders));
-    setShowSaved(true);
-    setTimeout(() => setShowSaved(false), 3000);
+  const handleSave = async () => {
+    try {
+      const docRef = doc(db, `users/${userId}/data/reminders`);
+      await setDoc(docRef, { reminders, updatedAt: new Date().toISOString() }, { merge: true });
+      setShowSaved(true);
+      setTimeout(() => setShowSaved(false), 3000);
+    } catch (err) {
+      console.error("Error saving reminders:", err);
+    }
   };
+
+  const handleTestTrigger = async () => {
+    const testReminder = {
+      id: 'test-' + Date.now(),
+      type: 'workout' as const,
+      time: 'TEST',
+      enabled: true,
+      label: 'Teste de Alarme SpeltaFit'
+    };
+    try {
+      const docRef = doc(db, `users/${userId}/data/reminders`);
+      await setDoc(docRef, { testTrigger: testReminder, testTriggerTime: Date.now() }, { merge: true });
+    } catch (err) {
+      console.error("Error triggering test:", err);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-brand"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
@@ -60,18 +111,7 @@ export function ReminderSettings() {
 
         <div className="flex flex-wrap gap-3">
           <button 
-            onClick={() => {
-              const testReminder = {
-                id: 'test-' + Date.now(),
-                type: 'workout' as const,
-                time: 'TEST',
-                enabled: true,
-                label: 'Teste de Alarme SpeltaFit'
-              };
-              localStorage.setItem('fitgenius_reminders_trigger_test', JSON.stringify(testReminder));
-              // Dispatch storage event manually because localStorage.setItem doesn't trigger it on the same window
-              window.dispatchEvent(new Event('storage'));
-            }}
+            onClick={handleTestTrigger}
             className="flex items-center gap-2 px-4 py-2 rounded-xl bg-surface border border-border text-text-main font-bold hover:bg-bg-main transition-all text-sm"
           >
             <Volume2 className="w-4 h-4" />

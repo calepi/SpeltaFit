@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { 
   Settings, 
   Database, 
@@ -14,27 +14,47 @@ import {
   ChevronLeft
 } from 'lucide-react';
 import { motion } from 'motion/react';
+import html2pdf from 'html2pdf.js';
 
 interface TechnicalDocumentationProps {
   onBack?: () => void;
 }
 
 export function TechnicalDocumentation({ onBack }: TechnicalDocumentationProps) {
+  const contentRef = useRef<HTMLDivElement>(null);
+
   const handlePrint = () => {
-    window.print();
+    if (!contentRef.current) return;
+    
+    const opt = {
+      margin:       10,
+      filename:     'SpeltaFit_Documentacao_Tecnica.pdf',
+      image:        { type: 'jpeg', quality: 0.98 },
+      html2canvas:  { scale: 2, useCORS: true },
+      jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    };
+
+    // Hide buttons before generating PDF
+    const buttons = contentRef.current.querySelectorAll('.pdf-exclude');
+    buttons.forEach(btn => (btn as HTMLElement).style.display = 'none');
+
+    html2pdf().set(opt).from(contentRef.current).save().then(() => {
+      // Restore buttons after generating PDF
+      buttons.forEach(btn => (btn as HTMLElement).style.display = '');
+    });
   };
 
   return (
-    <div className="max-w-6xl mx-auto space-y-8 pb-20 print:p-0 print:m-0 print:max-w-none">
+    <div className="max-w-6xl mx-auto space-y-8 pb-20" ref={contentRef}>
       {/* Header */}
-      <div className="bg-surface border border-border rounded-[2.5rem] p-8 md:p-12 shadow-xl relative overflow-hidden print:shadow-none print:border-none print:rounded-none">
-        <div className="absolute top-0 right-0 w-1/3 h-full bg-gradient-to-l from-brand/5 to-transparent pointer-events-none print:hidden" />
+      <div className="bg-surface border border-border rounded-[2.5rem] p-8 md:p-12 shadow-xl relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-1/3 h-full bg-gradient-to-l from-brand/5 to-transparent pointer-events-none" />
         <div className="relative z-10 space-y-4">
           <div className="flex items-center justify-between">
             <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-brand/10 text-brand text-xs font-black uppercase tracking-widest">
               Documentação Técnica do Sistema
             </div>
-            <div className="flex gap-2 print:hidden">
+            <div className="flex gap-2 pdf-exclude">
                {onBack && (
                 <button 
                   onClick={onBack}
@@ -303,7 +323,7 @@ export function TechnicalDocumentation({ onBack }: TechnicalDocumentationProps) 
                 <div>
                   <h4 className="font-black text-sm uppercase mb-2">Progressão de Carga (Progressive Overload Tracker)</h4>
                   <p className="text-sm text-text-muted mb-2">
-                    Sistema de cache local (`localStorage`) e persistência remota (`Firestore`) que compara o volume total (Séries x Reps x Carga) do treino anterior com o atual em tempo real.
+                    Sistema de persistência remota (`Firestore`) que compara o volume total (Séries x Reps x Carga) do treino anterior com o atual em tempo real.
                   </p>
                   <ul className="text-xs text-text-muted list-disc pl-4 space-y-1">
                     <li><strong>Procedimento:</strong> Ao iniciar um treino, o sistema busca o último registro correspondente àquele dia/foco.</li>

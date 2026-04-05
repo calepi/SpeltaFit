@@ -1,6 +1,8 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Bell, Droplets, Utensils, Zap, X, Volume2 } from 'lucide-react';
+import { doc, onSnapshot, setDoc } from 'firebase/firestore';
+import { db } from '../firebase';
 
 interface Reminder {
   id: string;
@@ -10,35 +12,52 @@ interface Reminder {
   label: string;
 }
 
-export function ReminderManager() {
+interface Props {
+  userId: string;
+}
+
+export function ReminderManager({ userId }: Props) {
   const [activeReminder, setActiveReminder] = useState<Reminder | null>(null);
   const lastTriggeredRef = useRef<Record<string, string>>({}); // id -> date string
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const remindersRef = useRef<Reminder[]>([]);
 
   useEffect(() => {
     // Create audio element for the alarm sound
-    // Using a clean, non-annoying beep sound
     const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
     audio.loop = true;
     audioRef.current = audio;
 
-    const checkReminders = () => {
-      // Check for test trigger
-      const testTrigger = localStorage.getItem('fitgenius_reminders_trigger_test');
-      if (testTrigger) {
-        const reminder = JSON.parse(testTrigger);
-        setActiveReminder(reminder);
-        localStorage.removeItem('fitgenius_reminders_trigger_test');
-        if (audioRef.current) {
-          audioRef.current.play().catch(err => console.log('Audio play blocked:', err));
+    if (!userId) return;
+
+    // Listen to Firestore for reminders and test triggers
+    const docRef = doc(db, `users/${userId}/data/reminders`);
+    const unsubscribe = onSnapshot(docRef, (snap) => {
+      if (snap.exists()) {
+        const data = snap.data();
+        if (data.reminders) {
+          remindersRef.current = data.reminders;
         }
-        return;
+        
+        // Check for test trigger
+        if (data.testTrigger && data.testTriggerTime) {
+          // Only trigger if it's recent (within last 10 seconds)
+          if (Date.now() - data.testTriggerTime < 10000) {
+            setActiveReminder(data.testTrigger);
+            if (audioRef.current) {
+              audioRef.current.play().catch(err => console.log('Audio play blocked:', err));
+            }
+            // Clear the test trigger
+            setDoc(docRef, { testTrigger: null, testTriggerTime: null }, { merge: true }).catch(console.error);
+          }
+        }
       }
+    });
 
-      const saved = localStorage.getItem('fitgenius_reminders');
-      if (!saved) return;
+    const checkReminders = () => {
+      const reminders = remindersRef.current;
+      if (!reminders || reminders.length === 0) return;
 
-      const reminders: Reminder[] = JSON.parse(saved);
       const now = new Date();
       const currentTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
       const currentDate = now.toDateString();
@@ -59,15 +78,13 @@ export function ReminderManager() {
       });
     };
 
-    // Listen for storage events to catch test triggers immediately
-    window.addEventListener('storage', checkReminders);
-
     const interval = setInterval(checkReminders, 10000); // Check every 10 seconds for better responsiveness
+    
     return () => {
       clearInterval(interval);
-      window.removeEventListener('storage', checkReminders);
+      unsubscribe();
     };
-  }, []);
+  }, [userId]);
 
   const closeReminder = () => {
     setActiveReminder(null);

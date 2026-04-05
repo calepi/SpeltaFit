@@ -45,28 +45,15 @@ export default function App() {
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  // Load theme from local storage on mount
-  useEffect(() => {
-    const savedTheme = localStorage.getItem('fitgenius_theme') as Theme;
-    if (savedTheme) {
-      setTheme(savedTheme);
-      document.documentElement.setAttribute('data-theme', savedTheme);
-    }
-  }, []);
-
   // Handle Firebase Auth and Data Loading
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
       
       if (currentUser) {
-        // Clear local storage and state to prevent data bleed from previous user
+        // Clear state to prevent data bleed from previous user
         setPlan(null);
         setUserData(null);
-        localStorage.removeItem('fitgenius_plan');
-        localStorage.removeItem('fitgenius_user');
-        localStorage.removeItem('fitgenius_completed_sets');
-        localStorage.removeItem('fitgenius_actual_loads');
 
         // Load data from Firestore
         try {
@@ -85,6 +72,10 @@ export default function App() {
           if (userDocSnap.exists()) {
             const userData = userDocSnap.data();
             setHasSubscription(userData.hasSubscription === true || userData.role === 'admin' || currentUser.email === 'calepi@gmail.com');
+            if (userData.theme) {
+              setTheme(userData.theme as Theme);
+              document.documentElement.setAttribute('data-theme', userData.theme);
+            }
           }
 
           const anamnesisRef = doc(db, `users/${currentUser.uid}/data/anamnesis`);
@@ -139,10 +130,6 @@ export default function App() {
       setUserData(null);
       setHasSubscription(false);
       setAppState('landing');
-      localStorage.removeItem('fitgenius_plan');
-      localStorage.removeItem('fitgenius_user');
-      localStorage.removeItem('fitgenius_completed_sets');
-      localStorage.removeItem('fitgenius_actual_loads');
     } catch (err) {
       console.error("Logout error:", err);
     }
@@ -168,10 +155,17 @@ export default function App() {
     }, 2000);
   };
 
-  const handleThemeChange = (newTheme: Theme) => {
+  const handleThemeChange = async (newTheme: Theme) => {
     setTheme(newTheme);
     document.documentElement.setAttribute('data-theme', newTheme);
-    localStorage.setItem('fitgenius_theme', newTheme);
+    if (user) {
+      try {
+        const userDocRef = doc(db, 'users', user.uid);
+        await setDoc(userDocRef, { theme: newTheme }, { merge: true });
+      } catch (err) {
+        console.error("Error saving theme:", err);
+      }
+    }
   };
 
   const handleAnamnesisSubmit = async (data: AnamnesisData) => {
@@ -721,8 +715,8 @@ export default function App() {
               <GamificationDashboard userId={user.uid} />
             )}
 
-            {appState === 'reminders' && (
-              <ReminderSettings />
+            {appState === 'reminders' && user && (
+              <ReminderSettings userId={user.uid} />
             )}
 
             {appState === 'manual' && (
@@ -754,7 +748,7 @@ export default function App() {
       </footer>
 
       {/* Reminder Manager (Background Logic) */}
-      <ReminderManager />
+      {user && <ReminderManager userId={user.uid} />}
     </div>
   );
 }
