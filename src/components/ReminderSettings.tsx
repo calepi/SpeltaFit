@@ -82,59 +82,101 @@ export function ReminderSettings({ userId }: Props) {
       const newReminders: Reminder[] = [];
       let reminderIdCounter = 1;
 
+      // Fetch Physical Anamnesis for Weight (needed for water calculation)
+      const physicalDoc = await getDoc(doc(db, `users/${userId}/data/anamnesis`));
+      const physicalData = physicalDoc.exists() ? physicalDoc.data() : null;
+      const weight = physicalData?.weight || 70;
+
       // Fetch Diet Plan
       const dietDoc = await getDoc(doc(db, `users/${userId}/data/dietPlan`));
       if (dietDoc.exists()) {
         const dietPlan = dietDoc.data() as DietPlan;
         if (dietPlan.meals && dietPlan.meals.length > 0) {
-          dietPlan.meals.forEach(meal => {
-            newReminders.push({
-              id: `sync-meal-${reminderIdCounter++}`,
-              type: 'meal',
-              time: meal.time || '12:00',
-              enabled: true,
-              label: meal.name
+          // Check if it's the "Behavioral Adjustment" phase (Month 1/2 for beginners)
+          const isBehavioralPhase = dietPlan.meals.length === 1 && dietPlan.meals[0].time === 'Dia Todo';
+
+          if (isBehavioralPhase) {
+            // Generate standard meal times for behavioral phase
+            const behavioralMeals = [
+              { name: 'Café da Manhã (Foco em Proteína)', time: '08:00' },
+              { name: 'Almoço (50% Vegetais)', time: '12:30' },
+              { name: 'Lanche (Fruta + Proteína)', time: '16:00' },
+              { name: 'Jantar (Leve e Nutritivo)', time: '20:00' }
+            ];
+            behavioralMeals.forEach(m => {
+              newReminders.push({
+                id: `sync-meal-${reminderIdCounter++}`,
+                type: 'meal',
+                time: m.time,
+                enabled: true,
+                label: m.name
+              });
             });
-          });
+          } else {
+            dietPlan.meals.forEach(meal => {
+              let mealTime = meal.time;
+              
+              // Handle relative times like "1 hora antes"
+              if (mealTime.includes('antes') || mealTime.includes('janela') || mealTime === 'Dia Todo') {
+                // Default based on meal name
+                const name = meal.name.toLowerCase();
+                if (name.includes('café') || name.includes('cafe')) mealTime = '08:00';
+                else if (name.includes('almoço') || name.includes('almoco')) mealTime = '12:30';
+                else if (name.includes('lanche') && name.includes('tarde')) mealTime = '16:00';
+                else if (name.includes('jantar')) mealTime = '20:00';
+                else if (name.includes('ceia')) mealTime = '22:30';
+                else if (name.includes('pré') || name.includes('pre')) mealTime = '17:00';
+                else mealTime = '12:00';
+              }
+
+              newReminders.push({
+                id: `sync-meal-${reminderIdCounter++}`,
+                type: 'meal',
+                time: mealTime,
+                enabled: true,
+                label: meal.name
+              });
+            });
+          }
         }
       }
 
       // Fetch Anamnesis for Water
       const anamnesisDoc = await getDoc(doc(db, `users/${userId}/data/nutritionalAnamnesis`));
-      if (anamnesisDoc.exists()) {
-        const anamnesis = anamnesisDoc.data() as NutritionalAnamnesis;
-        const waterIntake = anamnesis.waterIntake || 2500; // Default 2.5L
-        
-        // Create water reminders based on total intake
-        // E.g., 1 glass (250ml) every X hours
-        const glasses = Math.ceil(waterIntake / 250);
-        const maxWaterAlarms = 8; // Don't overwhelm the user
-        const numAlarms = Math.min(glasses, maxWaterAlarms);
-        const mlPerAlarm = Math.round(waterIntake / numAlarms);
-        
-        const startHour = 8; // 8 AM
-        const endHour = 20; // 8 PM
-        const interval = (endHour - startHour) / (numAlarms > 1 ? numAlarms - 1 : 1);
+      const anamnesis = anamnesisDoc.exists() ? (anamnesisDoc.data() as NutritionalAnamnesis) : null;
+      
+      // Use user's water intake if set, otherwise calculate based on weight (35ml/kg)
+      const waterIntake = anamnesis?.waterIntake || Math.round(weight * 35);
+      
+      // Create water reminders based on total intake
+      const glasses = Math.ceil(waterIntake / 250);
+      const maxWaterAlarms = 8; 
+      const numAlarms = Math.min(glasses, maxWaterAlarms);
+      const mlPerAlarm = Math.round(waterIntake / numAlarms);
+      
+      const startHour = 8; // 8 AM
+      const endHour = 21; // 9 PM
+      const interval = (endHour - startHour) / (numAlarms > 1 ? numAlarms - 1 : 1);
 
-        for (let i = 0; i < numAlarms; i++) {
-          const hour = Math.floor(startHour + (i * interval));
-          const minute = Math.round(((startHour + (i * interval)) % 1) * 60);
-          const timeStr = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
-          
-          newReminders.push({
-            id: `sync-water-${reminderIdCounter++}`,
-            type: 'water',
-            time: timeStr,
-            enabled: true,
-            label: `Beber Água (${mlPerAlarm}ml)`
-          });
-        }
+      for (let i = 0; i < numAlarms; i++) {
+        const hour = Math.floor(startHour + (i * interval));
+        const minute = Math.round(((startHour + (i * interval)) % 1) * 60);
+        const timeStr = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
+        
+        newReminders.push({
+          id: `sync-water-${reminderIdCounter++}`,
+          type: 'water',
+          time: timeStr,
+          enabled: true,
+          label: `Beber Água (${mlPerAlarm}ml)`
+        });
       }
 
       // Fetch Workout Plan
       const workoutDoc = await getDoc(doc(db, `users/${userId}/data/workoutPlan`));
       if (workoutDoc.exists()) {
-        // Just add one general workout reminder if they have a plan
+        // Default workout time to 18:00, but try to find a better one if possible
+        // (In a real app we might have a preferred training time in anamnesis)
         newReminders.push({
           id: `sync-workout-${reminderIdCounter++}`,
           type: 'workout',
