@@ -88,6 +88,25 @@ export function ReminderSettings({ userId }: Props) {
         });
       }
 
+      // Fetch Nutritional Plan
+      const nutriDoc = await getDoc(doc(db, `users/${userId}/data/nutriPlan`));
+      if (nutriDoc.exists()) {
+        const nutriData = nutriDoc.data();
+        if (nutriData.meals && Array.isArray(nutriData.meals)) {
+          nutriData.meals.forEach((meal: any) => {
+            if (meal.time && meal.time !== 'Horário a definir') {
+              newReminders.push({
+                id: `sync-meal-${reminderIdCounter++}`,
+                type: 'custom', // using custom or we can add 'meal' type if supported
+                time: meal.time,
+                enabled: true,
+                label: `Refeição: ${meal.name}`
+              });
+            }
+          });
+        }
+      }
+
       if (newReminders.length > 0) {
         newReminders.sort((a, b) => a.time.localeCompare(b.time));
         setReminders(newReminders);

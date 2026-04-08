@@ -89,33 +89,105 @@ export async function generateNutritionalPlan(data: NutriAnamnesisData): Promise
     emotionalGuidelines = 'Recompensa Não Alimentar: Você não é um cachorro para se recompensar com comida. Crie uma lista de recompensas não ligadas à alimentação (comprar algo, assistir um filme, um banho relaxante) para celebrar suas vitórias.';
   }
 
-  // 8. Generate Meals (Simplified for now, can be expanded significantly)
+  // 8. Generate Meals (Detailed Menu)
   const mealsCount = parseInt(data.mealsPerDay.charAt(0)) || 4;
   const meals = [];
   
   const mealNames = ['Café da Manhã', 'Lanche da Manhã', 'Almoço', 'Lanche da Tarde', 'Jantar', 'Ceia'];
   const times = ['07:00', '10:00', '13:00', '16:00', '19:30', '22:00'];
 
+  const mealProtein = Math.round(proteinGrams / mealsCount);
+  const mealCarbs = Math.round(carbGrams / mealsCount);
+  const mealFats = Math.round(fatGrams / mealsCount);
+
+  // Helper to generate options based on meal type and macros
+  const generateOptions = (mealName: string, isLowCarb: boolean) => {
+    const options = [];
+    
+    if (mealName.includes('Café') || mealName.includes('Lanche da Manhã')) {
+      options.push({
+        description: 'Opção 1: Ovos Mexidos com Pão e Fruta',
+        items: [
+          `Proteína: ${Math.round(mealProtein / 6)} ovos inteiros mexidos`,
+          isLowCarb ? `Carboidrato: 1 porção pequena de mamão` : `Carboidrato: ${Math.round(mealCarbs / 25)} fatias de pão integral + 1 fruta`,
+          `Gordura: Preparar com 1 fio de azeite`,
+          `Preparo: Bata os ovos com uma pitada de sal. Aqueça a frigideira com azeite e mexa até o ponto desejado.`,
+          `Substituição: Troque os ovos por ${mealProtein}g de frango desfiado ou atum.`
+        ]
+      });
+      options.push({
+        description: 'Opção 2: Mingau de Aveia Proteico (Doce)',
+        items: [
+          `Proteína: 1 scoop (${mealProtein}g) de Whey Protein`,
+          isLowCarb ? `Carboidrato: 2 colheres de sopa de aveia` : `Carboidrato: ${Math.round(mealCarbs / 15)} colheres de sopa de aveia + 1 banana amassada`,
+          `Gordura: 1 colher de sopa de pasta de amendoim`,
+          `Preparo: Cozinhe a aveia com água ou leite desnatado. Desligue o fogo, misture o whey e a pasta de amendoim.`,
+          `Substituição: Troque o whey por iogurte natural proteico.`
+        ]
+      });
+    } else if (mealName.includes('Almoço') || mealName.includes('Jantar')) {
+      options.push({
+        description: 'Opção 1: Prato Tradicional Brasileiro',
+        items: [
+          `Proteína: ${mealProtein * 3}g de Peito de Frango grelhado ou Patinho moído`,
+          isLowCarb ? `Carboidrato: Apenas legumes (brócolis, couve-flor, abobrinha)` : `Carboidrato: ${Math.round(mealCarbs * 3)}g de Arroz integral + ${Math.round(mealCarbs)}g de Feijão`,
+          `Gordura: ${Math.round(mealFats)}ml de Azeite de oliva extra virgem (fio por cima da salada)`,
+          `Vegetais: Salada de folhas verdes à vontade (alface, rúcula, espinafre)`,
+          `Preparo: Grelhe a carne com temperos naturais (alho, cebola, páprica). Evite óleo em excesso.`,
+          `Substituição: Troque o frango por peixe magro (tilápia) ou carne suína magra (lombo).`
+        ]
+      });
+      options.push({
+        description: 'Opção 2: Macarrão Proteico Rápido',
+        items: [
+          `Proteína: ${mealProtein * 3}g de Carne moída magra (Patinho)`,
+          isLowCarb ? `Carboidrato: Macarrão de abobrinha ou pupunha` : `Carboidrato: ${Math.round(mealCarbs * 3)}g de Macarrão integral (peso cozido)`,
+          `Gordura: Molho de tomate natural (sem óleo adicionado)`,
+          `Vegetais: Adicione cenoura ralada e espinafre no molho`,
+          `Preparo: Refogue a carne com cebola e alho, adicione o molho de tomate natural e deixe apurar. Misture com a massa.`,
+          `Substituição: Troque a carne moída por atum ralado ao natural ou frango desfiado.`
+        ]
+      });
+    } else {
+      // Lanches da tarde / Ceia
+      options.push({
+        description: 'Opção 1: Iogurte com Frutas e Castanhas',
+        items: [
+          `Proteína: 1 pote de Iogurte Natural Desnatado + ${Math.round(mealProtein / 2)}g de Whey (opcional)`,
+          isLowCarb ? `Carboidrato: 5 morangos picados` : `Carboidrato: 1 maçã picada ou 1/2 mamão papaia`,
+          `Gordura: ${Math.round(mealFats)}g de mix de castanhas ou nozes`,
+          `Preparo: Misture tudo em um bowl. Pode adicionar canela em pó a gosto.`,
+          `Substituição: Troque o iogurte por queijo cottage ou ricota amassada.`
+        ]
+      });
+      options.push({
+        description: 'Opção 2: Sanduíche Natural',
+        items: [
+          `Proteína: ${mealProtein * 2}g de Frango desfiado com requeijão light`,
+          isLowCarb ? `Carboidrato: Enrolado em folha de couve (Wrap de couve)` : `Carboidrato: 2 fatias de pão de forma integral`,
+          `Gordura: O requeijão light já fornece a gordura necessária`,
+          `Vegetais: Alface, tomate e cenoura ralada dentro do sanduíche`,
+          `Preparo: Misture o frango com o requeijão e monte o sanduíche com os vegetais.`,
+          `Substituição: Troque o frango por ovos cozidos amassados (patê de ovo).`
+        ]
+      });
+    }
+    return options;
+  };
+
+  const isLowCarb = data.dietaryPreference.includes('Low Carb') || data.dietaryPreference.includes('Cetogênica');
+
   for (let i = 0; i < mealsCount; i++) {
-    // Distribute names based on count
     let nameIndex = i;
     if (mealsCount === 3) nameIndex = i * 2; // 0, 2, 4 (Café, Almoço, Jantar)
     if (mealsCount === 4 && i === 3) nameIndex = 4; // 0, 1, 2, 4 (Café, Lanche, Almoço, Jantar)
 
+    const mealName = mealNames[nameIndex] || `Refeição ${i + 1}`;
+    
     meals.push({
-      name: mealNames[nameIndex] || `Refeição ${i + 1}`,
+      name: mealName,
       time: times[nameIndex] || 'Horário a definir',
-      options: [
-        {
-          description: 'Opção Padrão',
-          items: [
-            `Proteína: ${Math.round(proteinGrams / mealsCount)}g (Ex: Frango, Ovo, Whey)`,
-            `Carboidrato: ${Math.round(carbGrams / mealsCount)}g (Ex: Arroz, Batata, Aveia)`,
-            `Gordura: ${Math.round(fatGrams / mealsCount)}g (Ex: Azeite, Castanhas, Abacate)`,
-            'Vegetais à vontade'
-          ]
-        }
-      ]
+      options: generateOptions(mealName, isLowCarb)
     });
   }
 

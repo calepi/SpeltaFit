@@ -104,16 +104,35 @@ export function NutritionalPlanView({ plan, userData, onReset }: Props) {
                   {meal.time}
                 </div>
               </div>
-              <div className="p-6">
+              <div className="p-6 space-y-6">
                 {meal.options.map((option, optIdx) => (
-                  <div key={optIdx}>
-                    <ul className="space-y-2">
-                      {option.items.map((item, itemIdx) => (
-                        <li key={itemIdx} className="flex items-start gap-2 text-sm text-gray-700">
-                          <CheckCircle className="w-4 h-4 text-brand mt-0.5 shrink-0" />
-                          <span>{item}</span>
-                        </li>
-                      ))}
+                  <div key={optIdx} className="bg-white rounded-xl border border-gray-100 p-4 shadow-sm">
+                    <h4 className="font-bold text-brand mb-3 pb-2 border-b border-gray-100">{option.description}</h4>
+                    <ul className="space-y-3">
+                      {option.items.map((item, itemIdx) => {
+                        // Highlight specific keywords for better readability
+                        const isPreparation = item.startsWith('Preparo:');
+                        const isSubstitution = item.startsWith('Substituição:');
+                        
+                        return (
+                          <li key={itemIdx} className="flex items-start gap-3 text-sm text-gray-700">
+                            {isPreparation ? (
+                              <div className="w-5 h-5 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center shrink-0 mt-0.5">
+                                <span className="text-[10px] font-bold">P</span>
+                              </div>
+                            ) : isSubstitution ? (
+                              <div className="w-5 h-5 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center shrink-0 mt-0.5">
+                                <span className="text-[10px] font-bold">S</span>
+                              </div>
+                            ) : (
+                              <CheckCircle className="w-5 h-5 text-green-500 shrink-0 mt-0.5" />
+                            )}
+                            <span className={isPreparation || isSubstitution ? 'font-medium text-gray-900' : ''}>
+                              {item}
+                            </span>
+                          </li>
+                        );
+                      })}
                     </ul>
                   </div>
                 ))}
