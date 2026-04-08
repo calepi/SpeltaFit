@@ -97,7 +97,7 @@ export function ReminderSettings({ userId }: Props) {
             if (meal.time && meal.time !== 'Horário a definir') {
               newReminders.push({
                 id: `sync-meal-${reminderIdCounter++}`,
-                type: 'custom', // using custom or we can add 'meal' type if supported
+                type: 'meal',
                 time: meal.time,
                 enabled: true,
                 label: `Refeição: ${meal.name}`
@@ -105,6 +105,18 @@ export function ReminderSettings({ userId }: Props) {
             }
           });
         }
+        
+        // Add Water Reminders automatically if they have a nutritional plan
+        const waterTimes = ['08:30', '11:30', '14:30', '17:30', '20:30'];
+        waterTimes.forEach(time => {
+          newReminders.push({
+            id: `sync-water-${reminderIdCounter++}`,
+            type: 'water',
+            time: time,
+            enabled: true,
+            label: 'Hora de se hidratar! 💧'
+          });
+        });
       }
 
       if (newReminders.length > 0) {

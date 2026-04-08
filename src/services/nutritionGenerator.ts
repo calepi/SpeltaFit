@@ -125,6 +125,16 @@ export async function generateNutritionalPlan(data: NutriAnamnesisData): Promise
           `Substituição: Troque o whey por iogurte natural proteico.`
         ]
       });
+      options.push({
+        description: 'Opção 3: Crepioca Recheada',
+        items: [
+          `Proteína: ${mealProtein}g de Frango desfiado ou Queijo branco magro`,
+          isLowCarb ? `Carboidrato: Massa feita apenas com ovos (Omelete)` : `Carboidrato: Massa com 2 colheres de goma de tapioca + 1 ovo`,
+          `Gordura: Ovos e queijo já fornecem a gordura`,
+          `Preparo: Misture a tapioca com o ovo, faça a massa na frigideira e recheie com a proteína.`,
+          `Substituição: Troque o frango por carne moída magra.`
+        ]
+      });
     } else if (mealName.includes('Almoço') || mealName.includes('Jantar')) {
       options.push({
         description: 'Opção 1: Prato Tradicional Brasileiro',
@@ -148,6 +158,17 @@ export async function generateNutritionalPlan(data: NutriAnamnesisData): Promise
           `Substituição: Troque a carne moída por atum ralado ao natural ou frango desfiado.`
         ]
       });
+      options.push({
+        description: 'Opção 3: Escondidinho Fit',
+        items: [
+          `Proteína: ${mealProtein * 3}g de Frango desfiado`,
+          isLowCarb ? `Carboidrato: Purê de couve-flor ou abóbora cabotiá` : `Carboidrato: ${Math.round(mealCarbs * 4)}g de Purê de batata doce ou aipim`,
+          `Gordura: Fio de azeite para refogar`,
+          `Vegetais: Salada de tomate com pepino para acompanhar`,
+          `Preparo: Faça o purê cozinhando os vegetais. Monte em camadas (purê, frango, purê) e leve ao forno para gratinar.`,
+          `Substituição: Troque o purê de batata doce por purê de mandioquinha.`
+        ]
+      });
     } else {
       // Lanches da tarde / Ceia
       options.push({
@@ -169,6 +190,16 @@ export async function generateNutritionalPlan(data: NutriAnamnesisData): Promise
           `Vegetais: Alface, tomate e cenoura ralada dentro do sanduíche`,
           `Preparo: Misture o frango com o requeijão e monte o sanduíche com os vegetais.`,
           `Substituição: Troque o frango por ovos cozidos amassados (patê de ovo).`
+        ]
+      });
+      options.push({
+        description: 'Opção 3: Vitamina Proteica (Shake Rápido)',
+        items: [
+          `Proteína: 1 scoop (${mealProtein}g) de Whey Protein ou Albumina`,
+          isLowCarb ? `Carboidrato: Leite de amêndoas sem açúcar` : `Carboidrato: 200ml de Leite desnatado + 1 fruta (banana ou maçã)`,
+          `Gordura: 1 colher de sopa de chia ou linhaça`,
+          `Preparo: Bata tudo no liquidificador com gelo.`,
+          `Substituição: Pode usar leite de soja zero açúcar no lugar do leite desnatado.`
         ]
       });
     }
