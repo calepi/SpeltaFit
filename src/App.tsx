@@ -6,16 +6,14 @@ import { AdminDashboard } from './components/AdminDashboard';
 import { ExerciseLibrary } from './components/ExerciseLibrary';
 import { AnamnesisData, WorkoutPlan, ExistingDay } from './services/workoutGenerator';
 import { generateWorkoutPlanRuleBased } from './services/workoutGenerator';
-import { generateDietPlan } from './services/nutritionGenerator';
 import { Logo } from './components/Logo';
-import { LogIn, LogOut, User as UserIcon, Shield, BookOpen, Apple, Users, Palette, TrendingUp, HelpCircle, Trophy, Bell, Menu, X } from 'lucide-react';
+import { LogIn, LogOut, User as UserIcon, Shield, BookOpen, Users, Palette, TrendingUp, HelpCircle, Trophy, Bell, Menu, X, Apple } from 'lucide-react';
 import { ReminderSettings } from './components/ReminderSettings';
 import { ReminderManager } from './components/ReminderManager';
 import { auth, db, googleProvider } from './firebase';
 import { signInWithPopup, signOut, onAuthStateChanged, User } from 'firebase/auth';
 import { doc, getDoc, setDoc, deleteDoc } from 'firebase/firestore';
 
-import { NutritionalTool } from './components/NutritionalTool';
 import { WorkoutComparisonView } from './components/WorkoutComparisonView';
 import { SpeltaGramFeed } from './components/SpeltaGram';
 import { EvolutionCharts } from './components/EvolutionCharts';
@@ -25,14 +23,21 @@ import { GamificationDashboard } from './components/GamificationDashboard';
 import { TermsOfService } from './components/TermsOfService';
 import { PrivacyPolicy } from './components/PrivacyPolicy';
 import { Paywall } from './components/Paywall';
+import { NutriAnamnesisForm } from './components/NutriAnamnesisForm';
+import { NutritionalPlanView } from './components/NutritionalPlanView';
+import { AuthModal } from './components/AuthModal';
+import { NutriAnamnesisData, NutritionalPlan } from './types/nutrition';
+import { generateNutritionalPlan } from './services/nutritionGenerator';
 
-type AppState = 'landing' | 'form' | 'plan' | 'admin' | 'library' | 'nutrition' | 'speltagram' | 'evolution' | 'manual' | 'documentation' | 'comparison' | 'gamification' | 'reminders' | 'terms' | 'privacy';
+type AppState = 'landing' | 'form' | 'plan' | 'admin' | 'library' | 'speltagram' | 'evolution' | 'manual' | 'documentation' | 'comparison' | 'gamification' | 'reminders' | 'terms' | 'privacy' | 'nutriForm' | 'nutriPlan';
 type Theme = 'default' | 'green' | 'blue' | 'gold';
 
 export default function App() {
   const [appState, setAppState] = useState<AppState>('landing');
   const [plan, setPlan] = useState<WorkoutPlan | null>(null);
   const [userData, setUserData] = useState<AnamnesisData | null>(null);
+  const [nutriData, setNutriData] = useState<NutriAnamnesisData | null>(null);
+  const [nutriPlan, setNutriPlan] = useState<NutritionalPlan | null>(null);
   const [proposedPlan, setProposedPlan] = useState<WorkoutPlan | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -41,6 +46,7 @@ export default function App() {
   // Firebase Auth State
   const [user, setUser] = useState<User | null>(null);
   const [isAuthReady, setIsAuthReady] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
   const [hasSubscription, setHasSubscription] = useState(false);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -80,10 +86,14 @@ export default function App() {
 
           const anamnesisRef = doc(db, `users/${currentUser.uid}/data/anamnesis`);
           const planRef = doc(db, `users/${currentUser.uid}/data/workoutPlan`);
+          const nutriAnamnesisRef = doc(db, `users/${currentUser.uid}/data/nutriAnamnesis`);
+          const nutriPlanRef = doc(db, `users/${currentUser.uid}/data/nutriPlan`);
           
-          const [anamnesisSnap, planSnap] = await Promise.all([
+          const [anamnesisSnap, planSnap, nutriAnamnesisSnap, nutriPlanSnap] = await Promise.all([
             getDoc(anamnesisRef),
-            getDoc(planRef)
+            getDoc(planRef),
+            getDoc(nutriAnamnesisRef),
+            getDoc(nutriPlanRef)
           ]);
 
           if (anamnesisSnap.exists() && planSnap.exists()) {
@@ -95,6 +105,18 @@ export default function App() {
             setUserData(null);
             if (appState === 'plan') setAppState('landing');
           }
+
+          if (nutriAnamnesisSnap.exists()) {
+            setNutriData(nutriAnamnesisSnap.data() as NutriAnamnesisData);
+          } else {
+            setNutriData(null);
+          }
+
+          if (nutriPlanSnap.exists()) {
+            setNutriPlan(nutriPlanSnap.data() as NutritionalPlan);
+          } else {
+            setNutriPlan(null);
+          }
         } catch (err) {
           console.error("Error loading user data from Firestore:", err);
         }
@@ -102,7 +124,9 @@ export default function App() {
         // Clear state if not logged in
         setPlan(null);
         setUserData(null);
-        if (appState === 'plan' || appState === 'form' || appState === 'admin') {
+        setNutriData(null);
+        setNutriPlan(null);
+        if (appState === 'plan' || appState === 'form' || appState === 'admin' || appState === 'nutriForm' || appState === 'nutriPlan') {
           setAppState('landing');
         }
       }
@@ -112,15 +136,8 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
-  const handleLogin = async () => {
-    try {
-      await signInWithPopup(auth, googleProvider);
-    } catch (err: any) {
-      console.error("Login error:", err);
-      if (err.code !== 'auth/popup-closed-by-user' && err.code !== 'auth/cancelled-popup-request') {
-        alert(`Erro ao fazer login (${err.code || 'erro desconhecido'}). Certifique-se de que o domínio está autorizado no Console do Firebase.`);
-      }
-    }
+  const handleLogin = () => {
+    setShowAuthModal(true);
   };
 
   const handleLogout = async () => {
@@ -185,20 +202,6 @@ export default function App() {
 
       const generatedPlan = await generateWorkoutPlanRuleBased(finalData);
       
-      // Generate Diet Plan
-      const nutritionalData = {
-        mealCount: finalData.mealCount,
-        dietType: finalData.dietType,
-        allergies: finalData.allergies || '',
-        dislikes: finalData.dislikes || '',
-        budget: finalData.budget,
-        cookingTime: finalData.cookingTime,
-        supplements: Array.isArray(finalData.supplements) ? finalData.supplements : (typeof finalData.supplements === 'string' ? (finalData.supplements as string).split(',').map(s => s.trim()) : []),
-        waterIntake: finalData.waterIntake,
-        updatedAt: new Date().toISOString()
-      };
-      const generatedDietPlan = await generateDietPlan(finalData, nutritionalData);
-      
       if (finalData.remodelPlan && finalData.structuredExistingPlan && finalData.structuredExistingPlan.length > 0) {
         setProposedPlan(generatedPlan);
         setUserData(finalData);
@@ -209,7 +212,7 @@ export default function App() {
         setAppState('plan');
         
         // Save to Firestore (only if not going to comparison)
-        await savePlanToFirestore(finalData, generatedPlan, generatedDietPlan, nutritionalData);
+        await savePlanToFirestore(finalData, generatedPlan);
       }
     } catch (err) {
       console.error(err);
@@ -219,13 +222,55 @@ export default function App() {
     }
   };
 
-  const savePlanToFirestore = async (data: AnamnesisData, finalPlan: WorkoutPlan, dietPlan?: any, nutritionalData?: any) => {
+  const handleNutriAnamnesisSubmit = async (data: NutriAnamnesisData) => {
+    if (!user) {
+      alert("Você precisa estar logado para gerar um plano nutricional.");
+      return;
+    }
+    
+    setIsLoading(true);
+    setError(null);
+    try {
+      const generatedPlan = await generateNutritionalPlan(data);
+      
+      setNutriPlan(generatedPlan);
+      setNutriData(data);
+      setAppState('nutriPlan');
+      
+      // Save to Firestore
+      const nutriAnamnesisRef = doc(db, `users/${user.uid}/data/nutriAnamnesis`);
+      const nutriPlanRef = doc(db, `users/${user.uid}/data/nutriPlan`);
+      
+      const cleanObject = (obj: any): any => {
+        if (Array.isArray(obj)) {
+          return obj.map(cleanObject);
+        } else if (obj !== null && typeof obj === 'object') {
+          return Object.fromEntries(
+            Object.entries(obj)
+              .filter(([_, v]) => v !== undefined)
+              .map(([k, v]) => [k, cleanObject(v)])
+          );
+        }
+        return obj;
+      };
+
+      await Promise.all([
+        setDoc(nutriAnamnesisRef, { ...cleanObject(data), updatedAt: new Date().toISOString() }),
+        setDoc(nutriPlanRef, { ...cleanObject(generatedPlan), createdAt: new Date().toISOString() })
+      ]);
+    } catch (err) {
+      console.error(err);
+      setError(err instanceof Error ? err.message : 'Ocorreu um erro ao gerar seu plano nutricional. Por favor, tente novamente.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const savePlanToFirestore = async (data: AnamnesisData, finalPlan: WorkoutPlan) => {
     if (!user) return;
     
     const anamnesisRef = doc(db, `users/${user.uid}/data/anamnesis`);
     const planRef = doc(db, `users/${user.uid}/data/workoutPlan`);
-    const dietPlanRef = doc(db, `users/${user.uid}/data/dietPlan`);
-    const nutritionalAnamnesisRef = doc(db, `users/${user.uid}/data/nutritionalAnamnesis`);
     
     const cleanObject = (obj: any): any => {
       if (Array.isArray(obj)) {
@@ -248,22 +293,11 @@ export default function App() {
       setDoc(planRef, { ...cleanPlan, createdAt: new Date().toISOString() })
     ];
 
-    if (dietPlan && nutritionalData) {
-      const cleanDietPlan = cleanObject(dietPlan);
-      const cleanNutritionalData = cleanObject(nutritionalData);
-      promises.push(
-        setDoc(dietPlanRef, { ...cleanDietPlan, createdAt: new Date().toISOString() }),
-        setDoc(nutritionalAnamnesisRef, { ...cleanNutritionalData, updatedAt: new Date().toISOString() })
-      );
-    }
-
     await Promise.all(promises);
     
     const progressRef = doc(db, `users/${user.uid}/data/progress`);
-    const nutritionTrackingRef = doc(db, `users/${user.uid}/data/nutritionTracking`);
     await Promise.all([
-      deleteDoc(progressRef).catch(() => {}),
-      deleteDoc(nutritionTrackingRef).catch(() => {})
+      deleteDoc(progressRef).catch(() => {})
     ]);
   };
 
@@ -272,21 +306,7 @@ export default function App() {
     setPlan(finalPlan);
     setAppState('plan');
     
-    // For comparison confirm, we also need to generate the diet plan if it wasn't saved yet
-    const nutritionalData = {
-      mealCount: userData.mealCount,
-      dietType: userData.dietType,
-      allergies: userData.allergies || '',
-      dislikes: userData.dislikes || '',
-      budget: userData.budget,
-      cookingTime: userData.cookingTime,
-      supplements: Array.isArray(userData.supplements) ? userData.supplements : (typeof userData.supplements === 'string' ? (userData.supplements as string).split(',').map(s => s.trim()) : []),
-      waterIntake: userData.waterIntake,
-      updatedAt: new Date().toISOString()
-    };
-    const generatedDietPlan = await generateDietPlan(userData, nutritionalData);
-    
-    await savePlanToFirestore(userData, finalPlan, generatedDietPlan, nutritionalData);
+    await savePlanToFirestore(userData, finalPlan);
   };
 
   const handleUpdatePlan = async (newPlan: WorkoutPlan) => {
@@ -386,6 +406,13 @@ export default function App() {
             {user && (
               <>
                 <button 
+                  onClick={() => setAppState(appState === 'nutriForm' || appState === 'nutriPlan' ? 'plan' : (nutriPlan ? 'nutriPlan' : 'nutriForm'))}
+                  className={`p-2 rounded-xl transition-colors ${appState === 'nutriForm' || appState === 'nutriPlan' ? 'bg-brand text-text-inverse' : 'bg-brand/10 text-brand hover:bg-brand/20'}`}
+                  title="SpeltaNutri"
+                >
+                  <Apple className="w-5 h-5" />
+                </button>
+                <button 
                   onClick={() => setAppState(appState === 'gamification' ? 'plan' : 'gamification')}
                   className={`p-2 rounded-xl transition-colors ${appState === 'gamification' ? 'bg-brand text-text-inverse' : 'bg-brand/10 text-brand hover:bg-brand/20'}`}
                   title="Gamificação"
@@ -415,13 +442,6 @@ export default function App() {
                   <Users className="w-5 h-5" />
                 </button>
                 <button 
-                  onClick={() => setAppState(appState === 'nutrition' ? 'plan' : 'nutrition')}
-                  className={`p-2 rounded-xl transition-colors ${appState === 'nutrition' ? 'bg-brand text-text-inverse' : 'bg-brand/10 text-brand hover:bg-brand/20'}`}
-                  title="Ferramenta Nutricional"
-                >
-                  <Apple className="w-5 h-5" />
-                </button>
-                <button 
                   onClick={() => setAppState(appState === 'manual' ? 'plan' : 'manual')}
                   className={`p-2 rounded-xl transition-colors ${appState === 'manual' ? 'bg-brand text-text-inverse' : 'bg-brand/10 text-brand hover:bg-brand/20'}`}
                   title="Manual do Usuário"
@@ -436,7 +456,7 @@ export default function App() {
                   <span className="text-sm font-bold text-text-main">{user.displayName}</span>
                   <span className="text-xs text-text-muted">{user.email}</span>
                 </div>
-                {user.email === 'calepi@gmail.com' && (
+                {(user.email === 'calepi@gmail.com' || user.email === 'tazmania.crvg@gmail.com') && (
                   <button 
                     onClick={() => setAppState('admin')}
                     className={`p-2 rounded-xl transition-colors ${appState === 'admin' ? 'bg-brand text-text-inverse' : 'bg-brand/10 text-brand hover:bg-brand/20'}`}
@@ -515,6 +535,13 @@ export default function App() {
               <>
                 <div className="grid grid-cols-4 gap-2">
                   <button 
+                    onClick={() => { setAppState(appState === 'nutriForm' || appState === 'nutriPlan' ? 'plan' : (nutriPlan ? 'nutriPlan' : 'nutriForm')); setIsMobileMenuOpen(false); }}
+                    className={`flex flex-col items-center justify-center gap-1 p-3 rounded-xl transition-colors ${appState === 'nutriForm' || appState === 'nutriPlan' ? 'bg-brand text-text-inverse' : 'bg-bg-main text-text-main hover:bg-brand/10 hover:text-brand'}`}
+                  >
+                    <Apple className="w-6 h-6" />
+                    <span className="text-[10px] font-bold">Nutrição</span>
+                  </button>
+                  <button 
                     onClick={() => { setAppState('gamification'); setIsMobileMenuOpen(false); }}
                     className={`flex flex-col items-center justify-center gap-1 p-3 rounded-xl transition-colors ${appState === 'gamification' ? 'bg-brand text-text-inverse' : 'bg-bg-main text-text-main hover:bg-brand/10 hover:text-brand'}`}
                   >
@@ -543,13 +570,6 @@ export default function App() {
                     <span className="text-[10px] font-bold">Social</span>
                   </button>
                   <button 
-                    onClick={() => { setAppState('nutrition'); setIsMobileMenuOpen(false); }}
-                    className={`flex flex-col items-center justify-center gap-1 p-3 rounded-xl transition-colors ${appState === 'nutrition' ? 'bg-brand text-text-inverse' : 'bg-bg-main text-text-main hover:bg-brand/10 hover:text-brand'}`}
-                  >
-                    <Apple className="w-6 h-6" />
-                    <span className="text-[10px] font-bold">SpeltaNutri</span>
-                  </button>
-                  <button 
                     onClick={() => { setAppState('library'); setIsMobileMenuOpen(false); }}
                     className={`flex flex-col items-center justify-center gap-1 p-3 rounded-xl transition-colors ${appState === 'library' ? 'bg-brand text-text-inverse' : 'bg-bg-main text-text-main hover:bg-brand/10 hover:text-brand'}`}
                   >
@@ -563,7 +583,7 @@ export default function App() {
                     <HelpCircle className="w-6 h-6" />
                     <span className="text-[10px] font-bold">Manual</span>
                   </button>
-                  {user.email === 'calepi@gmail.com' && (
+                  {(user.email === 'calepi@gmail.com' || user.email === 'tazmania.crvg@gmail.com') && (
                     <button 
                       onClick={() => { setAppState('admin'); setIsMobileMenuOpen(false); }}
                       className={`flex flex-col items-center justify-center gap-1 p-3 rounded-xl transition-colors ${appState === 'admin' ? 'bg-brand text-text-inverse' : 'bg-bg-main text-text-main hover:bg-brand/10 hover:text-brand'}`}
@@ -601,7 +621,7 @@ export default function App() {
                   className="flex items-center justify-center gap-2 w-full py-3 rounded-xl bg-brand text-text-inverse font-bold hover:bg-brand-hover transition-colors"
                 >
                   <LogIn className="w-5 h-5" />
-                  Entrar com Google
+                  Entrar / Cadastrar
                 </button>
                 <div className="flex items-center justify-between px-2">
                   <span className="text-sm font-bold text-text-main">Tema</span>
@@ -636,19 +656,11 @@ export default function App() {
           <>
             {appState === 'landing' && (
               <LandingPage 
-                onStart={async () => {
+                onStart={() => {
                   if (user) {
                     setAppState('form');
                   } else {
-                    try {
-                      await signInWithPopup(auth, googleProvider);
-                      setAppState('form');
-                    } catch (err: any) {
-                      console.error("Login error:", err);
-                      if (err.code !== 'auth/popup-closed-by-user' && err.code !== 'auth/cancelled-popup-request') {
-                        alert("Você precisa fazer login para criar um treino.");
-                      }
-                    }
+                    setShowAuthModal(true);
                   }
                 }} 
                 hasPlan={!!plan}
@@ -692,18 +704,10 @@ export default function App() {
               <ExerciseLibrary />
             )}
 
-            {appState === 'nutrition' && userData && (
-              <NutritionalTool 
-                physicalAnamnesis={userData} 
-                onBack={() => setAppState('plan')} 
-                onReset={handleReset}
-              />
-            )}
-
             {appState === 'speltagram' && user && (
               <SpeltaGramFeed 
                 user={user} 
-                isAdmin={user.email === 'calepi@gmail.com'} 
+                isAdmin={user.email === 'calepi@gmail.com' || user.email === 'tazmania.crvg@gmail.com'} 
               />
             )}
 
@@ -725,6 +729,23 @@ export default function App() {
 
             {appState === 'documentation' && (
               <TechnicalDocumentation onBack={() => setAppState('admin')} />
+            )}
+
+            {appState === 'nutriForm' && (
+              <NutriAnamnesisForm 
+                onSubmit={handleNutriAnamnesisSubmit} 
+                isLoading={isLoading} 
+                initialData={nutriData}
+                workoutData={userData}
+              />
+            )}
+
+            {appState === 'nutriPlan' && nutriPlan && nutriData && (
+              <NutritionalPlanView 
+                plan={nutriPlan} 
+                userData={nutriData} 
+                onReset={() => setAppState('nutriForm')} 
+              />
             )}
 
             {appState === 'terms' && (
@@ -749,6 +770,11 @@ export default function App() {
 
       {/* Reminder Manager (Background Logic) */}
       {user && <ReminderManager userId={user.uid} />}
+
+      <AuthModal 
+        isOpen={showAuthModal} 
+        onClose={() => setShowAuthModal(false)} 
+      />
     </div>
   );
 }

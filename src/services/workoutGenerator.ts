@@ -33,21 +33,10 @@ export interface AnamnesisData {
   equipment: string;
   sleepQuality: string;
   stressLevel: string;
-  dietType: string;
-  hormonalStatus: string;
   existingPlan?: string; // Keep for legacy/quick paste
   structuredExistingPlan?: ExistingDay[]; // New structured format
   remodelPlan?: boolean;
   trainingStartDate?: string; // Data de início para controle de meses (Mês 1, 2, 3)
-  
-  // Nutritional fields (Integrated)
-  mealCount?: number;
-  allergies?: string;
-  dislikes?: string;
-  budget?: string;
-  cookingTime?: string;
-  supplements?: string[];
-  waterIntake?: number;
 }
 
 export interface WorkoutPlan {
@@ -345,7 +334,7 @@ export async function generateWorkoutPlanRuleBased(data: AnamnesisData, blacklis
 
   // --- LÓGICA PADRÃO PARA OUTROS NÍVEIS ---
   const allGoals = [data.goal, data.secondaryGoal, data.tertiaryGoal || ''].join(' ').toLowerCase();
-  const params = getTrainingParameters(data.hormonalStatus, allGoals);
+  const params = getTrainingParameters('Natural', allGoals);
   const isWeightLoss = allGoals.includes('emagrecimento') || allGoals.includes('definição');
   const isStrength = allGoals.includes('força');
   const isHypertrophy = allGoals.includes('hipertrofia');
@@ -523,7 +512,7 @@ export async function generateWorkoutPlanRuleBased(data: AnamnesisData, blacklis
     });
   });
 
-  const isHormonized = data.hormonalStatus.toLowerCase().includes('hormonizado') || data.hormonalStatus.toLowerCase().includes('sim');
+  const isHormonized = false;
   const isBeginner = data.experience.toLowerCase().includes('iniciante') || data.experience.toLowerCase().includes('sedentário');
 
   const strategySummary = isBeginner 
@@ -566,7 +555,7 @@ export function formatProgressionText(
   const isBeginner = expLower.includes('iniciante');
   const isAdvanced = expLower.includes('avançado');
   
-  const isHormonized = user.hormonalStatus && user.hormonalStatus.toLowerCase().includes('hormonizado');
+  const isHormonized = false;
   const isWeightLoss = user.goal.toLowerCase().includes('emagrecimento') || user.goal.toLowerCase().includes('definição');
   const isStrength = user.goal.toLowerCase().includes('força');
 

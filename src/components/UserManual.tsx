@@ -3,7 +3,6 @@ import {
   Book, 
   Zap, 
   Dumbbell, 
-  Apple, 
   TrendingUp, 
   Users, 
   Shield, 
@@ -55,7 +54,6 @@ export function UserManual() {
     { id: 'performance', label: 'Performance Humana', icon: <TrendingUp className="w-4 h-4" /> },
     { id: 'anamnesis', label: 'Motores e Anamnese', icon: <Zap className="w-4 h-4" /> },
     { id: 'workout', label: 'Guia de Treino', icon: <Dumbbell className="w-4 h-4" /> },
-    { id: 'nutrition', label: 'Nutrição Avançada', icon: <Apple className="w-4 h-4" /> },
     { id: 'evolution', label: 'Evolução e Dados', icon: <TrendingUp className="w-4 h-4" /> },
     { id: 'community', label: 'SpeltaGram', icon: <Users className="w-4 h-4" /> },
     { id: 'admin', label: 'Painel do Treinador', icon: <Shield className="w-4 h-4" /> },
@@ -123,7 +121,6 @@ export function UserManual() {
             {activeSection === 'performance' && <PerformanceSection />}
             {activeSection === 'anamnesis' && <AnamnesisSection />}
             {activeSection === 'workout' && <WorkoutSection />}
-            {activeSection === 'nutrition' && <NutritionSection />}
             {activeSection === 'evolution' && <EvolutionSection />}
             {activeSection === 'community' && <CommunitySection />}
             {activeSection === 'admin' && <AdminSection />}
@@ -289,76 +286,6 @@ function WorkoutSection() {
       <InfoBox title="Configuração de Descanso" type="info">
         O tempo de descanso sugerido pelo sistema (ex: 60s ou 120s) não é aleatório. 
         Exercícios compostos (Agachamento) têm descansos maiores para recuperação do sistema nervoso central.
-      </InfoBox>
-    </div>
-  );
-}
-
-function NutritionSection() {
-  return (
-    <div>
-      <SectionTitle icon={<Apple className="w-6 h-6" />}>Nutrição Avançada</SectionTitle>
-      
-      <SubTitle>Tipos de Dieta Suportados</SubTitle>
-      <p className="mb-4">O SpeltaFit oferece suporte a diversas estratégias nutricionais, calculando automaticamente os macronutrientes ideais para cada uma:</p>
-      <ul className="space-y-4 list-none p-0 mb-8">
-        <li className="flex gap-3">
-          <div className="mt-1"><CheckCircle2 className="w-4 h-4 text-brand" /></div>
-          <div><strong>Padrão (Balanceada):</strong> Distribuição equilibrada de macros, ideal para a maioria dos objetivos.</div>
-        </li>
-        <li className="flex gap-3">
-          <div className="mt-1"><CheckCircle2 className="w-4 h-4 text-brand" /></div>
-          <div><strong>Low Carb & Cetogênica:</strong> Foco em redução de carboidratos e aumento de gorduras boas.</div>
-        </li>
-        <li className="flex gap-3">
-          <div className="mt-1"><CheckCircle2 className="w-4 h-4 text-brand" /></div>
-          <div><strong>Dieta da Proteína (Hiperproteica):</strong> Aumenta a ingestão de proteínas (até 3g/kg) para maximizar a saciedade e manutenção muscular.</div>
-        </li>
-        <li className="flex gap-3">
-          <div className="mt-1"><CheckCircle2 className="w-4 h-4 text-brand" /></div>
-          <div><strong>Jejum Intermitente (16/8):</strong> Condensa as refeições em uma janela de 8 horas, facilitando o déficit calórico.</div>
-        </li>
-        <li className="flex gap-3">
-          <div className="mt-1"><CheckCircle2 className="w-4 h-4 text-brand" /></div>
-          <div><strong>Mediterrânea & DASH:</strong> Foco em saúde cardiovascular, priorizando gorduras saudáveis e controle de sódio.</div>
-        </li>
-      </ul>
-
-      <SubTitle>O Motor de Substituição</SubTitle>
-      <p>
-        A maior causa de desistência de dietas é a monotonia. O SpeltaFit resolve isso com o <strong>Substitution Engine</strong>.
-      </p>
-
-      <div className="bg-bg-main border border-border rounded-3xl p-8 my-6">
-        <h4 className="font-black text-brand uppercase text-sm mb-4">Como substituir corretamente:</h4>
-        <div className="space-y-4">
-          <div className="flex items-center justify-between p-4 bg-surface rounded-2xl border border-border">
-            <span className="font-bold">100g de Frango Grelhado</span>
-            <ArrowRight className="w-4 h-4 text-brand" />
-            <span className="font-bold">120g de Patinho Moído</span>
-          </div>
-          <p className="text-xs text-text-muted">
-            O sistema faz o cálculo automático: ele olha a proteína do frango e busca a quantidade de patinho 
-            necessária para igualar os macros, ajustando também a gordura.
-          </p>
-        </div>
-      </div>
-
-      <SubTitle>Lista de Compras Mensal</SubTitle>
-      <p>
-        Ao clicar em "Lista de Compras", o sistema soma todos os ingredientes de todas as suas refeições diárias 
-        e projeta o consumo para 30 dias. Ele separa os itens por categoria, calcula o total mensal e sugere 
-        quantas embalagens (ex: pacotes de 1kg, cartelas de 30 ovos) você precisará comprar para o mês inteiro.
-      </p>
-      <ul className="list-disc pl-6 space-y-2">
-        <li><strong>Açougue:</strong> Soma total de carnes, ovos e laticínios.</li>
-        <li><strong>Hortifruti:</strong> Vegetais e frutas em gramas ou unidades.</li>
-        <li><strong>Mercearia:</strong> Arroz, aveia, azeite e grãos.</li>
-      </ul>
-
-      <InfoBox title="Dica de Nutrição" type="success">
-        Sempre beba a quantidade de água sugerida no topo da tela. A hidratação é o fator que mais 
-        influencia a síntese proteica e a queima de gordura.
       </InfoBox>
     </div>
   );

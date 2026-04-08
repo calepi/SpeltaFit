@@ -1,13 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { Bell, Clock, Droplets, Utensils, Zap, Save, CheckCircle2, Volume2, RefreshCw, Plus, Trash2 } from 'lucide-react';
+import { Bell, Clock, Zap, Save, CheckCircle2, Volume2, RefreshCw, Plus, Trash2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '../firebase';
-import { DietPlan, NutritionalAnamnesis } from '../services/nutritionGenerator';
 
 interface Reminder {
   id: string;
-  type: 'water' | 'meal' | 'workout' | 'custom';
+  type: 'workout' | 'custom';
   time: string;
   enabled: boolean;
   label: string;
@@ -18,12 +17,7 @@ interface Props {
 }
 
 const DEFAULT_REMINDERS: Reminder[] = [
-  { id: '1', type: 'water', time: '09:00', enabled: true, label: 'Hidratação Matinal' },
-  { id: '2', type: 'water', time: '11:00', enabled: true, label: 'Hidratação Pré-Almoço' },
-  { id: '3', type: 'meal', time: '12:30', enabled: true, label: 'Almoço Planejado' },
-  { id: '4', type: 'water', time: '15:00', enabled: true, label: 'Hidratação Tarde' },
   { id: '5', type: 'workout', time: '18:00', enabled: true, label: 'Hora de Treinar!' },
-  { id: '6', type: 'meal', time: '20:00', enabled: true, label: 'Jantar Leve' },
 ];
 
 export function ReminderSettings({ userId }: Props) {
@@ -82,101 +76,9 @@ export function ReminderSettings({ userId }: Props) {
       const newReminders: Reminder[] = [];
       let reminderIdCounter = 1;
 
-      // Fetch Physical Anamnesis for Weight (needed for water calculation)
-      const physicalDoc = await getDoc(doc(db, `users/${userId}/data/anamnesis`));
-      const physicalData = physicalDoc.exists() ? physicalDoc.data() : null;
-      const weight = physicalData?.weight || 70;
-
-      // Fetch Diet Plan
-      const dietDoc = await getDoc(doc(db, `users/${userId}/data/dietPlan`));
-      if (dietDoc.exists()) {
-        const dietPlan = dietDoc.data() as DietPlan;
-        if (dietPlan.meals && dietPlan.meals.length > 0) {
-          // Check if it's the "Behavioral Adjustment" phase (Month 1/2 for beginners)
-          const isBehavioralPhase = dietPlan.meals.length === 1 && dietPlan.meals[0].time === 'Dia Todo';
-
-          if (isBehavioralPhase) {
-            // Generate standard meal times for behavioral phase
-            const behavioralMeals = [
-              { name: 'Café da Manhã (Foco em Proteína)', time: '08:00' },
-              { name: 'Almoço (50% Vegetais)', time: '12:30' },
-              { name: 'Lanche (Fruta + Proteína)', time: '16:00' },
-              { name: 'Jantar (Leve e Nutritivo)', time: '20:00' }
-            ];
-            behavioralMeals.forEach(m => {
-              newReminders.push({
-                id: `sync-meal-${reminderIdCounter++}`,
-                type: 'meal',
-                time: m.time,
-                enabled: true,
-                label: m.name
-              });
-            });
-          } else {
-            dietPlan.meals.forEach(meal => {
-              let mealTime = meal.time;
-              
-              // Handle relative times like "1 hora antes"
-              if (mealTime.includes('antes') || mealTime.includes('janela') || mealTime === 'Dia Todo') {
-                // Default based on meal name
-                const name = meal.name.toLowerCase();
-                if (name.includes('café') || name.includes('cafe')) mealTime = '08:00';
-                else if (name.includes('almoço') || name.includes('almoco')) mealTime = '12:30';
-                else if (name.includes('lanche') && name.includes('tarde')) mealTime = '16:00';
-                else if (name.includes('jantar')) mealTime = '20:00';
-                else if (name.includes('ceia')) mealTime = '22:30';
-                else if (name.includes('pré') || name.includes('pre')) mealTime = '17:00';
-                else mealTime = '12:00';
-              }
-
-              newReminders.push({
-                id: `sync-meal-${reminderIdCounter++}`,
-                type: 'meal',
-                time: mealTime,
-                enabled: true,
-                label: meal.name
-              });
-            });
-          }
-        }
-      }
-
-      // Fetch Anamnesis for Water
-      const anamnesisDoc = await getDoc(doc(db, `users/${userId}/data/nutritionalAnamnesis`));
-      const anamnesis = anamnesisDoc.exists() ? (anamnesisDoc.data() as NutritionalAnamnesis) : null;
-      
-      // Use user's water intake if set, otherwise calculate based on weight (35ml/kg)
-      const waterIntake = anamnesis?.waterIntake || Math.round(weight * 35);
-      
-      // Create water reminders based on total intake
-      const glasses = Math.ceil(waterIntake / 250);
-      const maxWaterAlarms = 8; 
-      const numAlarms = Math.min(glasses, maxWaterAlarms);
-      const mlPerAlarm = Math.round(waterIntake / numAlarms);
-      
-      const startHour = 8; // 8 AM
-      const endHour = 21; // 9 PM
-      const interval = (endHour - startHour) / (numAlarms > 1 ? numAlarms - 1 : 1);
-
-      for (let i = 0; i < numAlarms; i++) {
-        const hour = Math.floor(startHour + (i * interval));
-        const minute = Math.round(((startHour + (i * interval)) % 1) * 60);
-        const timeStr = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
-        
-        newReminders.push({
-          id: `sync-water-${reminderIdCounter++}`,
-          type: 'water',
-          time: timeStr,
-          enabled: true,
-          label: `Beber Água (${mlPerAlarm}ml)`
-        });
-      }
-
       // Fetch Workout Plan
       const workoutDoc = await getDoc(doc(db, `users/${userId}/data/workoutPlan`));
       if (workoutDoc.exists()) {
-        // Default workout time to 18:00, but try to find a better one if possible
-        // (In a real app we might have a preferred training time in anamnesis)
         newReminders.push({
           id: `sync-workout-${reminderIdCounter++}`,
           type: 'workout',
@@ -187,7 +89,6 @@ export function ReminderSettings({ userId }: Props) {
       }
 
       if (newReminders.length > 0) {
-        // Sort by time
         newReminders.sort((a, b) => a.time.localeCompare(b.time));
         setReminders(newReminders);
       } else {
@@ -282,7 +183,7 @@ export function ReminderSettings({ userId }: Props) {
         </div>
 
         <p className="text-text-muted font-medium max-w-2xl">
-          Configure seus lembretes personalizados ou sincronize automaticamente com seus planos de treino e dieta.
+          Configure seus lembretes personalizados ou sincronize automaticamente com seus planos de treino.
           As notificações aparecerão no seu navegador e no aplicativo.
         </p>
 
@@ -297,14 +198,10 @@ export function ReminderSettings({ userId }: Props) {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4 flex-1">
                   <div className={`p-3 rounded-2xl shrink-0 ${
-                    reminder.type === 'water' ? 'bg-blue-500/10 text-blue-500' :
-                    reminder.type === 'meal' ? 'bg-green-500/10 text-green-500' :
                     reminder.type === 'workout' ? 'bg-brand/10 text-brand' :
                     'bg-purple-500/10 text-purple-500'
                   }`}>
-                    {reminder.type === 'water' ? <Droplets className="w-5 h-5" /> :
-                     reminder.type === 'meal' ? <Utensils className="w-5 h-5" /> :
-                     reminder.type === 'workout' ? <Zap className="w-5 h-5" /> :
+                    {reminder.type === 'workout' ? <Zap className="w-5 h-5" /> :
                      <Bell className="w-5 h-5" />}
                   </div>
                   <div className="flex-1 min-w-0">
@@ -361,14 +258,10 @@ export function ReminderSettings({ userId }: Props) {
           </div>
           <h3 className="text-xl font-black tracking-tight">Por que usar lembretes?</h3>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <BenefitCard 
             title="Hidratação" 
             content="Beber água regularmente acelera o metabolismo e melhora a performance nos treinos." 
-          />
-          <BenefitCard 
-            title="Nutrição" 
-            content="Comer nos horários certos evita picos de fome e mantém seus níveis de energia estáveis." 
           />
           <BenefitCard 
             title="Consistência" 

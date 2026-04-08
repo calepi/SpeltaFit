@@ -69,10 +69,7 @@ export function AdminDashboard({ onViewDocumentation }: AdminDashboardProps) {
           try {
             await deleteDoc(doc(db, `users/${uid}/data/anamnesis`)).catch(() => {});
             await deleteDoc(doc(db, `users/${uid}/data/workoutPlan`)).catch(() => {});
-            await deleteDoc(doc(db, `users/${uid}/data/dietPlan`)).catch(() => {});
-            await deleteDoc(doc(db, `users/${uid}/data/nutritionalAnamnesis`)).catch(() => {});
             await deleteDoc(doc(db, `users/${uid}/data/progress`)).catch(() => {});
-            await deleteDoc(doc(db, `users/${uid}/data/nutritionTracking`)).catch(() => {});
             await deleteDoc(doc(db, 'users', uid)).catch(() => {});
           } catch (e) {
             console.error(`Error deleting data for user ${uid}`, e);

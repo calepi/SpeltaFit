@@ -11,6 +11,8 @@
     "lint": "tsc --noEmit"
   },
   "dependencies": {
+    "@capacitor/android": "^8.3.0",
+    "@capacitor/core": "^8.3.0",
     "@google/genai": "^1.48.0",
     "@tailwindcss/vite": "^4.1.14",
     "@vitejs/plugin-react": "^5.0.4",
@@ -22,9 +24,11 @@
     "motion": "^12.23.24",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "react-markdown": "^10.1.0",
     "recharts": "^3.8.1"
   },
   "devDependencies": {
+    "@capacitor/cli": "^8.3.0",
     "@types/node": "^22.14.0",
     "autoprefixer": "^10.4.21",
     "tailwindcss": "^4.1.14",

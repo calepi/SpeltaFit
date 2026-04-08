@@ -37,8 +37,6 @@ export const BADGES: Badge[] = [
   { id: 'workout_streak_3', name: 'Fogo no Parquinho', description: '3 dias seguidos de treino', icon: '🔥', requirement: '3 dias' },
   { id: 'workout_streak_7', name: 'Inabalável', description: '7 dias seguidos de treino', icon: '🛡️', requirement: '7 dias' },
   { id: 'speltagram_post', name: 'Influenciador Fit', description: 'Fez sua primeira postagem no SpeltaGram', icon: '📸', requirement: '1 post' },
-  { id: 'weight_loss_5', name: 'Menos é Mais', description: 'Perdeu 5kg', icon: '⚖️', requirement: '5kg perdidos' },
-  { id: 'muscle_gain_2', name: 'Blindado', description: 'Ganhou 2kg de massa muscular', icon: '💪', requirement: '2kg ganhos' },
 ];
 
 export const gamificationService = {

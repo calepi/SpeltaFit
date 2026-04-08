@@ -5,6 +5,7 @@ import { Target, TrendingUp, Info, FileText, Calendar, AlertTriangle, User } fro
 import { WorkoutSheetExport } from './WorkoutSheetExport';
 import { WorkoutTracker } from './WorkoutTracker';
 import html2pdf from 'html2pdf.js';
+import Markdown from 'react-markdown';
 
 interface Props {
   plan: WorkoutPlan;
@@ -137,21 +138,27 @@ export function WorkoutPlanView({ plan, user, onReset, onUpdatePlan, readOnly = 
             <h3 className="text-xl font-bold text-brand mb-4 flex items-center gap-3">
               <Target className="w-6 h-6" /> Estratégia
             </h3>
-            <p className="text-text-muted leading-relaxed">{plan.strategySummary}</p>
+            <div className="text-text-muted leading-relaxed prose prose-invert max-w-none">
+              <Markdown>{plan.strategySummary}</Markdown>
+            </div>
           </div>
 
           <div className="bg-surface rounded-3xl p-8 border border-border shadow-xl">
             <h3 className="text-xl font-bold text-brand mb-4 flex items-center gap-3">
               <TrendingUp className="w-6 h-6" /> Progressão (Overload)
             </h3>
-            <p className="text-text-muted leading-relaxed">{plan.progressiveOverloadPlan}</p>
+            <div className="text-text-muted leading-relaxed prose prose-invert max-w-none">
+              <Markdown>{plan.progressiveOverloadPlan}</Markdown>
+            </div>
           </div>
 
           <div className="bg-surface rounded-3xl p-8 border border-border shadow-xl md:col-span-2">
             <h3 className="text-xl font-bold text-brand mb-4 flex items-center gap-3">
               <Info className="w-6 h-6" /> Diretrizes de Monitoramento
             </h3>
-            <p className="text-text-muted leading-relaxed">{plan.monitoringGuidelines}</p>
+            <div className="text-text-muted leading-relaxed prose prose-invert max-w-none">
+              <Markdown>{plan.monitoringGuidelines}</Markdown>
+            </div>
           </div>
         </motion.div>
       ) : activeTab === 'dashboard' ? (
@@ -223,10 +230,6 @@ export function WorkoutPlanView({ plan, user, onReset, onUpdatePlan, readOnly = 
               <div className="space-y-1">
                 <p className="text-sm text-text-muted font-medium">Nível de Experiência</p>
                 <p className="text-lg font-bold text-text-main">{user.experience}</p>
-              </div>
-              <div className="space-y-1">
-                <p className="text-sm text-text-muted font-medium">Status Hormonal</p>
-                <p className="text-lg font-bold text-brand">{user.hormonalStatus}</p>
               </div>
               <div className="space-y-1">
                 <p className="text-sm text-text-muted font-medium">Local de Treino</p>

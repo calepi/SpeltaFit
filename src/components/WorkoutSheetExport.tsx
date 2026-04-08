@@ -69,8 +69,7 @@ export const WorkoutSheetExport = forwardRef<HTMLDivElement, Props>(({ plan, use
             <div><span className="font-bold">Altura:</span> {user.height} cm</div>
             <div><span className="font-bold">Objetivo:</span> {user.goal}</div>
             <div><span className="font-bold">Nível:</span> {user.experience}</div>
-            <div><span className="font-bold">Status Hormonal:</span> {user.hormonalStatus}</div>
-            <div className="col-span-1"><span className="font-bold">Limitações:</span> {user.limitations || 'Nenhuma'}</div>
+            <div className="col-span-2"><span className="font-bold">Limitações:</span> {user.limitations || 'Nenhuma'}</div>
           </div>
         </div>
 

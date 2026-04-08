@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">SpeltaFit</string>
+    <string name="title_activity_main">SpeltaFit</string>
+    <string name="package_name">com.speltafit.app</string>
+    <string name="custom_url_scheme">com.speltafit.app</string>
+</resources>

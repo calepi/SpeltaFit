@@ -1,614 +1,165 @@
-import { FOOD_DB, FoodItem } from '../data/foodDatabase';
+import { NutriAnamnesisData, NutritionalPlan } from '../types/nutrition';
 
-export interface NutritionalAnamnesis {
-  mealCount?: number;
-  dietType: string;
-  allergies?: string;
-  dislikes?: string;
-  budget?: string;
-  cookingTime?: string;
-  supplements?: string[];
-  waterIntake?: number;
-  updatedAt: string;
-}
+export async function generateNutritionalPlan(data: NutriAnamnesisData): Promise<NutritionalPlan> {
+  // 1. Calculate BMR (Basal Metabolic Rate) using Mifflin-St Jeor Equation
+  let bmr = 10 * data.weight + 6.25 * data.height - 5 * data.age;
+  bmr += data.gender === 'Masculino' ? 5 : -161;
 
-export interface Food {
-  item: string;
-  quantity: string;
-  calories: number;
-  protein: number;
-  carbs: number;
-  fats: number;
-  prep?: string; // Como preparar (ex: "com cúrcuma e pimenta preta")
-}
+  // 2. Determine Activity Multiplier
+  let activityMultiplier = 1.2; // Sedentário
+  if (data.activityLevel.includes('Levemente')) activityMultiplier = 1.375;
+  else if (data.activityLevel.includes('Moderadamente')) activityMultiplier = 1.55;
+  else if (data.activityLevel.includes('Muito Ativo')) activityMultiplier = 1.725;
+  else if (data.activityLevel.includes('Extremamente')) activityMultiplier = 1.9;
 
-export interface Meal {
-  name: string;
-  time: string;
-  foods: Food[];
-  weeklyVariations?: {
-    day: string;
-    foods: Food[];
-  }[];
-}
+  // 3. Calculate TDEE (Total Daily Energy Expenditure)
+  const tdee = Math.round(bmr * activityMultiplier);
 
-export interface DietPlan {
-  goal: string;
-  calories: number;
-  macros: {
-    protein: number;
-    carbs: number;
-    fats: number;
-  };
-  meals: Meal[];
-  supplementation: string;
-  recommendations: string;
-  createdAt: string;
-}
-
-// --- MOTOR DE REGRAS NUTRICIONAL ROBUSTO ---
-
-export async function generateDietPlan(
-  anamnesis: any, // Dados físicos do SpeltaFit
-  nutritionalAnamnesis: NutritionalAnamnesis
-): Promise<DietPlan> {
-  const weight = Number(anamnesis.weight) || 70;
-  const height = Number(anamnesis.height) || 170;
-  const age = Number(anamnesis.age) || 30;
-  const gender = anamnesis.gender || 'Masculino';
-  const goal = (anamnesis.goal || 'Saúde').toLowerCase();
-  const activityLevel = Number(anamnesis.daysPerWeek) || 3;
-  const userLevel = (anamnesis.experience || 'Iniciante').toLowerCase();
-  const isSedentaryBeginner = userLevel.includes('iniciante') || userLevel.includes('sedentário');
-
-  // Calcular o mês atual do protocolo baseado na data de início
-  const startDate = anamnesis.trainingStartDate ? new Date(anamnesis.trainingStartDate) : new Date();
-  const now = new Date();
-  const diffMonths = Math.max(1, Math.floor((now.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24 * 30)) + 1);
-  const currentMonth = diffMonths > 3 ? 3 : diffMonths; // Protocolo de 3 meses
-
-  // --- LÓGICA ESPECÍFICA PROTOCOLO NUTRICIONAL 2026 (SEDENTÁRIOS/INICIANTES) ---
-  if (isSedentaryBeginner && currentMonth < 3) {
-    const recommendations = currentMonth === 1 
-      ? `
-        ### Mês 1: Ajustes Comportamentais (Protocolo 2026)
-        Nesta fase, não focaremos em pesar comida, mas em mudar hábitos:
-        - **Água:** Beba pelo menos ${Math.round(weight * 40 / 1000)} litros por dia.
-        - **Frutas:** Coma pelo menos 2 porções de frutas variadas ao dia.
-        - **Industrializados:** Evite alimentos ultraprocessados (bolachas, salgadinhos, refrigerantes).
-        - **Proteína:** Tente incluir uma fonte de proteína (ovo, frango, carne) em todas as refeições principais.
-        - **Vegetais:** Metade do seu prato no almoço e jantar deve ser de vegetais/salada.
-      `.trim()
-      : `
-        ### Mês 2: Introdução à Proteína e Consistência (Protocolo 2026)
-        - **Foco Proteico:** Agora que você já bebe água e come vegetais, vamos focar na proteína.
-        - **Whey Protein:** Se tiver dificuldade em bater a proteína, use 1 dose de Whey Protein após o treino.
-        - **Açúcar:** Reduza o consumo de açúcar adicionado (café, sucos).
-        - **Sono:** Priorize 8 horas de sono para recuperação muscular.
-      `.trim();
-
-    return {
-      goal: anamnesis.goal || 'Mudança de Hábitos',
-      calories: 0, // Não calculado no mês 1 e 2 para iniciantes
-      macros: { protein: 0, carbs: 0, fats: 0 },
-      meals: [
-        {
-          name: 'Orientações Gerais',
-          time: 'Dia Todo',
-          foods: [
-            { item: 'Água', quantity: `${Math.round(weight * 40)}ml`, calories: 0, protein: 0, carbs: 0, fats: 0, prep: 'Distribuir ao longo do dia' },
-            { item: 'Frutas Variadas', quantity: '2 porções', calories: 0, protein: 0, carbs: 0, fats: 0, prep: 'Lanches entre refeições' },
-            { item: 'Saladas e Vegetais', quantity: 'À vontade', calories: 0, protein: 0, carbs: 0, fats: 0, prep: 'Almoço e Jantar' }
-          ]
-        }
-      ],
-      supplementation: currentMonth === 2 ? "Whey Protein (1 dose após o treino)" : "Nenhuma necessária ainda",
-      recommendations,
-      createdAt: new Date().toISOString()
-    };
-  }
-
-  // 1. Calcular TMB (Mifflin-St Jeor)
-  let bmr = (10 * weight) + (6.25 * height) - (5 * age);
-  if (gender === 'Masculino') {
-    bmr += 5;
-  } else {
-    bmr -= 161;
-  }
-
-  // 2. Calcular Gasto Energético Total (GET)
-  let factor = 1.2; // Sedentário
-  if (activityLevel >= 5) factor = 1.725; // Muito ativo
-  else if (activityLevel >= 3) factor = 1.55; // Moderadamente ativo
-  else if (activityLevel >= 1) factor = 1.375; // Levemente ativo
-  
-  let tdee = bmr * factor;
-
-  // 3. Ajustar Calorias conforme Objetivo e Nível
+  // 4. Determine Target Calories based on Goal
   let targetCalories = tdee;
-  let calorieAdjustment = 0;
-
-  if (goal.includes('emagrecimento') || goal.includes('perder') || goal.includes('definição')) {
-    calorieAdjustment = userLevel === 'avançado' ? -700 : -500;
-  } else if (goal.includes('hipertrofia') || goal.includes('ganhar') || goal.includes('massa')) {
-    calorieAdjustment = userLevel === 'avançado' ? 500 : 300;
-  }
+  let strategySummary = '';
   
-  targetCalories += calorieAdjustment;
-
-  // 4. Calcular Macros (g/kg) baseados no Nível, Objetivo e Tipo de Dieta
-  let protGPerKg = 2.0;
-  let fatGPerKg = 0.8;
-  
-  const dietType = (nutritionalAnamnesis.dietType || 'Onívora').toLowerCase();
-
-  if (goal.includes('emagrecimento')) {
-    protGPerKg = userLevel === 'avançado' ? 2.5 : 2.2; 
-    fatGPerKg = 0.7;
-  } else if (goal.includes('hipertrofia')) {
-    protGPerKg = userLevel === 'avançado' ? 2.2 : 2.0;
-    fatGPerKg = 1.0;
+  if (data.goal.includes('Emagrecimento Acelerado')) {
+    targetCalories = tdee - 700;
+    strategySummary = 'Déficit calórico agressivo para perda de peso rápida. Foco em alta densidade nutricional e saciedade.';
+  } else if (data.goal.includes('Emagrecimento Sustentável')) {
+    targetCalories = tdee - 400;
+    strategySummary = 'Déficit calórico moderado para perda de peso consistente e manutenção de massa magra.';
+  } else if (data.goal.includes('Hipertrofia')) {
+    targetCalories = tdee + 300;
+    strategySummary = 'Superávit calórico leve para otimizar o ganho de massa muscular minimizando o ganho de gordura.';
+  } else if (data.goal.includes('Recomposição Corporal')) {
+    targetCalories = tdee - 100; // Leve déficit
+    strategySummary = 'Manutenção/Leve déficit calórico com alta proteína para promover perda de gordura e ganho muscular simultâneos.';
+  } else if (data.goal.includes('Ganho de Peso')) {
+    targetCalories = tdee + 500;
+    strategySummary = 'Superávit calórico focado em alimentos densos em calorias e nutrientes para ganho de peso saudável.';
+  } else {
+    strategySummary = 'Dieta normocalórica focada em manutenção, saúde e performance.';
   }
 
-  // Ajustes por Tipo de Dieta
-  if (dietType.includes('hiperproteica') || dietType.includes('proteína')) {
-    protGPerKg += 0.5; // Aumenta proteína significativamente
-    fatGPerKg -= 0.1; 
-  } else if (dietType.includes('low carb')) {
-    protGPerKg += 0.2;
-    fatGPerKg += 0.3;
-  } else if (dietType.includes('cetogênica')) {
-    protGPerKg = 1.8; 
-    fatGPerKg = 1.5; 
-  } else if (dietType.includes('carnívora')) {
-    protGPerKg = 2.8; // Proteína muito alta
-    fatGPerKg = 1.2; // Gordura moderada/alta
-  } else if (dietType.includes('mediterrânea')) {
-    protGPerKg = 1.8;
-    fatGPerKg = 1.2; // Foco em gorduras boas
+  // Ensure minimum calories for safety
+  if (data.gender === 'Feminino' && targetCalories < 1200) targetCalories = 1200;
+  if (data.gender === 'Masculino' && targetCalories < 1500) targetCalories = 1500;
+
+  // 5. Calculate Macros
+  // Protein: 2.0g/kg for most, 2.2g/kg for cutting/recomp, 1.8g/kg for bulking
+  let proteinPerKg = 2.0;
+  if (data.goal.includes('Emagrecimento') || data.goal.includes('Recomposição')) proteinPerKg = 2.2;
+  else if (data.goal.includes('Hipertrofia')) proteinPerKg = 1.8;
+  
+  const proteinGrams = Math.round(data.weight * proteinPerKg);
+  const proteinCalories = proteinGrams * 4;
+
+  // Fat: 0.8g - 1.0g/kg
+  let fatPerKg = 0.9;
+  if (data.dietaryPreference.includes('Cetogênica') || data.dietaryPreference.includes('Low Carb')) {
+    fatPerKg = 1.5; // Higher fat for low carb
+  }
+  const fatGrams = Math.round(data.weight * fatPerKg);
+  const fatCalories = fatGrams * 9;
+
+  // Carbs: The rest
+  let remainingCalories = targetCalories - proteinCalories - fatCalories;
+  
+  // Adjust if low carb/keto
+  if (data.dietaryPreference.includes('Cetogênica')) {
+    remainingCalories = 30 * 4; // Max 30g carbs
+    // Recalculate fats to fill the gap
+    const newFatCalories = targetCalories - proteinCalories - remainingCalories;
+    targetCalories = proteinCalories + newFatCalories + remainingCalories; // Adjust total if needed
+  } else if (data.dietaryPreference.includes('Low Carb')) {
+    remainingCalories = 100 * 4; // Max 100g carbs
   }
 
-  const proteinTotal = weight * protGPerKg;
-  const fatsTotal = weight * fatGPerKg;
-  const proteinCal = proteinTotal * 4;
-  const fatsCal = fatsTotal * 9;
-  
-  let carbsCal = Math.max(targetCalories - proteinCal - fatsCal, 100); 
-  
-  // Ajuste final de carbos para dietas específicas
-  if (dietType.includes('cetogênica')) {
-    carbsCal = Math.min(carbsCal, 200); // Máximo de 50g de carbo (200 cal)
-  } else if (dietType.includes('low carb')) {
-    carbsCal = Math.min(carbsCal, targetCalories * 0.2); // Máximo 20% das cal em carbo
-  } else if (dietType.includes('carnívora')) {
-    carbsCal = 0; // Zero carbo
+  let carbGrams = Math.round(remainingCalories / 4);
+  if (carbGrams < 0) carbGrams = 0; // Prevent negative carbs
+
+  // 6. Water Intake Goal
+  const waterGoalLiters = (data.weight * 35) / 1000; // 35ml per kg
+  const waterIntakeGoal = `${waterGoalLiters.toFixed(1)} a ${(waterGoalLiters + 0.5).toFixed(1)} Litros por dia`;
+
+  // 7. Emotional Guidelines
+  let emotionalGuidelines = 'Mantenha uma relação saudável com a comida. Coma com atenção plena (Mindful Eating).';
+  if (data.emotionalEating.includes('ansiedade') || data.emotionalEating.includes('estresse')) {
+    emotionalGuidelines = 'Estratégia para Ansiedade: Identifique o gatilho antes de comer. Beba um copo de água, espere 10 minutos. Se a vontade persistir, opte por alimentos crocantes (cenoura, maçã) ou um chá calmante (camomila, mulungu) antes de atacar doces.';
+  } else if (data.emotionalEating.includes('compulsão')) {
+    emotionalGuidelines = 'Atenção à Compulsão: Não faça restrições severas, elas geram mais compulsão. Permita-se comer o que gosta em quantidades controladas. Se sentir perda de controle, procure ajuda profissional (psicólogo/nutricionista).';
+  } else if (data.emotionalEating.includes('recompensa')) {
+    emotionalGuidelines = 'Recompensa Não Alimentar: Você não é um cachorro para se recompensar com comida. Crie uma lista de recompensas não ligadas à alimentação (comprar algo, assistir um filme, um banho relaxante) para celebrar suas vitórias.';
   }
 
-  const carbsTotal = carbsCal / 4;
-
-  // 5. Distribuir em Refeições
-  const mealCount = nutritionalAnamnesis.mealCount || 4;
-  const meals: Meal[] = [];
-  const isIntermittentFasting = dietType.includes('jejum');
+  // 8. Generate Meals (Simplified for now, can be expanded significantly)
+  const mealsCount = parseInt(data.mealsPerDay.charAt(0)) || 4;
+  const meals = [];
   
-  let mealNames = [
-    { name: 'Café da Manhã', time: '08:00', type: 'breakfast' },
-    { name: 'Almoço', time: '12:30', type: 'main' },
-    { name: 'Lanche da Tarde', time: '16:00', type: 'snack' },
-    { name: 'Jantar', time: '20:00', type: 'main' },
-    { name: 'Ceia', time: '22:30', type: 'snack' },
-    { name: 'Pré-Treino', time: '1 hora antes', type: 'pre-workout' }
-  ];
+  const mealNames = ['Café da Manhã', 'Lanche da Manhã', 'Almoço', 'Lanche da Tarde', 'Jantar', 'Ceia'];
+  const times = ['07:00', '10:00', '13:00', '16:00', '19:30', '22:00'];
 
-  if (isIntermittentFasting) {
-    // Janela de alimentação 16/8 (12:00 às 20:00 por padrão)
-    mealNames = [
-      { name: 'Almoço (Quebra do Jejum)', time: '12:00', type: 'main' },
-      { name: 'Lanche da Tarde', time: '15:30', type: 'snack' },
-      { name: 'Lanche Pré-Jantar', time: '18:00', type: 'snack' },
-      { name: 'Jantar (Última Refeição)', time: '19:45', type: 'main' },
-      { name: 'Pré-Treino', time: 'Dentro da janela', type: 'pre-workout' }
-    ];
-  }
-
-  const isVegetarian = nutritionalAnamnesis.dietType?.toLowerCase().includes('vegetariana');
-  const dislikes = nutritionalAnamnesis.dislikes?.toLowerCase() || '';
-
-  const getFoodOptions = (category: string) => {
-    let options = FOOD_DB.filter(f => f.category === category);
-    if (isVegetarian && category === 'proteina') {
-      options = options.filter(f => ['ovo_cozido', 'ovo_mexido', 'tofu', 'tempeh', 'queijo_cottage', 'queijo_minas', 'iogurte_natural', 'iogurte_grego_zero', 'whey_protein', 'albumina'].includes(f.id));
-    } else if (isVegetarian && category === 'carboidrato') {
-      // Priorizar grãos para vegetarianos (mais proteína)
-      options = options.sort((a, b) => b.protein - a.protein);
-    }
-    
-    options = options.filter(f => !dislikes.includes(f.name.toLowerCase()));
-    return options.length > 0 ? options : [FOOD_DB[0]];
-  };
-
-  const getRandom = (options: FoodItem[]) => options[Math.floor(Math.random() * options.length)];
-
-  for (let i = 0; i < mealCount; i++) {
-    const mealInfo = mealNames[i] || { name: `Refeição ${i + 1}`, time: '--:--', type: 'snack' };
-    
-    // Distribuição de macros por refeição (ex: almoço/jantar são maiores)
-    let mealFactor = 1 / mealCount;
-    if (mealInfo.type === 'main') mealFactor = 1.3 / mealCount;
-    if (mealInfo.type === 'snack') mealFactor = 0.7 / mealCount;
-
-    const mealProt = proteinTotal * mealFactor;
-    const mealCarb = carbsTotal * mealFactor;
-    const mealFat = fatsTotal * mealFactor;
-
-    const foods: Food[] = [];
-    
-    if (mealInfo.type === 'main') {
-      const p = getRandom(getFoodOptions('proteina'));
-      const c = getRandom(getFoodOptions('carboidrato'));
-      const v = getRandom(getFoodOptions('vegetal'));
-
-      const prepOptions = [
-        'Grelhado na frigideira com um fio de azeite',
-        'Cozido com sal e temperos naturais',
-        'Assado no forno com cebola e alho',
-        'Refogado simples com alho e cebola',
-        'Feito na Airfryer'
-      ];
-      const randomPrep = prepOptions[Math.floor(Math.random() * prepOptions.length)];
-
-      foods.push({
-        item: p.name,
-        quantity: `${Math.round((mealProt / p.protein) * 100)}g`,
-        calories: Math.round((mealProt / p.protein) * p.calories),
-        protein: Math.round(mealProt),
-        carbs: Math.round((mealProt / p.protein) * p.carbs),
-        fats: Math.round((mealProt / p.protein) * p.fats),
-        prep: randomPrep
-      });
-
-      foods.push({
-        item: c.name,
-        quantity: `${Math.round((mealCarb / c.carbs) * 100)}g`,
-        calories: Math.round((mealCarb / c.carbs) * c.calories),
-        protein: Math.round((mealCarb / c.carbs) * c.protein),
-        carbs: Math.round(mealCarb),
-        fats: Math.round((mealCarb / c.carbs) * c.fats)
-      });
-
-      foods.push({
-        item: v.name,
-        quantity: 'À vontade (mínimo 100g)',
-        calories: v.calories,
-        protein: v.protein,
-        carbs: v.carbs,
-        fats: v.fats,
-        prep: 'Temperar com limão e pouco sal'
-      });
-    } else if (mealInfo.type === 'breakfast' || mealInfo.type === 'snack') {
-      const p = getRandom(getFoodOptions('proteina'));
-      const f = getRandom(getFoodOptions('fruta'));
-      const g = getRandom(getFoodOptions('gordura'));
-      
-      let prep = '';
-      if (p.id === 'ovo_mexido' || p.id === 'ovo_cozido') {
-        prep = 'Com pitada de cúrcuma e pimenta preta';
-      }
-
-      foods.push({
-        item: p.name,
-        quantity: `${Math.round((mealProt / p.protein) * 100)}g`,
-        calories: Math.round((mealProt / p.protein) * p.calories),
-        protein: Math.round(mealProt),
-        carbs: Math.round((mealProt / p.protein) * p.carbs),
-        fats: Math.round((mealProt / p.protein) * p.fats),
-        prep: prep
-      });
-
-      foods.push({
-        item: f.name,
-        quantity: `${Math.round((mealCarb / f.carbs) * 100)}g`,
-        calories: Math.round((mealCarb / f.carbs) * f.calories),
-        protein: Math.round((mealCarb / f.carbs) * f.protein),
-        carbs: Math.round(mealCarb),
-        fats: Math.round((mealCarb / f.carbs) * f.fats)
-      });
-
-      if (mealFat > 5) {
-        foods.push({
-          item: g.name,
-          quantity: `${Math.round((mealFat / g.fats) * 100)}g`,
-          calories: Math.round((mealFat / g.fats) * g.calories),
-          protein: Math.round((mealFat / g.fats) * g.protein),
-          carbs: Math.round((mealFat / g.fats) * g.carbs),
-          fats: Math.round(mealFat)
-        });
-      }
-    } else if (mealInfo.type === 'pre-workout') {
-      const c = getRandom(getFoodOptions('carboidrato'));
-      const p = getRandom(getFoodOptions('proteina'));
-
-      foods.push({
-        item: c.name,
-        quantity: `${Math.round((mealCarb / c.carbs) * 100)}g`,
-        calories: Math.round((mealCarb / c.carbs) * c.calories),
-        protein: Math.round((mealCarb / c.carbs) * c.protein),
-        carbs: Math.round(mealCarb),
-        fats: Math.round((mealCarb / c.carbs) * c.fats)
-      });
-
-      foods.push({
-        item: p.name,
-        quantity: `${Math.round((mealProt / p.protein) * 100)}g`,
-        calories: Math.round((mealProt / p.protein) * p.calories),
-        protein: Math.round(mealProt),
-        carbs: Math.round((mealProt / p.protein) * p.carbs),
-        fats: Math.round((mealProt / p.protein) * p.fats)
-      });
-    }
-
-    // Gerar variações semanais reais baseadas no banco
-    const weeklyVariations = [
-      { day: 'Segunda/Terça', foods: [...foods] },
-      { 
-        day: 'Quarta/Quinta', 
-        foods: foods.map(f => {
-          const cat = FOOD_DB.find(db => db.name === f.item)?.category || 'proteina';
-          const alt = getRandom(getFoodOptions(cat));
-          return {
-            ...f,
-            item: alt.name,
-            quantity: f.quantity.includes('g') ? `${Math.round((f.calories / alt.calories) * 100)}g` : f.quantity
-          };
-        })
-      },
-      { 
-        day: 'Sexta/Sábado', 
-        foods: foods.map(f => {
-          const cat = FOOD_DB.find(db => db.name === f.item)?.category || 'proteina';
-          const alt = getRandom(getFoodOptions(cat));
-          return {
-            ...f,
-            item: alt.name,
-            quantity: f.quantity.includes('g') ? `${Math.round((f.calories / alt.calories) * 100)}g` : f.quantity
-          };
-        })
-      }
-    ];
+  for (let i = 0; i < mealsCount; i++) {
+    // Distribute names based on count
+    let nameIndex = i;
+    if (mealsCount === 3) nameIndex = i * 2; // 0, 2, 4 (Café, Almoço, Jantar)
+    if (mealsCount === 4 && i === 3) nameIndex = 4; // 0, 1, 2, 4 (Café, Lanche, Almoço, Jantar)
 
     meals.push({
-      name: mealInfo.name,
-      time: mealInfo.time,
-      foods,
-      weeklyVariations
-    });
-  }
-
-  // 6. Suplementação Estratégica (Integrada nas refeições)
-  const addSupplementToMeal = (mealType: string, suppId: string, quantity: string) => {
-    // Find the first meal that matches the type
-    let targetMeal = meals.find(m => {
-      const info = mealNames.find(mn => mn.name === m.name);
-      return info && info.type === mealType;
-    });
-    
-    // Fallback if meal type not found
-    if (!targetMeal) targetMeal = meals[0];
-
-    if (targetMeal) {
-      const suppData = FOOD_DB.find(f => f.id === suppId);
-      if (suppData) {
-        const foodItem = {
-          item: suppData.name,
-          quantity: quantity,
-          calories: suppData.calories > 0 ? Math.round((parseInt(quantity) || 0) / 100 * suppData.calories) : 0,
-          protein: suppData.protein > 0 ? Math.round((parseInt(quantity) || 0) / 100 * suppData.protein) : 0,
-          carbs: suppData.carbs > 0 ? Math.round((parseInt(quantity) || 0) / 100 * suppData.carbs) : 0,
-          fats: suppData.fats > 0 ? Math.round((parseInt(quantity) || 0) / 100 * suppData.fats) : 0
-        };
-        targetMeal.foods.push(foodItem);
-        // Also add to variations so it shows up every day
-        targetMeal.weeklyVariations?.forEach(v => v.foods.push(foodItem));
-      }
-    }
-  };
-
-  // User-selected supplements
-  if (nutritionalAnamnesis.supplements && nutritionalAnamnesis.supplements.length > 0) {
-    nutritionalAnamnesis.supplements.forEach(suppName => {
-      const supp = FOOD_DB.find(f => f.name.toLowerCase() === suppName.toLowerCase());
-      if (supp) {
-        let mealType = 'snack';
-        let qty = '1 unidade';
-        
-        if (supp.id === 'whey_protein' || supp.id === 'albumina') {
-          mealType = 'snack';
-          qty = '30g';
-        } else if (supp.id === 'creatina' || supp.id === 'glutamina') {
-          mealType = 'main';
-          qty = '5g';
-        } else if (supp.id === 'multivitaminico') {
-          mealType = 'breakfast';
-          qty = '1 unidade';
-        } else if (supp.id === 'omega3') {
-          mealType = 'main';
-          qty = '2 unidades';
-        } else if (supp.id === 'cafeina' || supp.id === 'pre-treino') {
-          mealType = 'pre-workout';
-          qty = '1 dose';
+      name: mealNames[nameIndex] || `Refeição ${i + 1}`,
+      time: times[nameIndex] || 'Horário a definir',
+      options: [
+        {
+          description: 'Opção Padrão',
+          items: [
+            `Proteína: ${Math.round(proteinGrams / mealsCount)}g (Ex: Frango, Ovo, Whey)`,
+            `Carboidrato: ${Math.round(carbGrams / mealsCount)}g (Ex: Arroz, Batata, Aveia)`,
+            `Gordura: ${Math.round(fatGrams / mealsCount)}g (Ex: Azeite, Castanhas, Abacate)`,
+            'Vegetais à vontade'
+          ]
         }
-        
-        addSupplementToMeal(mealType, supp.id, qty);
-      }
+      ]
     });
-  } else {
-    // Base Supplements if none selected
-    addSupplementToMeal('breakfast', 'multivitaminico', '1 unidade');
-    addSupplementToMeal('main', 'creatina', '5g');
-
-    // Goal-specific Suggestions
-    if (goal.includes('hipertrofia') || goal.includes('massa')) {
-      addSupplementToMeal('snack', 'whey_protein', '30g');
-    } else if (goal.includes('emagrecimento') || goal.includes('definição')) {
-      addSupplementToMeal('pre-workout', 'cafeina', '1 unidade');
-      addSupplementToMeal('main', 'omega3', '2 unidades');
-    }
   }
 
-  const recommendations = `
-    - Hidratação: Beba pelo menos ${Math.round(weight * 40 / 1000)} litros de água por dia.
-    ${isIntermittentFasting ? '- Jejum Intermitente: Mantenha sua janela de alimentação rigorosamente entre 12:00 e 20:00.' : ''}
-    ${dietType.includes('hiperproteica') ? '- Dieta da Proteína: Priorize carnes magras, ovos e laticínios em todas as refeições.' : ''}
-    ${dietType.includes('carnívora') ? '- Carnívora: Foco total em proteínas animais e gorduras naturais. Evite qualquer vegetal ou grão.' : ''}
-    ${dietType.includes('mediterrânea') ? '- Mediterrânea: Use azeite de oliva extra virgem generosamente e consuma oleaginosas diariamente.' : ''}
-    ${dietType.includes('dash') ? '- DASH: Foco total na redução de sódio. Evite embutidos, conservas e use o mínimo de sal possível.' : ''}
-    - Consistência: Tente seguir os horários das refeições em pelo menos 80% do tempo.
-    - Qualidade: Priorize alimentos "de verdade" (descasque mais, embale menos).
-    - Sal: Use com moderação, prefira temperos naturais (alho, cebola, ervas).
-    - Sono: Durma de 7 a 9 horas por noite. A regeneração ocorre no descanso.
-    - Suplementação: Os suplementos foram integrados diretamente nas suas refeições para facilitar a rotina.
-    - Nível ${userLevel.toUpperCase()}: Foco total na precisão das pesagens dos alimentos.
-  `.trim();
+  // 9. Supplements
+  const supplements = [];
+  if (data.goal.includes('Hipertrofia') || data.goal.includes('Performance')) {
+    supplements.push({
+      name: 'Creatina Monohidratada',
+      dosage: '3g a 5g',
+      timing: 'Todos os dias, em qualquer horário (preferencialmente com carboidrato)',
+      purpose: 'Aumento de força e volume muscular.'
+    });
+  }
+  if (data.sleepQuality.includes('Ruim') || data.sleepQuality.includes('Insônia')) {
+    supplements.push({
+      name: 'Melatonina + Magnésio Inositol',
+      dosage: 'Melatonina 0.21mg a 3mg / Magnésio 200mg',
+      timing: '30 a 60 minutos antes de dormir',
+      purpose: 'Melhorar a indução e qualidade do sono.'
+    });
+  }
+  if (data.currentSupplements.includes('Whey Protein')) {
+    supplements.push({
+      name: 'Whey Protein',
+      dosage: '1 scoop (aprox. 30g)',
+      timing: 'Pós-treino ou em lanches intermediários',
+      purpose: 'Bater a meta de proteínas diária com praticidade.'
+    });
+  }
 
   return {
-    goal: anamnesis.goal || 'Saúde e Performance',
-    calories: Math.round(targetCalories),
+    id: Math.random().toString(36).substr(2, 9),
+    createdAt: new Date().toISOString(),
+    tdee,
+    targetCalories,
     macros: {
-      protein: Math.round(proteinTotal),
-      carbs: Math.round(carbsTotal),
-      fats: Math.round(fatsTotal)
+      protein: proteinGrams,
+      carbs: carbGrams,
+      fats: fatGrams
     },
+    waterIntakeGoal,
+    strategySummary,
+    emotionalGuidelines,
     meals,
-    supplementation: "", // Removed separate supplementation
-    recommendations,
-    createdAt: new Date().toISOString()
+    supplements
   };
-}
-
-export interface ShoppingItem {
-  item: string;
-  monthlyTotal: string;
-  packagesToBuy: string;
-  category: string;
-}
-
-export function generateShoppingList(plan: DietPlan): ShoppingItem[] {
-  const itemsMap: Record<string, { total: number, unit: string, category: string }> = {};
-
-  // Helper to parse quantity like "150g" or "2 unidades"
-  const parseQuantity = (q: string) => {
-    if (q.toLowerCase().includes('vontade')) {
-      return { value: 100, unit: 'g' }; // Base estimate for "à vontade"
-    }
-    const match = q.match(/(\d+)\s*(g|unidades|unidade|ml|fatias|colheres)/i);
-    if (match) {
-      let unit = match[2].toLowerCase();
-      if (unit === 'unidade') unit = 'unidades';
-      if (unit === 'fatias') unit = 'unidades'; // Treat slices as units for calculation
-      return { value: parseInt(match[1]), unit };
-    }
-    return { value: 0, unit: 'unidades' };
-  };
-
-  // Process all meals and their variations
-  const processFoods = (foods: Food[], multiplier: number = 1) => {
-    foods.forEach(f => {
-      const { value, unit } = parseQuantity(f.quantity);
-      const foodData = FOOD_DB.find(db => db.name === f.item);
-      const category = foodData?.category || 'outros';
-      
-      if (!itemsMap[f.item]) {
-        itemsMap[f.item] = { total: 0, unit, category };
-      }
-      
-      itemsMap[f.item].total += value * multiplier;
-    });
-  };
-
-  plan.meals.forEach(meal => {
-    processFoods(meal.foods, 1); // Daily base
-    
-    // Variations are also processed to ensure variety in the list
-    meal.weeklyVariations?.forEach(v => {
-      processFoods(v.foods, 0.2); // Add a fraction for variations
-    });
-  });
-
-  return Object.entries(itemsMap).map(([item, data]) => {
-    const monthlyTotalValue = data.total * 30; // 30 days in a month
-    let monthlyTotalStr = '';
-    let packagesToBuy = '';
-
-    const itemNameLower = item.toLowerCase();
-
-    if (data.unit === 'g') {
-      const kg = monthlyTotalValue / 1000;
-      monthlyTotalStr = kg >= 1 ? `${kg.toFixed(1)} kg` : `${Math.round(monthlyTotalValue)} g`;
-      
-      // Estimate packages
-      if (itemNameLower.includes('whey') || itemNameLower.includes('albumina')) {
-        const packs = Math.ceil(kg / 0.9); // 900g pack
-        packagesToBuy = `${packs} pote(s) de 900g`;
-      } else if (itemNameLower.includes('creatina') || itemNameLower.includes('glutamina')) {
-        const packs = Math.ceil(kg / 0.3); // 300g pack
-        packagesToBuy = `${packs} pote(s) de 300g`;
-      } else if (itemNameLower.includes('arroz') || itemNameLower.includes('feijão') || itemNameLower.includes('feijao') || itemNameLower.includes('frango') || itemNameLower.includes('carne') || itemNameLower.includes('patinho') || itemNameLower.includes('tilápia') || itemNameLower.includes('salmão') || itemNameLower.includes('lombo')) {
-        const packs = Math.ceil(kg / 1); // 1kg pack
-        packagesToBuy = `${packs} pacote(s)/bandeja(s) de 1kg`;
-      } else if (itemNameLower.includes('aveia') || itemNameLower.includes('tapioca') || itemNameLower.includes('macarrão') || itemNameLower.includes('macarrao') || itemNameLower.includes('café') || itemNameLower.includes('cafe')) {
-        const packs = Math.ceil(kg / 0.5); // 500g pack
-        packagesToBuy = `${packs} pacote(s) de 500g`;
-      } else if (itemNameLower.includes('azeite')) {
-        const packs = Math.ceil(monthlyTotalValue / 500); // 500ml
-        packagesToBuy = `${packs} garrafa(s) de 500ml`;
-      } else if (itemNameLower.includes('queijo') || itemNameLower.includes('tofu') || itemNameLower.includes('tempeh')) {
-        const packs = Math.ceil(kg / 0.3); // 300g pack
-        packagesToBuy = `${packs} pacote(s) de 300g`;
-      } else if (data.category === 'vegetal' || data.category === 'fruta') {
-        packagesToBuy = `Comprar aprox. ${monthlyTotalStr}`;
-      } else {
-        packagesToBuy = `Comprar aprox. ${monthlyTotalStr}`;
-      }
-    } else if (data.unit.includes('unidade')) {
-      monthlyTotalStr = `${Math.round(monthlyTotalValue)} unidades`;
-      if (itemNameLower.includes('ovo')) {
-        const packs = Math.ceil(monthlyTotalValue / 30);
-        packagesToBuy = `${packs} cartela(s) de 30 ovos`;
-      } else if (itemNameLower.includes('pão') || itemNameLower.includes('pao')) {
-        const packs = Math.ceil(monthlyTotalValue / 14); // 14 slices per loaf
-        packagesToBuy = `${packs} pacote(s) de pão de forma`;
-      } else if (itemNameLower.includes('multivitamínico') || itemNameLower.includes('ômega 3') || itemNameLower.includes('cafeína')) {
-        const packs = Math.ceil(monthlyTotalValue / 60); // 60 capsules per bottle
-        packagesToBuy = `${packs} frasco(s) de 60 cápsulas`;
-      } else {
-        packagesToBuy = `Comprar ${Math.round(monthlyTotalValue)} unidades`;
-      }
-    } else if (data.unit === 'ml') {
-      const liters = monthlyTotalValue / 1000;
-      monthlyTotalStr = liters >= 1 ? `${liters.toFixed(1)} L` : `${Math.round(monthlyTotalValue)} ml`;
-      const packs = Math.ceil(liters / 1);
-      packagesToBuy = `${packs} caixa(s)/garrafa(s) de 1L`;
-    } else {
-      monthlyTotalStr = `${Math.round(monthlyTotalValue)} ${data.unit}`;
-      packagesToBuy = `Comprar ${monthlyTotalStr}`;
-    }
-
-    return {
-      item,
-      monthlyTotal: monthlyTotalStr,
-      packagesToBuy,
-      category: data.category
-    };
-  }).sort((a, b) => a.category.localeCompare(b.category));
-}
-
-export function getFoodSubstitutes(foodName: string): FoodItem[] {
-  const food = FOOD_DB.find(f => f.name === foodName);
-  if (!food) return [];
-  
-  // Return foods from the same category for easier substitution for beginners
-  return FOOD_DB.filter(f => 
-    f.category === food.category && 
-    f.name !== food.name
-  ).slice(0, 6);
 }

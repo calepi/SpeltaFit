@@ -124,51 +124,6 @@ export function TechnicalDocumentation({ onBack }: TechnicalDocumentationProps) 
                 </div>
               </div>
             </div>
-
-            <div>
-              <h3 className="text-xl font-black text-text-main mb-4 flex items-center gap-2">
-                <div className="w-2 h-6 bg-brand rounded-full" />
-                Motor Nutricional (Nutrition Engine)
-              </h3>
-              <p className="text-text-muted mb-4">
-                Utiliza as fórmulas de Mifflin-St Jeor para Taxa Metabólica Basal (TMB) e aplica fatores de atividade física e objetivos térmicos para gerar planos alimentares precisos.
-              </p>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="p-6 rounded-3xl bg-bg-main border border-border">
-                  <h4 className="font-black text-xs uppercase text-brand mb-2">Cálculo de TMB e GET</h4>
-                  <p className="text-sm text-text-muted mb-2">A base do cálculo calórico utiliza a fórmula mais precisa validada cientificamente.</p>
-                  <ul className="text-xs text-text-muted list-disc pl-4 space-y-1">
-                    <li><strong>TMB Homens:</strong> (10 × peso) + (6.25 × altura) - (5 × idade) + 5</li>
-                    <li><strong>TMB Mulheres:</strong> (10 × peso) + (6.25 × altura) - (5 × idade) - 161</li>
-                    <li><strong>Gasto Energético Total (GET):</strong> TMB × Fator de Atividade (1.2 a 1.9).</li>
-                    <li><strong>Ajuste de Objetivo:</strong> Emagrecimento (-500 kcal), Manutenção (0 kcal), Hipertrofia (+300 a +500 kcal).</li>
-                  </ul>
-                </div>
-                <div className="p-6 rounded-3xl bg-bg-main border border-border">
-                  <h4 className="font-black text-xs uppercase text-brand mb-2">Distribuição de Macronutrientes</h4>
-                  <p className="text-sm text-text-muted mb-2">Ajusta a proporção de macros de acordo com o tipo de dieta selecionado pelo usuário.</p>
-                  <ul className="text-xs text-text-muted list-disc pl-4 space-y-1">
-                    <li><strong>Padrão:</strong> Proteína (2.0g/kg), Gordura (1.0g/kg), Carboidratos (Restante).</li>
-                    <li><strong>Low Carb:</strong> Carboidratos limitados a 20-30% do VCT.</li>
-                    <li><strong>Cetogênica:</strong> Carboidratos &lt; 50g/dia, Gorduras &gt; 65% do VCT.</li>
-                    <li><strong>Hiperproteica:</strong> Proteína (2.5g a 3.0g/kg).</li>
-                  </ul>
-                </div>
-                <div className="p-6 rounded-3xl bg-bg-main border border-border md:col-span-2">
-                  <h4 className="font-black text-xs uppercase text-brand mb-2">Protocolos Especiais</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <p className="text-sm font-bold text-text-main mb-1">Jejum Intermitente (16/8)</p>
-                      <p className="text-xs text-text-muted">O motor condensa a ingestão calórica em uma janela de 8 horas (ex: 12h às 20h), distribuindo as refeições (Almoço, Lanche, Jantar) dentro deste período e zerando as calorias fora dele.</p>
-                    </div>
-                    <div>
-                      <p className="text-sm font-bold text-text-main mb-1">Protocolo 2026 (Iniciantes)</p>
-                      <p className="text-xs text-text-muted">Motor específico para o Mês 1 e 2 de sedentários. Prioriza mudanças comportamentais (redução de ultraprocessados) e hidratação antes de aplicar restrição calórica rigorosa.</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
           </div>
         </section>
 
@@ -208,16 +163,6 @@ export function TechnicalDocumentation({ onBack }: TechnicalDocumentationProps) 
                     <td className="py-4 font-mono text-xs">/users/&#123;uid&#125;/data/workoutPlan</td>
                     <td className="py-4">Plano de treino atual</td>
                     <td className="py-4">weeklyRoutine, createdAt, trainingStartDate</td>
-                  </tr>
-                  <tr className="border-b border-border/50">
-                    <td className="py-4 font-mono text-xs">/users/&#123;uid&#125;/data/dietPlan</td>
-                    <td className="py-4">Plano alimentar atual</td>
-                    <td className="py-4">calories, macros, meals, recommendations</td>
-                  </tr>
-                  <tr className="border-b border-border/50">
-                    <td className="py-4 font-mono text-xs">/users/&#123;uid&#125;/data/nutritionTracking</td>
-                    <td className="py-4">Histórico de peso e adesão</td>
-                    <td className="py-4">entries (array de objetos TrackingEntry)</td>
                   </tr>
                   <tr className="border-b border-border/50">
                     <td className="py-4 font-mono text-xs">/users/&#123;uid&#125;/data/progress</td>
@@ -290,27 +235,12 @@ export function TechnicalDocumentation({ onBack }: TechnicalDocumentationProps) 
              <div className="flex items-start gap-4 p-6 bg-bg-main rounded-3xl border border-border">
                 <div className="p-2 rounded-lg bg-amber-500/10 text-amber-500"><Code className="w-4 h-4" /></div>
                 <div>
-                  <h4 className="font-black text-sm uppercase mb-2">Motor de Substituição de Alimentos (Substitution Engine)</h4>
-                  <p className="text-sm text-text-muted mb-2">
-                    Permite a troca de alimentos mantendo o balanço de macronutrientes. O algoritmo identifica o macronutriente principal do alimento original (ex: Proteína no Frango) e calcula a quantidade necessária do novo alimento (ex: Patinho) para igualar esse macro.
-                  </p>
-                  <ul className="text-xs text-text-muted list-disc pl-4 space-y-1">
-                    <li><strong>Fórmula Base:</strong> (Qtd_Original * Macro_Original_por_100g) / Macro_Novo_por_100g = Qtd_Nova</li>
-                    <li><strong>Ajuste Secundário:</strong> Após calcular a quantidade do novo alimento, o sistema recalcula os macros secundários (gorduras e carboidratos) e ajusta o total da refeição, alertando o usuário se a troca ultrapassar 15% do limite calórico da refeição.</li>
-                    <li><strong>Database:</strong> Utiliza o `foodDatabase.ts` que contém tabelas nutricionais padronizadas (TACO/IBGE).</li>
-                  </ul>
-                </div>
-             </div>
-
-             <div className="flex items-start gap-4 p-6 bg-bg-main rounded-3xl border border-border">
-                <div className="p-2 rounded-lg bg-amber-500/10 text-amber-500"><Code className="w-4 h-4" /></div>
-                <div>
                   <h4 className="font-black text-sm uppercase mb-2">Sistema de Gamificação (Gamification Engine)</h4>
                   <p className="text-sm text-text-muted mb-2">
                     Módulo de engajamento baseado em pontuação (XP), níveis e conquistas (Badges) para incentivar a consistência.
                   </p>
                   <ul className="text-xs text-text-muted list-disc pl-4 space-y-1">
-                    <li><strong>Cálculo de XP:</strong> Treino Concluído (+50 XP), Bateu Meta de Água (+20 XP), Refeição Perfeita (+30 XP), Check-in Diário (+10 XP).</li>
+                    <li><strong>Cálculo de XP:</strong> Treino Concluído (+50 XP), Check-in Diário (+10 XP).</li>
                     <li><strong>Níveis:</strong> Progressão logarítmica. Nível = floor(sqrt(XP / 100)). Exige mais esforço para subir em níveis mais altos.</li>
                     <li><strong>Badges:</strong> "Iniciante" (1º treino), "Consistente" (7 dias seguidos), "Mestre do Aço" (Levantou 1000kg no total).</li>
                     <li><strong>Persistência:</strong> Dados salvos em `/users/&#123;uid&#125;/data/gamification`.</li>
