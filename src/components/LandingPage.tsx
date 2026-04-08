@@ -16,9 +16,10 @@ interface Props {
   onContinue?: () => void;
   onViewTerms?: () => void;
   onViewPrivacy?: () => void;
+  hidePricing?: boolean;
 }
 
-export function LandingPage({ onStart, hasPlan, onContinue, onViewTerms, onViewPrivacy }: Props) {
+export function LandingPage({ onStart, hasPlan, onContinue, onViewTerms, onViewPrivacy, hidePricing }: Props) {
   const containerVariants = {
     hidden: { opacity: 0 },
     visible: {
@@ -74,7 +75,7 @@ export function LandingPage({ onStart, hasPlan, onContinue, onViewTerms, onViewP
             onClick={onStart}
             className={`${hasPlan ? 'bg-surface text-text-main border-2 border-border hover:border-brand/50' : 'bg-brand hover:bg-brand-hover text-text-inverse'} font-black text-xl px-8 py-4 rounded-full shadow-xl hover:shadow-2xl transition-all flex items-center gap-3`}
           >
-            {hasPlan ? 'Criar Novo Treino' : 'Começar Minha Avaliação'}
+            {hasPlan ? 'Criar Novo Treino' : (hidePricing ? 'Começar Agora' : 'Começar 7 Dias Grátis')}
             {!hasPlan && <ArrowRight className="w-6 h-6" />}
           </motion.button>
         </div>
@@ -190,6 +191,68 @@ export function LandingPage({ onStart, hasPlan, onContinue, onViewTerms, onViewP
         </motion.div>
       </section>
 
+      {/* Pricing Section */}
+      {!hidePricing && (
+        <section className="w-full max-w-6xl mx-auto px-4">
+          <div className="text-center mb-16">
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-brand/10 text-brand font-bold text-sm mb-6">
+              <Sparkles className="w-5 h-5" />
+              7 Dias Grátis
+            </div>
+            <h2 className="text-4xl font-black text-text-main mb-4">Invista no seu Resultado</h2>
+            <p className="text-xl text-text-muted max-w-2xl mx-auto">
+              Comece agora com 7 dias de teste totalmente gratuitos. Cancele quando quiser.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {[
+              { name: 'Mensal', price: '14,90', period: '/mês', desc: 'Ideal para conhecer', total: 'Cobrado mensalmente' },
+              { name: 'Trimestral', price: '34,90', period: '/trimestre', desc: 'Equivale a R$ 11,63/mês', total: 'Cobrado a cada 3 meses' },
+              { name: 'Semestral', price: '59,90', period: '/semestre', desc: 'Equivale a R$ 9,98/mês', total: 'Cobrado a cada 6 meses' },
+              { name: 'Anual', price: '99,90', period: '/ano', desc: 'Melhor custo-benefício (R$ 8,32/mês)', total: 'Cobrado anualmente', highlight: true },
+            ].map((plan, i) => (
+              <div key={i} className={`relative bg-surface rounded-3xl p-8 border-2 transition-transform hover:-translate-y-2 ${plan.highlight ? 'border-brand shadow-xl' : 'border-border shadow-sm'}`}>
+                {plan.highlight && (
+                  <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-brand text-white text-sm font-bold px-4 py-1 rounded-full">
+                    MAIS POPULAR
+                  </div>
+                )}
+                <h3 className="text-xl font-bold text-text-main mb-2">{plan.name}</h3>
+                <p className="text-sm text-text-muted mb-6 h-10">{plan.desc}</p>
+                
+                <div className="mb-6">
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-lg font-bold text-text-main">R$</span>
+                    <span className="text-4xl font-black text-text-main">{plan.price}</span>
+                  </div>
+                  <p className="text-sm text-text-muted mt-1">{plan.total}</p>
+                </div>
+
+                <ul className="space-y-3 mb-8">
+                  <li className="flex items-center gap-2 text-sm text-text-main">
+                    <CheckCircle2 className="w-4 h-4 text-brand" /> Treinos com IA
+                  </li>
+                  <li className="flex items-center gap-2 text-sm text-text-main">
+                    <CheckCircle2 className="w-4 h-4 text-brand" /> Planos Nutricionais
+                  </li>
+                  <li className="flex items-center gap-2 text-sm text-text-main">
+                    <CheckCircle2 className="w-4 h-4 text-brand" /> SpeltaGram
+                  </li>
+                </ul>
+
+                <button
+                  onClick={onStart}
+                  className={`w-full py-3 rounded-xl font-bold transition-colors ${plan.highlight ? 'bg-brand text-white hover:bg-brand-hover' : 'bg-bg-main text-text-main border border-border hover:border-brand'}`}
+                >
+                  Começar 7 Dias Grátis
+                </button>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
       {/* Bottom CTA */}
       <section className="w-full max-w-4xl mx-auto px-4 text-center bg-brand rounded-[3rem] p-12 md:p-20 shadow-2xl relative overflow-hidden">
         <div className="absolute inset-0 bg-black/10"></div>
@@ -218,7 +281,7 @@ export function LandingPage({ onStart, hasPlan, onContinue, onViewTerms, onViewP
               onClick={onStart}
               className={`${hasPlan ? 'bg-transparent border-2 border-white text-white hover:bg-white/10' : 'bg-white text-brand'} font-black text-xl px-8 py-4 rounded-full shadow-xl hover:shadow-2xl transition-all inline-flex items-center gap-3`}
             >
-              {hasPlan ? 'Criar Novo Treino' : 'Começar Agora'}
+              {hasPlan ? 'Criar Novo Treino' : 'Começar 7 Dias Grátis'}
               {!hasPlan && <ArrowRight className="w-6 h-6" />}
             </motion.button>
           </div>

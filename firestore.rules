@@ -142,7 +142,8 @@ service cloud.firestore {
              data.createdAt is string &&
              (!('whatsapp' in data) || (data.whatsapp is string && data.whatsapp.size() < 30)) &&
              (!('hasSubscription' in data) || data.hasSubscription is bool) &&
-             (!('theme' in data) || data.theme is string);
+             (!('theme' in data) || data.theme is string) &&
+             (!('trialEndsAt' in data) || data.trialEndsAt is string);
     }
 
     function isValidAnamnesis() {

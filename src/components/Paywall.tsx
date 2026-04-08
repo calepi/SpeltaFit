@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { motion } from 'motion/react';
 import { CheckCircle2, Lock, ArrowRight, ShieldCheck } from 'lucide-react';
 import { Logo } from './Logo';
@@ -10,9 +10,18 @@ interface Props {
 }
 
 export function Paywall({ onSubscribe, onLogout, isLoading }: Props) {
+  const [selectedPlan, setSelectedPlan] = useState('annual');
+
+  const plans = [
+    { id: 'monthly', name: 'Mensal', price: '14,90', period: '/mês', desc: 'Ideal para conhecer', total: 'Cobrado mensalmente' },
+    { id: 'quarterly', name: 'Trimestral', price: '34,90', period: '/trimestre', desc: 'Equivale a R$ 11,63/mês', total: 'Cobrado a cada 3 meses' },
+    { id: 'semiannual', name: 'Semestral', price: '59,90', period: '/semestre', desc: 'Equivale a R$ 9,98/mês', total: 'Cobrado a cada 6 meses' },
+    { id: 'annual', name: 'Anual', price: '99,90', period: '/ano', desc: 'Melhor custo-benefício (R$ 8,32/mês)', total: 'Cobrado anualmente', highlight: true },
+  ];
+
   return (
-    <div className="min-h-screen bg-bg-main flex flex-col items-center justify-center p-4">
-      <div className="w-full max-w-4xl">
+    <div className="min-h-screen bg-bg-main flex flex-col items-center justify-center p-4 py-12">
+      <div className="w-full max-w-5xl">
         <div className="text-center mb-12">
           <div className="inline-flex items-center justify-center mb-6">
             <Logo size="xl" />
@@ -21,11 +30,11 @@ export function Paywall({ onSubscribe, onLogout, isLoading }: Props) {
             Desbloqueie seu <span className="text-brand">Potencial Máximo</span>
           </h1>
           <p className="text-xl text-text-muted max-w-2xl mx-auto">
-            Você está a um passo de transformar seu corpo com inteligência artificial e acompanhamento profissional.
+            Seu período de teste acabou. Escolha um plano para continuar transformando seu corpo com inteligência artificial e acompanhamento profissional.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
           {/* Features List */}
           <div className="bg-surface border border-border rounded-3xl p-8 shadow-xl">
             <h2 className="text-2xl font-bold text-text-main mb-6">O que você ganha:</h2>
@@ -46,34 +55,50 @@ export function Paywall({ onSubscribe, onLogout, isLoading }: Props) {
             </ul>
           </div>
 
-          {/* Pricing Card */}
-          <div className="bg-brand rounded-3xl p-8 shadow-2xl text-white relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
-            
-            <div className="relative z-10">
-              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/20 font-bold text-sm mb-6">
-                <Lock className="w-4 h-4" />
-                Acesso Premium
-              </div>
-              
-              <div className="mb-8">
-                <span className="text-5xl font-black">R$ 49,90</span>
-                <span className="text-white/80 text-lg">/mês</span>
-              </div>
-
-              <button
-                onClick={onSubscribe}
-                disabled={isLoading}
-                className="w-full bg-white text-brand hover:bg-gray-50 font-black text-xl px-8 py-4 rounded-xl shadow-xl hover:shadow-2xl transition-all flex items-center justify-center gap-3 disabled:opacity-70 disabled:cursor-not-allowed"
+          {/* Pricing Plans */}
+          <div className="flex flex-col gap-4">
+            {plans.map((plan) => (
+              <div 
+                key={plan.id}
+                onClick={() => setSelectedPlan(plan.id)}
+                className={`relative bg-surface border-2 rounded-2xl p-5 cursor-pointer transition-all ${selectedPlan === plan.id ? 'border-brand shadow-lg scale-[1.02]' : 'border-border hover:border-brand/50'}`}
               >
-                {isLoading ? 'Processando...' : 'Assinar Agora'}
-                {!isLoading && <ArrowRight className="w-6 h-6" />}
-              </button>
-
-              <div className="mt-6 flex items-center justify-center gap-2 text-white/80 text-sm">
-                <ShieldCheck className="w-4 h-4" />
-                Pagamento 100% seguro
+                {plan.highlight && (
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-brand text-white text-xs font-bold px-3 py-1 rounded-full">
+                    MAIS POPULAR
+                  </div>
+                )}
+                <div className="flex justify-between items-center">
+                  <div>
+                    <h3 className="text-lg font-bold text-text-main">{plan.name}</h3>
+                    <p className="text-sm text-text-muted">{plan.desc}</p>
+                  </div>
+                  <div className="text-right">
+                    <div className="flex items-baseline gap-1">
+                      <span className="text-sm font-bold text-text-main">R$</span>
+                      <span className="text-2xl font-black text-text-main">{plan.price}</span>
+                    </div>
+                    <p className="text-xs text-text-muted">{plan.total}</p>
+                  </div>
+                </div>
+                {selectedPlan === plan.id && (
+                  <div className="absolute inset-0 border-2 border-brand rounded-2xl pointer-events-none"></div>
+                )}
               </div>
+            ))}
+
+            <button
+              onClick={onSubscribe}
+              disabled={isLoading}
+              className="w-full mt-4 bg-brand text-white hover:bg-brand-hover font-black text-xl px-8 py-4 rounded-xl shadow-xl transition-all flex items-center justify-center gap-3 disabled:opacity-70 disabled:cursor-not-allowed"
+            >
+              {isLoading ? 'Processando...' : 'Assinar Agora'}
+              {!isLoading && <ArrowRight className="w-6 h-6" />}
+            </button>
+
+            <div className="mt-4 flex items-center justify-center gap-2 text-text-muted text-sm">
+              <ShieldCheck className="w-4 h-4" />
+              Pagamento 100% seguro via Stripe
             </div>
           </div>
         </div>

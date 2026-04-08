@@ -29,7 +29,7 @@ import { AuthModal } from './components/AuthModal';
 import { NutriAnamnesisData, NutritionalPlan } from './types/nutrition';
 import { generateNutritionalPlan } from './services/nutritionGenerator';
 
-type AppState = 'landing' | 'form' | 'plan' | 'admin' | 'library' | 'speltagram' | 'evolution' | 'manual' | 'documentation' | 'comparison' | 'gamification' | 'reminders' | 'terms' | 'privacy' | 'nutriForm' | 'nutriPlan';
+type AppState = 'landing' | 'form' | 'plan' | 'admin' | 'library' | 'speltagram' | 'evolution' | 'manual' | 'documentation' | 'comparison' | 'gamification' | 'reminders' | 'terms' | 'privacy' | 'nutriForm' | 'nutriPlan' | 'paywall';
 type Theme = 'default' | 'green' | 'blue' | 'gold';
 
 export default function App() {
@@ -48,8 +48,19 @@ export default function App() {
   const [isAuthReady, setIsAuthReady] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [hasSubscription, setHasSubscription] = useState(false);
+  const [trialEndsAt, setTrialEndsAt] = useState<string | null>(null);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  // ============================================================================
+  // MODO DE REVISÃO DA PLAY STORE
+  // ============================================================================
+  // ATENÇÃO: Mantenha como TRUE enquanto o app estiver em análise pelo Google.
+  // Isso esconde os preços e o paywall para evitar rejeição por não usar o 
+  // Google Play Billing.
+  // Mude para FALSE após o app ser aprovado e publicado na loja.
+  const IS_PLAY_STORE_REVIEW_MODE = true; 
+  // ============================================================================
 
   // Handle Firebase Auth and Data Loading
   useEffect(() => {
@@ -78,6 +89,7 @@ export default function App() {
           if (userDocSnap.exists()) {
             const userData = userDocSnap.data();
             setHasSubscription(userData.hasSubscription === true || userData.role === 'admin' || currentUser.email === 'calepi@gmail.com');
+            setTrialEndsAt(userData.trialEndsAt || null);
             if (userData.theme) {
               setTheme(userData.theme as Theme);
               document.documentElement.setAttribute('data-theme', userData.theme);
@@ -385,8 +397,21 @@ export default function App() {
     );
   }
 
+  const isSpecialAccount = user?.email === 'calepi@gmail.com' || user?.email === 'tazmania.crvg@gmail.com' || user?.email === 'teste@speltafit.com';
+  const isTrialActive = trialEndsAt ? new Date() < new Date(trialEndsAt) : false;
+  const daysLeft = trialEndsAt ? Math.ceil((new Date(trialEndsAt).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)) : 0;
+  const showPaywall = !IS_PLAY_STORE_REVIEW_MODE && user && !hasSubscription && !isTrialActive && !isSpecialAccount && appState !== 'terms' && appState !== 'privacy' && appState !== 'landing';
+
   return (
     <div className="min-h-screen flex flex-col bg-bg-main text-text-main font-sans transition-colors duration-300">
+      {!IS_PLAY_STORE_REVIEW_MODE && user && !hasSubscription && isTrialActive && !isSpecialAccount && (
+        <div className="bg-brand text-white text-center py-2 px-4 text-sm font-bold flex flex-col sm:flex-row justify-center items-center gap-2 sm:gap-4 print:hidden">
+          <span>Você está no período de teste. Restam {daysLeft} dias.</span>
+          <button onClick={() => setAppState('paywall')} className="bg-white text-brand px-3 py-1 rounded-full text-xs hover:bg-gray-100 transition-colors">
+            Assinar Premium
+          </button>
+        </div>
+      )}
       {/* Header */}
       <header className="border-b border-border bg-bg-main/80 backdrop-blur-md sticky top-0 z-50 print:hidden">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
@@ -646,7 +671,7 @@ export default function App() {
           </div>
         )}
 
-        {user && !hasSubscription && appState !== 'terms' && appState !== 'privacy' ? (
+        {showPaywall || appState === 'paywall' ? (
           <Paywall 
             onSubscribe={handleSubscribe} 
             onLogout={handleLogout} 
@@ -667,6 +692,7 @@ export default function App() {
                 onContinue={() => setAppState('plan')}
                 onViewTerms={() => setAppState('terms')}
                 onViewPrivacy={() => setAppState('privacy')}
+                hidePricing={IS_PLAY_STORE_REVIEW_MODE}
               />
             )}
 
@@ -761,9 +787,12 @@ export default function App() {
 
       {/* Footer / Credits */}
       <footer className="border-t border-border bg-bg-main/50 py-6 mt-auto print:hidden">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center flex flex-col gap-2">
           <p className="text-sm text-text-muted">
             Ferramenta desenvolvida por <span className="font-semibold text-brand">Carlos Alexandre Pinheiro</span> e <span className="font-semibold text-brand">Márcio Spelta</span>
+          </p>
+          <p className="text-xs text-text-muted">
+            Suporte: <a href="mailto:speltafit@gmail.com" className="hover:text-brand transition-colors">speltafit@gmail.com</a> | WhatsApp: <a href="https://wa.me/5521978281073" target="_blank" rel="noopener noreferrer" className="hover:text-brand transition-colors">(21) 97828-1073</a>
           </p>
         </div>
       </footer>
