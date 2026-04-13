@@ -5,6 +5,8 @@ import { AnamnesisData, WorkoutPlan } from '../services/workoutGenerator';
 import { Users, Activity, Target, Calendar, ChevronRight, ArrowLeft, Search, Dumbbell, Trash2, FileText, Lightbulb } from 'lucide-react';
 import { motion } from 'motion/react';
 import { WorkoutPlanView } from './WorkoutPlanView';
+import { NutritionalPlanView } from './NutritionalPlanView';
+import { NutriAnamnesisData, NutritionalPlan } from '../types/nutrition';
 
 interface UserProfile {
   uid: string;
@@ -18,6 +20,8 @@ interface StudentData {
   profile: UserProfile;
   anamnesis: AnamnesisData | null;
   plan: WorkoutPlan | null;
+  nutriAnamnesis: NutriAnamnesisData | null;
+  nutriPlan: NutritionalPlan | null;
   progress: any | null;
 }
 
@@ -153,11 +157,15 @@ export function AdminDashboard({ onViewDocumentation, onViewPatent }: AdminDashb
       const anamnesisSnap = await getDoc(doc(db, `users/${profile.uid}/data/anamnesis`));
       const planSnap = await getDoc(doc(db, `users/${profile.uid}/data/workoutPlan`));
       const progressSnap = await getDoc(doc(db, `users/${profile.uid}/data/progress`));
+      const nutriAnamnesisSnap = await getDoc(doc(db, `users/${profile.uid}/data/nutriAnamnesis`));
+      const nutriPlanSnap = await getDoc(doc(db, `users/${profile.uid}/data/nutriPlan`));
 
       setSelectedStudent({
         profile,
         anamnesis: anamnesisSnap.exists() ? (anamnesisSnap.data() as AnamnesisData) : null,
         plan: planSnap.exists() ? (planSnap.data() as WorkoutPlan) : null,
+        nutriAnamnesis: nutriAnamnesisSnap.exists() ? (nutriAnamnesisSnap.data() as NutriAnamnesisData) : null,
+        nutriPlan: nutriPlanSnap.exists() ? (nutriPlanSnap.data() as NutritionalPlan) : null,
         progress: progressSnap.exists() ? progressSnap.data() : null,
       });
     } catch (error) {
@@ -206,27 +214,41 @@ export function AdminDashboard({ onViewDocumentation, onViewPatent }: AdminDashb
             </div>
           </div>
 
-          {!selectedStudent.anamnesis && !selectedStudent.plan && (
+          {!selectedStudent.anamnesis && !selectedStudent.plan && !selectedStudent.nutriPlan && (
             <div className="text-center py-12 bg-bg-main rounded-2xl border border-border">
               <Dumbbell className="w-12 h-12 text-text-muted mx-auto mb-4 opacity-50" />
               <h3 className="text-xl font-bold text-text-main mb-2">Nenhum dado encontrado</h3>
-              <p className="text-text-muted">Este aluno ainda não preencheu a anamnese ou gerou um treino.</p>
+              <p className="text-text-muted">Este aluno ainda não preencheu a anamnese ou gerou um treino/dieta.</p>
             </div>
           )}
 
-          {selectedStudent.plan && selectedStudent.anamnesis && (
-            <div className="mt-8">
-              <h3 className="text-xl font-black text-text-main mb-6 border-b border-border pb-4">Treino e Avaliação do Aluno</h3>
-              <WorkoutPlanView 
-                plan={selectedStudent.plan} 
-                user={selectedStudent.anamnesis} 
-                onReset={() => {}} 
-                onUpdatePlan={() => {}} 
-                readOnly={true}
-                studentUid={selectedStudent.profile.uid}
-              />
-            </div>
-          )}
+          <div className="space-y-12">
+            {selectedStudent.plan && selectedStudent.anamnesis && (
+              <div className="mt-8">
+                <h3 className="text-xl font-black text-text-main mb-6 border-b border-border pb-4">Treino e Avaliação do Aluno</h3>
+                <WorkoutPlanView 
+                  plan={selectedStudent.plan} 
+                  user={selectedStudent.anamnesis} 
+                  onReset={() => {}} 
+                  onUpdatePlan={() => {}} 
+                  readOnly={true}
+                  studentUid={selectedStudent.profile.uid}
+                />
+              </div>
+            )}
+
+            {selectedStudent.nutriPlan && selectedStudent.nutriAnamnesis && (
+              <div className="mt-8">
+                <h3 className="text-xl font-black text-text-main mb-6 border-b border-border pb-4">Plano Nutricional do Aluno</h3>
+                <NutritionalPlanView 
+                  plan={selectedStudent.nutriPlan} 
+                  userData={selectedStudent.nutriAnamnesis} 
+                  onReset={() => {}} 
+                  readOnly={true}
+                />
+              </div>
+            )}
+          </div>
         </div>
       </motion.div>
     );

@@ -187,6 +187,23 @@ export function NutriAnamnesisForm({ onSubmit, isLoading, initialData, workoutDa
     else if (days <= 6) mappedActivity = ACTIVITY_LEVELS[3]; // Muito Ativo
     else mappedActivity = ACTIVITY_LEVELS[4]; // Extremamente
 
+    let mappedSleep = formData.sleepQuality;
+    if (workoutData.sleepQuality) {
+      if (workoutData.sleepQuality === 'Excelente') mappedSleep = SLEEP_QUALITY[0];
+      else if (workoutData.sleepQuality === 'Boa') mappedSleep = SLEEP_QUALITY[1];
+      else if (workoutData.sleepQuality === 'Regular') mappedSleep = SLEEP_QUALITY[2];
+      else if (workoutData.sleepQuality === 'Ruim') mappedSleep = SLEEP_QUALITY[3];
+      else if (workoutData.sleepQuality === 'Insônia') mappedSleep = SLEEP_QUALITY[4];
+    }
+
+    let mappedStress = formData.stressLevel;
+    if (workoutData.stressLevel) {
+      if (workoutData.stressLevel === 'Baixo') mappedStress = 'Baixo';
+      else if (workoutData.stressLevel === 'Moderado') mappedStress = 'Moderado';
+      else if (workoutData.stressLevel === 'Alto') mappedStress = 'Alto';
+      else if (workoutData.stressLevel === 'Muito Alto') mappedStress = 'Muito Alto';
+    }
+
     setFormData(prev => ({
       ...prev,
       age: workoutData.age || prev.age,
@@ -195,7 +212,10 @@ export function NutriAnamnesisForm({ onSubmit, isLoading, initialData, workoutDa
       gender: (workoutData.gender === 'Masculino' || workoutData.gender === 'Feminino') ? workoutData.gender : prev.gender,
       goal: mappedGoal,
       activityLevel: mappedActivity,
-      trainingFrequency: `${days}x na semana`
+      trainingFrequency: `${days}x na semana`,
+      sleepQuality: mappedSleep,
+      stressLevel: mappedStress,
+      medications: workoutData.medications || prev.medications,
     }));
     setHasSynced(true);
   };

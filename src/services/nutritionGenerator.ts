@@ -1,7 +1,8 @@
 import { NutriAnamnesisData, NutritionalPlan, Meal, MealOption } from '../types/nutrition';
 import { FOOD_DB, FoodItem } from '../data/foodDatabase';
+import { AnamnesisData } from './workoutGenerator';
 
-export async function generateNutritionalPlan(data: NutriAnamnesisData): Promise<NutritionalPlan> {
+export async function generateNutritionalPlan(data: NutriAnamnesisData, workoutData?: AnamnesisData | null): Promise<NutritionalPlan> {
   // 1. Calculate BMR
   let bmr = 10 * data.weight + 6.25 * data.height - 5 * data.age;
   bmr += data.gender === 'Masculino' ? 5 : -161;
@@ -50,6 +51,25 @@ export async function generateNutritionalPlan(data: NutriAnamnesisData): Promise
     strategySummary += ' Dieta adaptada para consistência pastosa/líquida devido à condição clínica.';
   }
 
+  // Deep Integration with Workout Data
+  if (workoutData) {
+    if (workoutData.experience === 'Avançado') {
+      strategySummary += ' Ajuste para atleta avançado: maior aporte de carboidratos peri-treino para sustentar volume de treino intenso.';
+      if (data.goal.includes('Hipertrofia')) targetCalories += 200; // Extra calories for advanced hypertrophy
+    }
+
+    if (workoutData.duration && workoutData.duration >= 60) {
+      strategySummary += ' Treinos longos detectados: recomendação de refeição pré-treino reforçada em carboidratos complexos.';
+    }
+
+    if (workoutData.stressLevel === 'Alto' || workoutData.sleepQuality === 'Ruim') {
+      strategySummary += ' Marcadores de fadiga altos (estresse/sono ruim): superávit calórico leve ou manutenção para evitar overtraining e auxiliar na recuperação do sistema nervoso central.';
+      // If they are on a deficit, make it less aggressive to help recovery
+      if (data.goal.includes('Emagrecimento Acelerado')) targetCalories += 200; 
+      if (data.goal.includes('Emagrecimento Sustentável')) targetCalories += 100;
+    }
+  }
+
   if (data.gender === 'Feminino' && targetCalories < 1200) targetCalories = 1200;
   if (data.gender === 'Masculino' && targetCalories < 1500) targetCalories = 1500;
 
@@ -58,6 +78,11 @@ export async function generateNutritionalPlan(data: NutriAnamnesisData): Promise
   if (isPostSurgery) proteinPerKg = 2.2; // Higher protein for healing
   if (data.goal.includes('Emagrecimento') || data.goal.includes('Recomposição')) proteinPerKg = 2.2;
   else if (data.goal.includes('Hipertrofia')) proteinPerKg = 1.8;
+  
+  // Advanced athletes need slightly more protein if cutting, or can use less if bulking (more carbs)
+  if (workoutData && workoutData.experience === 'Avançado' && data.goal.includes('Emagrecimento')) {
+    proteinPerKg = 2.4;
+  }
   
   const proteinGrams = Math.round(data.weight * proteinPerKg);
   const proteinCalories = proteinGrams * 4;
@@ -135,6 +160,28 @@ export async function generateNutritionalPlan(data: NutriAnamnesisData): Promise
       purpose: 'Aumento de força e volume muscular.'
     });
   }
+  
+  // Deep Integration Supplements
+  if (workoutData) {
+    if (workoutData.duration && workoutData.duration >= 60 && (data.goal.includes('Hipertrofia') || data.goal.includes('Performance'))) {
+      supplements.push({
+        name: 'Carboidrato Intra-treino (Palatinose ou Maltodextrina)',
+        dosage: '20g a 30g',
+        timing: 'Durante o treino',
+        purpose: 'Manutenção da glicemia e performance em treinos longos.'
+      });
+    }
+    
+    if (workoutData.stressLevel === 'Alto') {
+      supplements.push({
+        name: 'Ashwagandha (KSM-66)',
+        dosage: '300mg a 500mg',
+        timing: 'Após o café da manhã ou almoço',
+        purpose: 'Modulação do cortisol e redução do estresse crônico (detectado na anamnese de treino).'
+      });
+    }
+  }
+
   if (isPostSurgery) {
     supplements.push({
       name: 'Ômega 3 (EPA/DHA)',

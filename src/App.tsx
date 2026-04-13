@@ -249,7 +249,7 @@ export default function App() {
     setIsLoading(true);
     setError(null);
     try {
-      const generatedPlan = await generateNutritionalPlan(data);
+      const generatedPlan = await generateNutritionalPlan(data, userData);
       
       setNutriPlan(generatedPlan);
       setNutriData(data);

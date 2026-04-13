@@ -148,7 +148,7 @@ service cloud.firestore {
 
     function isValidAnamnesis() {
       let data = request.resource.data;
-      return hasRequiredFields(['name', 'age', 'gender', 'weight', 'height', 'goal', 'experience', 'daysPerWeek', 'duration', 'equipment', 'sleepQuality', 'stressLevel', 'hormonalStatus', 'updatedAt']) &&
+      return hasRequiredFields(['name', 'age', 'gender', 'weight', 'height', 'goal', 'experience', 'daysPerWeek', 'duration', 'equipment', 'sleepQuality', 'stressLevel', 'updatedAt']) &&
              data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
              data.age is number && data.age > 0 && data.age < 150 &&
              data.gender is string && data.gender.size() < 50 &&
@@ -161,8 +161,8 @@ service cloud.firestore {
              data.equipment is string && data.equipment.size() < 100 &&
              data.sleepQuality is string && data.sleepQuality.size() < 100 &&
              data.stressLevel is string && data.stressLevel.size() < 100 &&
-             data.hormonalStatus is string && data.hormonalStatus.size() < 100 &&
              data.updatedAt is string &&
+             (!('hormonalStatus' in data) || (data.hormonalStatus is string && data.hormonalStatus.size() < 100)) &&
              (!('secondaryGoal' in data) || (data.secondaryGoal is string && data.secondaryGoal.size() < 100)) &&
              (!('limitations' in data) || (data.limitations is string && data.limitations.size() < 1000)) &&
              (!('cardioPreference' in data) || (data.cardioPreference is string && data.cardioPreference.size() < 100));

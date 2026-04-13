@@ -9,9 +9,10 @@ interface Props {
   plan: NutritionalPlan;
   userData: NutriAnamnesisData;
   onReset: () => void;
+  readOnly?: boolean;
 }
 
-export function NutritionalPlanView({ plan, userData, onReset }: Props) {
+export function NutritionalPlanView({ plan, userData, onReset, readOnly = false }: Props) {
   const [latestCrossSync, setLatestCrossSync] = useState<CrossSyncResult | null>(null);
 
   useEffect(() => {
@@ -236,14 +237,16 @@ export function NutritionalPlanView({ plan, userData, onReset }: Props) {
       )}
 
       {/* Actions */}
-      <div className="flex justify-center pt-8">
-        <button 
-          onClick={onReset}
-          className="px-6 py-3 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition-colors"
-        >
-          Refazer Anamnese Nutricional
-        </button>
-      </div>
+      {!readOnly && (
+        <div className="flex justify-center pt-8">
+          <button 
+            onClick={onReset}
+            className="px-6 py-3 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition-colors"
+          >
+            Refazer Anamnese Nutricional
+          </button>
+        </div>
+      )}
 
     </div>
   );
