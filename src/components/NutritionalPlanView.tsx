@@ -1,6 +1,9 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { NutritionalPlan, NutriAnamnesisData } from '../types/nutrition';
-import { Apple, Droplets, Flame, Brain, Heart, Activity, CheckCircle, Clock } from 'lucide-react';
+import { Apple, Droplets, Flame, Brain, Heart, Activity, CheckCircle, Clock, Zap } from 'lucide-react';
+import { auth, db } from '../firebase';
+import { doc, getDoc } from 'firebase/firestore';
+import { CrossSyncResult } from '../services/crossSyncEngine';
 
 interface Props {
   plan: NutritionalPlan;
@@ -9,6 +12,44 @@ interface Props {
 }
 
 export function NutritionalPlanView({ plan, userData, onReset }: Props) {
+  const [latestCrossSync, setLatestCrossSync] = useState<CrossSyncResult | null>(null);
+
+  useEffect(() => {
+    const fetchProgress = async () => {
+      const user = auth.currentUser;
+      if (user) {
+        try {
+          const progressRef = doc(db, `users/${user.uid}/data/progress`);
+          const snap = await getDoc(progressRef);
+          if (snap.exists()) {
+            const data = snap.data();
+            if (data.checkins) {
+              // Encontrar o checkin mais recente que tenha crossSync
+              const checkinsArray = Object.values(data.checkins) as any[];
+              const sortedCheckins = checkinsArray
+                .filter(c => c.crossSync)
+                .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+              
+              if (sortedCheckins.length > 0) {
+                // Verificar se o checkin é de hoje
+                const latest = sortedCheckins[0];
+                const today = new Date().toDateString();
+                const checkinDate = new Date(latest.date).toDateString();
+                
+                if (today === checkinDate) {
+                  setLatestCrossSync(latest.crossSync);
+                }
+              }
+            }
+          }
+        } catch (err) {
+          console.error("Error fetching cross-sync data:", err);
+        }
+      }
+    };
+    fetchProgress();
+  }, []);
+
   return (
     <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 pb-20">
       
@@ -86,6 +127,34 @@ export function NutritionalPlanView({ plan, userData, onReset }: Props) {
           </div>
         </div>
       </div>
+
+      {/* Cross-Sync Dynamic Adjustment */}
+      {latestCrossSync && latestCrossSync.postWorkoutMealAdjustment && (
+        <div className="bg-amber-500/10 border-2 border-amber-500/30 rounded-2xl p-6 shadow-sm relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/10 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2"></div>
+          <div className="flex items-start gap-4 relative z-10">
+            <div className="bg-amber-500 p-3 rounded-2xl shadow-lg shadow-amber-500/20 shrink-0">
+              <Zap className="w-6 h-6 text-white" />
+            </div>
+            <div>
+              <h3 className="text-lg font-black text-amber-600 uppercase tracking-tight mb-2">
+                Ajuste Dinâmico Pós-Treino (Cross-Sync)
+              </h3>
+              <p className="text-sm text-gray-700 font-medium mb-4 leading-relaxed">
+                Detectamos um treino com Volume Load de <span className="font-bold text-amber-600">{latestCrossSync.volumeLoadKg}kg</span>, gerando um gasto extra de <span className="font-bold text-amber-600">{latestCrossSync.energyCostKcal} kcal</span>. Adicione os seguintes itens à sua próxima refeição para otimizar a recuperação:
+              </p>
+              <ul className="space-y-2">
+                {latestCrossSync.postWorkoutMealAdjustment.items.map((item, idx) => (
+                  <li key={idx} className="flex items-start gap-2 text-sm text-gray-800">
+                    <CheckCircle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                    <span>{item}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Meals */}
       <div className="space-y-6">

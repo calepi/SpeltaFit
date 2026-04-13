@@ -22,6 +22,7 @@ import { TechnicalDocumentation } from './components/TechnicalDocumentation';
 import { GamificationDashboard } from './components/GamificationDashboard';
 import { TermsOfService } from './components/TermsOfService';
 import { PrivacyPolicy } from './components/PrivacyPolicy';
+import { PatentDocumentation } from './components/PatentDocumentation';
 import { Paywall } from './components/Paywall';
 import { NutriAnamnesisForm } from './components/NutriAnamnesisForm';
 import { NutritionalPlanView } from './components/NutritionalPlanView';
@@ -29,7 +30,7 @@ import { AuthModal } from './components/AuthModal';
 import { NutriAnamnesisData, NutritionalPlan } from './types/nutrition';
 import { generateNutritionalPlan } from './services/nutritionGenerator';
 
-type AppState = 'landing' | 'form' | 'plan' | 'admin' | 'library' | 'speltagram' | 'evolution' | 'manual' | 'documentation' | 'comparison' | 'gamification' | 'reminders' | 'terms' | 'privacy' | 'nutriForm' | 'nutriPlan' | 'paywall';
+type AppState = 'landing' | 'form' | 'plan' | 'admin' | 'library' | 'speltagram' | 'evolution' | 'manual' | 'documentation' | 'patent' | 'comparison' | 'gamification' | 'reminders' | 'terms' | 'privacy' | 'nutriForm' | 'nutriPlan' | 'paywall';
 type Theme = 'default' | 'green' | 'blue' | 'gold';
 
 export default function App() {
@@ -51,6 +52,11 @@ export default function App() {
   const [trialEndsAt, setTrialEndsAt] = useState<string | null>(null);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  // Scroll to top on navigation
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [appState]);
 
   // ============================================================================
   // MODO DE REVISÃO DA PLAY STORE
@@ -723,7 +729,10 @@ export default function App() {
             )}
 
             {appState === 'admin' && user?.email === 'calepi@gmail.com' && (
-              <AdminDashboard onViewDocumentation={() => setAppState('documentation')} />
+              <AdminDashboard 
+                onViewDocumentation={() => setAppState('documentation')} 
+                onViewPatent={() => setAppState('patent')}
+              />
             )}
 
             {appState === 'library' && (
@@ -755,6 +764,10 @@ export default function App() {
 
             {appState === 'documentation' && (
               <TechnicalDocumentation onBack={() => setAppState('admin')} />
+            )}
+
+            {appState === 'patent' && (
+              <PatentDocumentation onBack={() => setAppState('admin')} />
             )}
 
             {appState === 'nutriForm' && (

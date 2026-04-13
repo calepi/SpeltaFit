@@ -45,8 +45,9 @@ export function PrivacyPolicy({ onBack }: Props) {
           <ul className="list-disc pl-6 space-y-2">
             <li><strong>Dados de Perfil:</strong> Nome, endereço de e-mail, foto de perfil (via Google Login).</li>
             <li><strong>Dados de Saúde e Fitness:</strong> Peso, altura, idade, gênero, nível de atividade, objetivos de condicionamento físico, histórico de lesões e medidas corporais.</li>
+            <li><strong>Dados Nutricionais:</strong> Preferências alimentares, alergias, restrições, histórico de refeições e adesão à dieta.</li>
             <li><strong>Fotos de Evolução:</strong> Imagens que você faz upload para acompanhar seu progresso visual.</li>
-            <li><strong>Dados de Uso:</strong> Informações sobre como você interage com o aplicativo, treinos concluídos e interações na comunidade.</li>
+            <li><strong>Dados de Uso:</strong> Informações sobre como você interage com o aplicativo, treinos concluídos, pontuação de gamificação e interações na comunidade.</li>
           </ul>
 
           <h2 className="text-xl font-bold text-text-main mt-8">2. Como Usamos Suas Informações</h2>

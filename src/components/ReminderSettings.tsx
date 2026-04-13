@@ -6,7 +6,7 @@ import { db } from '../firebase';
 
 interface Reminder {
   id: string;
-  type: 'workout' | 'custom';
+  type: 'workout' | 'custom' | 'meal' | 'water';
   time: string;
   enabled: boolean;
   label: string;

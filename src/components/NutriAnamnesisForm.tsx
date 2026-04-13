@@ -181,20 +181,21 @@ export function NutriAnamnesisForm({ onSubmit, isLoading, initialData, workoutDa
     if (workoutData.goal === 'Condicionamento') mappedGoal = 'Saúde e Qualidade de Vida';
 
     let mappedActivity = formData.activityLevel;
-    if (workoutData.trainingDays <= 2) mappedActivity = ACTIVITY_LEVELS[1]; // Levemente
-    else if (workoutData.trainingDays <= 4) mappedActivity = ACTIVITY_LEVELS[2]; // Moderadamente
-    else if (workoutData.trainingDays <= 6) mappedActivity = ACTIVITY_LEVELS[3]; // Muito Ativo
+    const days = workoutData.daysPerWeek || 3;
+    if (days <= 2) mappedActivity = ACTIVITY_LEVELS[1]; // Levemente
+    else if (days <= 4) mappedActivity = ACTIVITY_LEVELS[2]; // Moderadamente
+    else if (days <= 6) mappedActivity = ACTIVITY_LEVELS[3]; // Muito Ativo
     else mappedActivity = ACTIVITY_LEVELS[4]; // Extremamente
 
     setFormData(prev => ({
       ...prev,
-      age: workoutData.age,
-      weight: workoutData.weight,
-      height: workoutData.height,
-      gender: workoutData.gender,
+      age: workoutData.age || prev.age,
+      weight: workoutData.weight || prev.weight,
+      height: workoutData.height || prev.height,
+      gender: (workoutData.gender === 'Masculino' || workoutData.gender === 'Feminino') ? workoutData.gender : prev.gender,
       goal: mappedGoal,
       activityLevel: mappedActivity,
-      trainingFrequency: `${workoutData.trainingDays}x na semana`
+      trainingFrequency: `${days}x na semana`
     }));
     setHasSynced(true);
   };

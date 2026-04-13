@@ -235,7 +235,7 @@ service cloud.firestore {
     match /users/{userId} {
       allow read: if isOwner(userId) || isAdmin();
       allow create: if isOwner(userId) && isValidUser() && uidUnchanged() && (request.resource.data.role == 'user' || isAdmin());
-      allow update: if isOwner(userId) && isValidUser() && uidNotModified() && (request.resource.data.role == resource.data.role || isAdmin());
+      allow update: if (isOwner(userId) || isAdmin()) && isValidUser() && uidNotModified() && (request.resource.data.role == resource.data.role || isAdmin());
       allow delete: if isOwner(userId) || isAdmin();
 
       match /data/anamnesis {
@@ -274,6 +274,41 @@ service cloud.firestore {
       }
 
       match /data/nutriPlan {
+        allow read: if isOwner(userId) || isAdmin();
+        allow create: if isOwner(userId);
+        allow update: if isOwner(userId);
+        allow delete: if isOwner(userId) || isAdmin();
+      }
+
+      match /data/dietPlan {
+        allow read: if isOwner(userId) || isAdmin();
+        allow create: if isOwner(userId);
+        allow update: if isOwner(userId);
+        allow delete: if isOwner(userId) || isAdmin();
+      }
+
+      match /data/nutritionalAnamnesis {
+        allow read: if isOwner(userId) || isAdmin();
+        allow create: if isOwner(userId);
+        allow update: if isOwner(userId);
+        allow delete: if isOwner(userId) || isAdmin();
+      }
+
+      match /data/nutritionTracking {
+        allow read: if isOwner(userId) || isAdmin();
+        allow create: if isOwner(userId);
+        allow update: if isOwner(userId);
+        allow delete: if isOwner(userId) || isAdmin();
+      }
+
+      match /photos/{photoId} {
+        allow read: if isOwner(userId) || isAdmin();
+        allow create: if isOwner(userId);
+        allow update: if isOwner(userId);
+        allow delete: if isOwner(userId) || isAdmin();
+      }
+
+      match /activities/{activityId} {
         allow read: if isOwner(userId) || isAdmin();
         allow create: if isOwner(userId);
         allow update: if isOwner(userId);

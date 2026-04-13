@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { collection, getDocs, doc, getDoc, deleteDoc } from 'firebase/firestore';
+import { collection, getDocs, doc, getDoc, deleteDoc, updateDoc, deleteField } from 'firebase/firestore';
 import { db } from '../firebase';
 import { AnamnesisData, WorkoutPlan } from '../services/workoutGenerator';
-import { Users, Activity, Target, Calendar, ChevronRight, ArrowLeft, Search, Dumbbell, Trash2, FileText } from 'lucide-react';
+import { Users, Activity, Target, Calendar, ChevronRight, ArrowLeft, Search, Dumbbell, Trash2, FileText, Lightbulb } from 'lucide-react';
 import { motion } from 'motion/react';
 import { WorkoutPlanView } from './WorkoutPlanView';
 
@@ -23,9 +23,10 @@ interface StudentData {
 
 interface AdminDashboardProps {
   onViewDocumentation?: () => void;
+  onViewPatent?: () => void;
 }
 
-export function AdminDashboard({ onViewDocumentation }: AdminDashboardProps) {
+export function AdminDashboard({ onViewDocumentation, onViewPatent }: AdminDashboardProps) {
   const [students, setStudents] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedStudent, setSelectedStudent] = useState<StudentData | null>(null);
@@ -64,13 +65,51 @@ export function AdminDashboard({ onViewDocumentation }: AdminDashboardProps) {
       
       usersSnap.forEach((userDoc) => {
         const uid = userDoc.id;
+        
         // Delete subcollections manually (Firestore doesn't delete them automatically when deleting parent doc)
         const deleteData = async () => {
           try {
-            await deleteDoc(doc(db, `users/${uid}/data/anamnesis`)).catch(() => {});
-            await deleteDoc(doc(db, `users/${uid}/data/workoutPlan`)).catch(() => {});
-            await deleteDoc(doc(db, `users/${uid}/data/progress`)).catch(() => {});
-            await deleteDoc(doc(db, 'users', uid)).catch(() => {});
+            // Treino
+            await deleteDoc(doc(db, `users/${uid}/data/anamnesis`)).catch(e => console.error(e));
+            await deleteDoc(doc(db, `users/${uid}/data/workoutPlan`)).catch(e => console.error(e));
+            await deleteDoc(doc(db, `users/${uid}/data/progress`)).catch(e => console.error(e));
+            
+            // Nutrição
+            await deleteDoc(doc(db, `users/${uid}/data/nutriAnamnesis`)).catch(e => console.error(e));
+            await deleteDoc(doc(db, `users/${uid}/data/nutriPlan`)).catch(e => console.error(e));
+            await deleteDoc(doc(db, `users/${uid}/data/dietPlan`)).catch(e => console.error(e));
+            await deleteDoc(doc(db, `users/${uid}/data/nutritionalAnamnesis`)).catch(e => console.error(e));
+            await deleteDoc(doc(db, `users/${uid}/data/nutritionTracking`)).catch(e => console.error(e));
+            
+            // Outros
+            await deleteDoc(doc(db, `users/${uid}/data/reminders`)).catch(e => console.error(e));
+            
+            // Delete evolution docs
+            const evolutionSnap = await getDocs(collection(db, `users/${uid}/evolution`)).catch(e => { console.error(e); return null; });
+            if (evolutionSnap) {
+              const evPromises = evolutionSnap.docs.map(d => deleteDoc(d.ref));
+              await Promise.all(evPromises).catch(e => console.error(e));
+            }
+            
+            // Delete photos docs
+            const photosSnap = await getDocs(collection(db, `users/${uid}/photos`)).catch(e => { console.error(e); return null; });
+            if (photosSnap) {
+              const phPromises = photosSnap.docs.map(d => deleteDoc(d.ref));
+              await Promise.all(phPromises).catch(e => console.error(e));
+            }
+            
+            // Delete activities docs
+            const activitiesSnap = await getDocs(collection(db, `users/${uid}/activities`)).catch(e => { console.error(e); return null; });
+            if (activitiesSnap) {
+              const actPromises = activitiesSnap.docs.map(d => deleteDoc(d.ref));
+              await Promise.all(actPromises).catch(e => console.error(e));
+            }
+
+            // Explicitly clear stats field to ensure gamification reset
+            await updateDoc(doc(db, 'users', uid), { stats: deleteField() }).catch(e => console.error("Error clearing stats:", e));
+
+            // Finally delete the user document
+            await deleteDoc(doc(db, 'users', uid)).catch(e => console.error("Error deleting user doc:", e));
           } catch (e) {
             console.error(`Error deleting data for user ${uid}`, e);
           }
@@ -79,11 +118,31 @@ export function AdminDashboard({ onViewDocumentation }: AdminDashboardProps) {
       });
       
       await Promise.all(deletePromises);
-      setStudents([]);
-      setSelectedStudent(null);
+      
+      // Delete all speltagram posts
+      try {
+        const postsSnap = await getDocs(collection(db, 'speltagram_posts'));
+        const postDeletePromises: Promise<void>[] = [];
+        postsSnap.forEach((postDoc) => {
+          // Delete comments subcollection first
+          const deletePostData = async () => {
+            const commentsSnap = await getDocs(collection(db, `speltagram_posts/${postDoc.id}/comments`)).catch(() => null);
+            if (commentsSnap) {
+              commentsSnap.forEach(c => deleteDoc(c.ref).catch(() => {}));
+            }
+            await deleteDoc(postDoc.ref).catch(() => {});
+          };
+          postDeletePromises.push(deletePostData());
+        });
+        await Promise.all(postDeletePromises);
+      } catch (e) {
+        console.error("Error deleting speltagram posts", e);
+      }
+
+      // Force a full page reload to clear all React state in memory
+      window.location.reload();
     } catch (error) {
       console.error("Erro ao limpar banco de dados:", error);
-    } finally {
       setLoading(false);
     }
   };
@@ -235,6 +294,21 @@ export function AdminDashboard({ onViewDocumentation }: AdminDashboardProps) {
             </div>
           </button>
         )}
+
+        {onViewPatent && (
+          <button 
+            onClick={onViewPatent}
+            className="bg-surface p-6 rounded-2xl border border-border shadow-sm flex items-center gap-4 hover:border-brand transition-all group text-left"
+          >
+            <div className="p-4 bg-amber-500/10 text-amber-500 rounded-xl group-hover:bg-amber-500 group-hover:text-white transition-all">
+              <Lightbulb className="w-6 h-6" />
+            </div>
+            <div>
+              <p className="text-sm text-text-muted font-bold">Propriedade Intelectual</p>
+              <p className="text-lg font-black text-text-main">Dossiê de Patente</p>
+            </div>
+          </button>
+        )}
       </div>
 
       <div className="bg-surface border border-border rounded-3xl overflow-hidden shadow-xl">
@@ -260,7 +334,14 @@ export function AdminDashboard({ onViewDocumentation }: AdminDashboardProps) {
                       <div className="w-10 h-10 rounded-full bg-brand/10 text-brand flex items-center justify-center font-bold">
                         {student.name.charAt(0).toUpperCase()}
                       </div>
-                      <span className="font-bold text-text-main">{student.name}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-text-main">{student.name}</span>
+                        {(student.email === 'calepi@gmail.com' || student.email === 'tazmania.crvg@gmail.com' || student.email === 'teste@speltafit.com' || student.role === 'admin') && (
+                          <span className="px-2 py-0.5 bg-brand/10 text-brand text-[10px] font-black uppercase tracking-widest rounded-full">
+                            Admin
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </td>
                   <td className="p-4 text-text-muted">{student.email}</td>

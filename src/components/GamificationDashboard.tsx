@@ -129,8 +129,16 @@ export function GamificationDashboard({ userId }: GamificationDashboardProps) {
           </div>
           
           <div className="space-y-4">
-            <ChallengeRow title="Semana de Ferro" description="Treine 5 dias nesta semana" progress={60} />
-            <ChallengeRow title="Comunidade Ativa" description="Comente em 3 posts hoje" progress={33} />
+            <ChallengeRow 
+              title="Semana de Ferro" 
+              description="Treine 5 dias nesta semana" 
+              progress={Math.min((stats.streak / 5) * 100, 100)} 
+            />
+            <ChallengeRow 
+              title="Comunidade Ativa" 
+              description="Faça 3 posts no SpeltaGram" 
+              progress={Math.min((stats.postsCount / 3) * 100, 100)} 
+            />
           </div>
         </div>
       </div>

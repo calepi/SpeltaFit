@@ -1,18 +1,19 @@
-import { NutriAnamnesisData, NutritionalPlan } from '../types/nutrition';
+import { NutriAnamnesisData, NutritionalPlan, Meal, MealOption } from '../types/nutrition';
+import { FOOD_DB, FoodItem } from '../data/foodDatabase';
 
 export async function generateNutritionalPlan(data: NutriAnamnesisData): Promise<NutritionalPlan> {
-  // 1. Calculate BMR (Basal Metabolic Rate) using Mifflin-St Jeor Equation
+  // 1. Calculate BMR
   let bmr = 10 * data.weight + 6.25 * data.height - 5 * data.age;
   bmr += data.gender === 'Masculino' ? 5 : -161;
 
   // 2. Determine Activity Multiplier
-  let activityMultiplier = 1.2; // Sedentário
+  let activityMultiplier = 1.2;
   if (data.activityLevel.includes('Levemente')) activityMultiplier = 1.375;
   else if (data.activityLevel.includes('Moderadamente')) activityMultiplier = 1.55;
   else if (data.activityLevel.includes('Muito Ativo')) activityMultiplier = 1.725;
   else if (data.activityLevel.includes('Extremamente')) activityMultiplier = 1.9;
 
-  // 3. Calculate TDEE (Total Daily Energy Expenditure)
+  // 3. Calculate TDEE
   const tdee = Math.round(bmr * activityMultiplier);
 
   // 4. Determine Target Calories based on Goal
@@ -25,11 +26,11 @@ export async function generateNutritionalPlan(data: NutriAnamnesisData): Promise
   } else if (data.goal.includes('Emagrecimento Sustentável')) {
     targetCalories = tdee - 400;
     strategySummary = 'Déficit calórico moderado para perda de peso consistente e manutenção de massa magra.';
-  } else if (data.goal.includes('Hipertrofia')) {
+  } else if (data.goal.includes('Hipertrofia') || data.goal.includes('Ganho de Massa')) {
     targetCalories = tdee + 300;
     strategySummary = 'Superávit calórico leve para otimizar o ganho de massa muscular minimizando o ganho de gordura.';
   } else if (data.goal.includes('Recomposição Corporal')) {
-    targetCalories = tdee - 100; // Leve déficit
+    targetCalories = tdee - 100;
     strategySummary = 'Manutenção/Leve déficit calórico com alta proteína para promover perda de gordura e ganho muscular simultâneos.';
   } else if (data.goal.includes('Ganho de Peso')) {
     targetCalories = tdee + 500;
@@ -38,45 +39,51 @@ export async function generateNutritionalPlan(data: NutriAnamnesisData): Promise
     strategySummary = 'Dieta normocalórica focada em manutenção, saúde e performance.';
   }
 
-  // Ensure minimum calories for safety
+  // Adjust for medical conditions
+  const isLiquidDiet = data.medicalConditions.some(c => c.toLowerCase().includes('traqueostomia') || c.toLowerCase().includes('bariátrica') || c.toLowerCase().includes('mastigação'));
+  const isPostSurgery = data.medicalConditions.some(c => c.toLowerCase().includes('cirurgi') || c.toLowerCase().includes('reabilitação'));
+  
+  if (isPostSurgery) {
+    strategySummary += ' Atenção especial à recuperação cirúrgica: aumento de proteínas e nutrientes anti-inflamatórios para cicatrização.';
+  }
+  if (isLiquidDiet) {
+    strategySummary += ' Dieta adaptada para consistência pastosa/líquida devido à condição clínica.';
+  }
+
   if (data.gender === 'Feminino' && targetCalories < 1200) targetCalories = 1200;
   if (data.gender === 'Masculino' && targetCalories < 1500) targetCalories = 1500;
 
   // 5. Calculate Macros
-  // Protein: 2.0g/kg for most, 2.2g/kg for cutting/recomp, 1.8g/kg for bulking
   let proteinPerKg = 2.0;
+  if (isPostSurgery) proteinPerKg = 2.2; // Higher protein for healing
   if (data.goal.includes('Emagrecimento') || data.goal.includes('Recomposição')) proteinPerKg = 2.2;
   else if (data.goal.includes('Hipertrofia')) proteinPerKg = 1.8;
   
   const proteinGrams = Math.round(data.weight * proteinPerKg);
   const proteinCalories = proteinGrams * 4;
 
-  // Fat: 0.8g - 1.0g/kg
   let fatPerKg = 0.9;
   if (data.dietaryPreference.includes('Cetogênica') || data.dietaryPreference.includes('Low Carb')) {
-    fatPerKg = 1.5; // Higher fat for low carb
+    fatPerKg = 1.5;
   }
   const fatGrams = Math.round(data.weight * fatPerKg);
   const fatCalories = fatGrams * 9;
 
-  // Carbs: The rest
   let remainingCalories = targetCalories - proteinCalories - fatCalories;
   
-  // Adjust if low carb/keto
   if (data.dietaryPreference.includes('Cetogênica')) {
-    remainingCalories = 30 * 4; // Max 30g carbs
-    // Recalculate fats to fill the gap
+    remainingCalories = 30 * 4;
     const newFatCalories = targetCalories - proteinCalories - remainingCalories;
-    targetCalories = proteinCalories + newFatCalories + remainingCalories; // Adjust total if needed
+    targetCalories = proteinCalories + newFatCalories + remainingCalories;
   } else if (data.dietaryPreference.includes('Low Carb')) {
-    remainingCalories = 100 * 4; // Max 100g carbs
+    remainingCalories = 100 * 4;
   }
 
   let carbGrams = Math.round(remainingCalories / 4);
-  if (carbGrams < 0) carbGrams = 0; // Prevent negative carbs
+  if (carbGrams < 0) carbGrams = 0;
 
   // 6. Water Intake Goal
-  const waterGoalLiters = (data.weight * 35) / 1000; // 35ml per kg
+  const waterGoalLiters = (data.weight * 35) / 1000;
   const waterIntakeGoal = `${waterGoalLiters.toFixed(1)} a ${(waterGoalLiters + 0.5).toFixed(1)} Litros por dia`;
 
   // 7. Emotional Guidelines
@@ -89,136 +96,32 @@ export async function generateNutritionalPlan(data: NutriAnamnesisData): Promise
     emotionalGuidelines = 'Recompensa Não Alimentar: Você não é um cachorro para se recompensar com comida. Crie uma lista de recompensas não ligadas à alimentação (comprar algo, assistir um filme, um banho relaxante) para celebrar suas vitórias.';
   }
 
-  // 8. Generate Meals (Detailed Menu)
+  // 8. Generate Meals using Database
   const mealsCount = parseInt(data.mealsPerDay.charAt(0)) || 4;
-  const meals = [];
+  const meals: Meal[] = [];
   
   const mealNames = ['Café da Manhã', 'Lanche da Manhã', 'Almoço', 'Lanche da Tarde', 'Jantar', 'Ceia'];
   const times = ['07:00', '10:00', '13:00', '16:00', '19:30', '22:00'];
 
-  const mealProtein = Math.round(proteinGrams / mealsCount);
-  const mealCarbs = Math.round(carbGrams / mealsCount);
-  const mealFats = Math.round(fatGrams / mealsCount);
-
-  // Helper to generate options based on meal type and macros
-  const generateOptions = (mealName: string, isLowCarb: boolean) => {
-    const options = [];
-    
-    if (mealName.includes('Café') || mealName.includes('Lanche da Manhã')) {
-      options.push({
-        description: 'Opção 1: Ovos Mexidos com Pão e Fruta',
-        items: [
-          `Proteína: ${Math.round(mealProtein / 6)} ovos inteiros mexidos`,
-          isLowCarb ? `Carboidrato: 1 porção pequena de mamão` : `Carboidrato: ${Math.round(mealCarbs / 25)} fatias de pão integral + 1 fruta`,
-          `Gordura: Preparar com 1 fio de azeite`,
-          `Preparo: Bata os ovos com uma pitada de sal. Aqueça a frigideira com azeite e mexa até o ponto desejado.`,
-          `Substituição: Troque os ovos por ${mealProtein}g de frango desfiado ou atum.`
-        ]
-      });
-      options.push({
-        description: 'Opção 2: Mingau de Aveia Proteico (Doce)',
-        items: [
-          `Proteína: 1 scoop (${mealProtein}g) de Whey Protein`,
-          isLowCarb ? `Carboidrato: 2 colheres de sopa de aveia` : `Carboidrato: ${Math.round(mealCarbs / 15)} colheres de sopa de aveia + 1 banana amassada`,
-          `Gordura: 1 colher de sopa de pasta de amendoim`,
-          `Preparo: Cozinhe a aveia com água ou leite desnatado. Desligue o fogo, misture o whey e a pasta de amendoim.`,
-          `Substituição: Troque o whey por iogurte natural proteico.`
-        ]
-      });
-      options.push({
-        description: 'Opção 3: Crepioca Recheada',
-        items: [
-          `Proteína: ${mealProtein}g de Frango desfiado ou Queijo branco magro`,
-          isLowCarb ? `Carboidrato: Massa feita apenas com ovos (Omelete)` : `Carboidrato: Massa com 2 colheres de goma de tapioca + 1 ovo`,
-          `Gordura: Ovos e queijo já fornecem a gordura`,
-          `Preparo: Misture a tapioca com o ovo, faça a massa na frigideira e recheie com a proteína.`,
-          `Substituição: Troque o frango por carne moída magra.`
-        ]
-      });
-    } else if (mealName.includes('Almoço') || mealName.includes('Jantar')) {
-      options.push({
-        description: 'Opção 1: Prato Tradicional Brasileiro',
-        items: [
-          `Proteína: ${mealProtein * 3}g de Peito de Frango grelhado ou Patinho moído`,
-          isLowCarb ? `Carboidrato: Apenas legumes (brócolis, couve-flor, abobrinha)` : `Carboidrato: ${Math.round(mealCarbs * 3)}g de Arroz integral + ${Math.round(mealCarbs)}g de Feijão`,
-          `Gordura: ${Math.round(mealFats)}ml de Azeite de oliva extra virgem (fio por cima da salada)`,
-          `Vegetais: Salada de folhas verdes à vontade (alface, rúcula, espinafre)`,
-          `Preparo: Grelhe a carne com temperos naturais (alho, cebola, páprica). Evite óleo em excesso.`,
-          `Substituição: Troque o frango por peixe magro (tilápia) ou carne suína magra (lombo).`
-        ]
-      });
-      options.push({
-        description: 'Opção 2: Macarrão Proteico Rápido',
-        items: [
-          `Proteína: ${mealProtein * 3}g de Carne moída magra (Patinho)`,
-          isLowCarb ? `Carboidrato: Macarrão de abobrinha ou pupunha` : `Carboidrato: ${Math.round(mealCarbs * 3)}g de Macarrão integral (peso cozido)`,
-          `Gordura: Molho de tomate natural (sem óleo adicionado)`,
-          `Vegetais: Adicione cenoura ralada e espinafre no molho`,
-          `Preparo: Refogue a carne com cebola e alho, adicione o molho de tomate natural e deixe apurar. Misture com a massa.`,
-          `Substituição: Troque a carne moída por atum ralado ao natural ou frango desfiado.`
-        ]
-      });
-      options.push({
-        description: 'Opção 3: Escondidinho Fit',
-        items: [
-          `Proteína: ${mealProtein * 3}g de Frango desfiado`,
-          isLowCarb ? `Carboidrato: Purê de couve-flor ou abóbora cabotiá` : `Carboidrato: ${Math.round(mealCarbs * 4)}g de Purê de batata doce ou aipim`,
-          `Gordura: Fio de azeite para refogar`,
-          `Vegetais: Salada de tomate com pepino para acompanhar`,
-          `Preparo: Faça o purê cozinhando os vegetais. Monte em camadas (purê, frango, purê) e leve ao forno para gratinar.`,
-          `Substituição: Troque o purê de batata doce por purê de mandioquinha.`
-        ]
-      });
-    } else {
-      // Lanches da tarde / Ceia
-      options.push({
-        description: 'Opção 1: Iogurte com Frutas e Castanhas',
-        items: [
-          `Proteína: 1 pote de Iogurte Natural Desnatado + ${Math.round(mealProtein / 2)}g de Whey (opcional)`,
-          isLowCarb ? `Carboidrato: 5 morangos picados` : `Carboidrato: 1 maçã picada ou 1/2 mamão papaia`,
-          `Gordura: ${Math.round(mealFats)}g de mix de castanhas ou nozes`,
-          `Preparo: Misture tudo em um bowl. Pode adicionar canela em pó a gosto.`,
-          `Substituição: Troque o iogurte por queijo cottage ou ricota amassada.`
-        ]
-      });
-      options.push({
-        description: 'Opção 2: Sanduíche Natural',
-        items: [
-          `Proteína: ${mealProtein * 2}g de Frango desfiado com requeijão light`,
-          isLowCarb ? `Carboidrato: Enrolado em folha de couve (Wrap de couve)` : `Carboidrato: 2 fatias de pão de forma integral`,
-          `Gordura: O requeijão light já fornece a gordura necessária`,
-          `Vegetais: Alface, tomate e cenoura ralada dentro do sanduíche`,
-          `Preparo: Misture o frango com o requeijão e monte o sanduíche com os vegetais.`,
-          `Substituição: Troque o frango por ovos cozidos amassados (patê de ovo).`
-        ]
-      });
-      options.push({
-        description: 'Opção 3: Vitamina Proteica (Shake Rápido)',
-        items: [
-          `Proteína: 1 scoop (${mealProtein}g) de Whey Protein ou Albumina`,
-          isLowCarb ? `Carboidrato: Leite de amêndoas sem açúcar` : `Carboidrato: 200ml de Leite desnatado + 1 fruta (banana ou maçã)`,
-          `Gordura: 1 colher de sopa de chia ou linhaça`,
-          `Preparo: Bata tudo no liquidificador com gelo.`,
-          `Substituição: Pode usar leite de soja zero açúcar no lugar do leite desnatado.`
-        ]
-      });
-    }
-    return options;
-  };
-
-  const isLowCarb = data.dietaryPreference.includes('Low Carb') || data.dietaryPreference.includes('Cetogênica');
+  // Distribution of macros per meal based on count
+  const macroDistribution = getMacroDistribution(mealsCount);
 
   for (let i = 0; i < mealsCount; i++) {
     let nameIndex = i;
-    if (mealsCount === 3) nameIndex = i * 2; // 0, 2, 4 (Café, Almoço, Jantar)
-    if (mealsCount === 4 && i === 3) nameIndex = 4; // 0, 1, 2, 4 (Café, Lanche, Almoço, Jantar)
+    if (mealsCount === 3) nameIndex = i * 2;
+    if (mealsCount === 4 && i === 3) nameIndex = 4;
 
     const mealName = mealNames[nameIndex] || `Refeição ${i + 1}`;
+    const mealType = getMealType(mealName);
     
+    const mealProteinTarget = proteinGrams * macroDistribution[i];
+    const mealCarbTarget = carbGrams * macroDistribution[i];
+    const mealFatTarget = fatGrams * macroDistribution[i];
+
     meals.push({
       name: mealName,
       time: times[nameIndex] || 'Horário a definir',
-      options: generateOptions(mealName, isLowCarb)
+      options: generateMealOptions(mealType, mealProteinTarget, mealCarbTarget, mealFatTarget, isLiquidDiet, data.dietaryPreference)
     });
   }
 
@@ -232,6 +135,20 @@ export async function generateNutritionalPlan(data: NutriAnamnesisData): Promise
       purpose: 'Aumento de força e volume muscular.'
     });
   }
+  if (isPostSurgery) {
+    supplements.push({
+      name: 'Ômega 3 (EPA/DHA)',
+      dosage: '1000mg a 2000mg',
+      timing: 'Junto com as principais refeições',
+      purpose: 'Ação anti-inflamatória e auxílio na recuperação.'
+    });
+    supplements.push({
+      name: 'Vitamina C + Zinco',
+      dosage: '500mg Vit C / 15mg Zinco',
+      timing: 'Pela manhã',
+      purpose: 'Fortalecimento do sistema imune e cicatrização.'
+    });
+  }
   if (data.sleepQuality.includes('Ruim') || data.sleepQuality.includes('Insônia')) {
     supplements.push({
       name: 'Melatonina + Magnésio Inositol',
@@ -243,7 +160,7 @@ export async function generateNutritionalPlan(data: NutriAnamnesisData): Promise
   if (data.currentSupplements.includes('Whey Protein')) {
     supplements.push({
       name: 'Whey Protein',
-      dosage: '1 scoop (aprox. 30g)',
+      dosage: 'Conforme necessidade na dieta',
       timing: 'Pós-treino ou em lanches intermediários',
       purpose: 'Bater a meta de proteínas diária com praticidade.'
     });
@@ -265,4 +182,193 @@ export async function generateNutritionalPlan(data: NutriAnamnesisData): Promise
     meals,
     supplements
   };
+}
+
+// --- Helper Functions for Engine ---
+
+function getMacroDistribution(mealsCount: number): number[] {
+  if (mealsCount === 3) return [0.3, 0.4, 0.3];
+  if (mealsCount === 4) return [0.25, 0.35, 0.15, 0.25];
+  if (mealsCount === 5) return [0.2, 0.1, 0.35, 0.1, 0.25];
+  if (mealsCount === 6) return [0.2, 0.1, 0.3, 0.1, 0.2, 0.1];
+  return Array(mealsCount).fill(1 / mealsCount);
+}
+
+function getMealType(name: string): 'breakfast' | 'lunch' | 'snack' {
+  if (name.includes('Café')) return 'breakfast';
+  if (name.includes('Almoço') || name.includes('Jantar')) return 'lunch';
+  return 'snack';
+}
+
+function calculatePortion(foodId: string, targetMacro: number, macroType: 'protein' | 'carbs' | 'fats'): string {
+  const food = FOOD_DB.find(f => f.id === foodId);
+  if (!food) return '';
+
+  const macroPer100g = food[macroType];
+  if (macroPer100g === 0) return `Porção a gosto de ${food.name}`;
+
+  let amount = (targetMacro / macroPer100g) * 100;
+
+  // Cap eggs to max 4 units (approx 200g)
+  if (foodId === 'ovo_cozido' || foodId === 'ovo_mexido') {
+    if (amount > 200) {
+      return `4 unidades de ${food.name} + complementar com outra proteína (ex: Whey ou Queijo)`;
+    }
+    const units = Math.max(1, Math.round(amount / 50));
+    return `${units} unidade(s) de ${food.name}`;
+  }
+
+  // Cap bread to max 4 slices (approx 100g)
+  if (foodId === 'pao_integral') {
+    if (amount > 100) amount = 100;
+    const units = Math.max(1, Math.round(amount / 25));
+    return `${units} fatia(s) de ${food.name}`;
+  }
+
+  // Cap whey to max 2 scoops (60g)
+  if (foodId === 'whey_protein') {
+    if (amount > 60) amount = 60;
+    const scoops = Math.max(1, Math.round(amount / 30));
+    return `${scoops} scoop(s) de ${food.name}`;
+  }
+
+  // Round to nearest 10g
+  amount = Math.round(amount / 10) * 10;
+  if (amount < 10) amount = 10;
+
+  return `${amount}g de ${food.name}`;
+}
+
+function generateMealOptions(type: 'breakfast' | 'lunch' | 'snack', pTarget: number, cTarget: number, fTarget: number, isLiquid: boolean, dietPref: string): MealOption[] {
+  const options: MealOption[] = [];
+  const isLowCarb = dietPref.includes('Low Carb') || dietPref.includes('Cetogênica');
+  const isVegan = dietPref.includes('Vegana');
+
+  if (isLiquid) {
+    // Liquid/Pasty Diet Options
+    options.push({
+      description: 'Opção 1: Vitamina Proteica Completa',
+      items: [
+        `Proteína: ${calculatePortion(isVegan ? 'proteina_soja' : 'whey_protein', pTarget, 'protein')}`,
+        `Carboidrato: ${calculatePortion('aveia_flocos', cTarget, 'carbs')}`,
+        `Gordura: ${calculatePortion('pasta_amendoim', fTarget, 'fats')}`,
+        `Preparo: Bata tudo no liquidificador com água ou leite vegetal. Consistência líquida/pastosa ideal para deglutição.`
+      ]
+    });
+    options.push({
+      description: 'Opção 2: Sopa Creme Nutritiva',
+      items: [
+        `Proteína: ${calculatePortion(isVegan ? 'tofu' : 'frango_desfiado', pTarget, 'protein')}`,
+        `Carboidrato: ${calculatePortion('batata_doce', cTarget, 'carbs')}`,
+        `Gordura: ${calculatePortion('azeite_oliva', fTarget, 'fats')}`,
+        `Preparo: Cozinhe bem os ingredientes e bata no liquidificador até virar um creme liso sem pedaços.`
+      ]
+    });
+    return options;
+  }
+
+  if (type === 'breakfast') {
+    if (!isVegan) {
+      options.push({
+        description: 'Opção 1: Ovos com Carboidrato',
+        items: [
+          `Proteína: ${calculatePortion('ovo_mexido', pTarget, 'protein')}`,
+          isLowCarb ? `Carboidrato: Porção pequena de frutas vermelhas` : `Carboidrato: ${calculatePortion('pao_integral', cTarget, 'carbs')} ou ${calculatePortion('tapioca', cTarget, 'carbs')}`,
+          `Gordura: Preparar com 1 fio de azeite`,
+          `Preparo: Faça os ovos mexidos ou cozidos.`,
+          `Substituição: Troque os ovos por ${calculatePortion('queijo_minas', pTarget, 'protein')}.`
+        ]
+      });
+    }
+    options.push({
+      description: 'Opção 2: Mingau Proteico',
+      items: [
+        `Proteína: ${calculatePortion(isVegan ? 'proteina_soja' : 'whey_protein', pTarget, 'protein')}`,
+        isLowCarb ? `Carboidrato: 1 colher de chia e linhaça` : `Carboidrato: ${calculatePortion('aveia_flocos', cTarget, 'carbs')} + 1/2 banana`,
+        `Gordura: ${calculatePortion('pasta_amendoim', fTarget, 'fats')}`,
+        `Preparo: Cozinhe a aveia com água. Misture a proteína e a pasta de amendoim após desligar o fogo.`,
+        `Substituição: Troque a aveia por creme de arroz.`
+      ]
+    });
+    if (!isVegan) {
+      options.push({
+        description: 'Opção 3: Iogurte Completo',
+        items: [
+          `Proteína: ${calculatePortion('iogurte_natural', pTarget, 'protein')} (se precisar, adicione whey)`,
+          isLowCarb ? `Carboidrato: Morangos picados` : `Carboidrato: ${calculatePortion('mamao_papaia', cTarget, 'carbs')}`,
+          `Gordura: ${calculatePortion('castanha_para', fTarget, 'fats')}`,
+          `Preparo: Misture tudo em um bowl.`,
+          `Substituição: Troque o iogurte por queijo cottage.`
+        ]
+      });
+    }
+  } else if (type === 'lunch') {
+    options.push({
+      description: 'Opção 1: Prato Tradicional',
+      items: [
+        `Proteína: ${calculatePortion(isVegan ? 'tofu' : 'frango_grelhado', pTarget, 'protein')}`,
+        isLowCarb ? `Carboidrato: Apenas vegetais de baixo amido` : `Carboidrato: ${calculatePortion('arroz_integral', cTarget * 0.7, 'carbs')} + ${calculatePortion('feijao_carioca', cTarget * 0.3, 'carbs')}`,
+        `Gordura: ${calculatePortion('azeite_oliva', fTarget, 'fats')}`,
+        `Vegetais: Salada verde à vontade e ${calculatePortion('brocolis', 10, 'carbs')}`,
+        `Preparo: Grelhe a proteína. Tempere a salada com azeite.`,
+        `Substituição: Troque o frango por ${calculatePortion(isVegan ? 'tempeh' : 'patinho_moido', pTarget, 'protein')}.`
+      ]
+    });
+    options.push({
+      description: 'Opção 2: Refeição Prática',
+      items: [
+        `Proteína: ${calculatePortion(isVegan ? 'proteina_soja' : 'tilapia_grelhada', pTarget, 'protein')}`,
+        isLowCarb ? `Carboidrato: Purê de couve-flor` : `Carboidrato: ${calculatePortion('batata_doce', cTarget, 'carbs')}`,
+        `Gordura: ${calculatePortion('azeite_oliva', fTarget, 'fats')}`,
+        `Vegetais: ${calculatePortion('cenoura', 10, 'carbs')} e folhas verdes`,
+        `Preparo: Asse a batata e a tilápia no forno com ervas.`,
+        `Substituição: Troque a batata doce por mandioca.`
+      ]
+    });
+    options.push({
+      description: 'Opção 3: Macarrão Fit',
+      items: [
+        `Proteína: ${calculatePortion(isVegan ? 'tempeh' : 'patinho_moido', pTarget, 'protein')}`,
+        isLowCarb ? `Carboidrato: Macarrão de abobrinha` : `Carboidrato: ${calculatePortion('macarrao_integral', cTarget, 'carbs')}`,
+        `Gordura: Fio de azeite no molho`,
+        `Vegetais: Molho de tomate natural caseiro`,
+        `Preparo: Faça um molho à bolonhesa magro e misture com a massa.`,
+        `Substituição: Troque o patinho por atum em lata.`
+      ]
+    });
+  } else {
+    // Snack
+    options.push({
+      description: 'Opção 1: Shake Rápido',
+      items: [
+        `Proteína: ${calculatePortion(isVegan ? 'proteina_soja' : 'whey_protein', pTarget, 'protein')}`,
+        isLowCarb ? `Carboidrato: Leite de amêndoas` : `Carboidrato: ${calculatePortion('banana_prata', cTarget, 'carbs')}`,
+        `Gordura: ${calculatePortion('pasta_amendoim', fTarget, 'fats')}`,
+        `Preparo: Bata no liquidificador com gelo.`
+      ]
+    });
+    if (!isVegan) {
+      options.push({
+        description: 'Opção 2: Sanduíche Natural',
+        items: [
+          `Proteína: ${calculatePortion('frango_desfiado', pTarget, 'protein')}`,
+          isLowCarb ? `Carboidrato: Wrap de folha de couve` : `Carboidrato: ${calculatePortion('pao_integral', cTarget, 'carbs')}`,
+          `Gordura: Adicione creme de ricota light`,
+          `Vegetais: Alface e tomate`,
+          `Preparo: Monte o sanduíche frio ou tostado.`
+        ]
+      });
+    }
+    options.push({
+      description: 'Opção 3: Mix de Frutas e Castanhas',
+      items: [
+        `Proteína: ${calculatePortion(isVegan ? 'tofu' : 'queijo_cottage', pTarget, 'protein')}`,
+        isLowCarb ? `Carboidrato: Morangos` : `Carboidrato: ${calculatePortion('maca', cTarget, 'carbs')}`,
+        `Gordura: ${calculatePortion('castanha_para', fTarget, 'fats')}`,
+        `Preparo: Consuma in natura.`
+      ]
+    });
+  }
+
+  return options;
 }

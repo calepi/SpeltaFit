@@ -124,6 +124,35 @@ export function TechnicalDocumentation({ onBack }: TechnicalDocumentationProps) 
                 </div>
               </div>
             </div>
+
+            <div>
+              <h3 className="text-xl font-black text-text-main mb-4 flex items-center gap-2">
+                <div className="w-2 h-6 bg-brand rounded-full" />
+                Motor Nutricional (SpeltaNutri Engine)
+              </h3>
+              <p className="text-text-muted mb-4">
+                O SpeltaNutri é um motor de cálculo metabólico e montagem de cardápio baseado nas diretrizes de nutrição esportiva.
+              </p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="p-6 rounded-3xl bg-bg-main border border-border">
+                  <h4 className="font-black text-xs uppercase text-brand mb-2">Cálculo de TMB e GET</h4>
+                  <p className="text-sm text-text-muted mb-2">Utiliza a equação de Mifflin-St Jeor para calcular a Taxa Metabólica Basal (TMB) e multiplica pelo Fator de Atividade (GET).</p>
+                  <ul className="text-xs text-text-muted list-disc pl-4 space-y-1">
+                    <li><strong>Emagrecimento:</strong> Aplica déficit calórico de 15-20%.</li>
+                    <li><strong>Hipertrofia:</strong> Aplica superávit calórico de 10-15%.</li>
+                    <li><strong>Manutenção:</strong> Mantém o GET.</li>
+                  </ul>
+                </div>
+                <div className="p-6 rounded-3xl bg-bg-main border border-border">
+                  <h4 className="font-black text-xs uppercase text-brand mb-2">Distribuição de Macros e Substituições</h4>
+                  <p className="text-sm text-text-muted mb-2">Calcula a necessidade de Proteínas (1.6 a 2.2g/kg), Gorduras (0.8 a 1.0g/kg) e preenche o resto com Carboidratos.</p>
+                  <ul className="text-xs text-text-muted list-disc pl-4 space-y-1">
+                    <li><strong>Banco de Alimentos:</strong> Utiliza um banco de dados local (`foodDatabase.ts`) com informações nutricionais por 100g.</li>
+                    <li><strong>Substituição Matemática:</strong> Calcula a nova quantidade usando regra de três simples: `(macroAlvo / macroNovoAlimento) * 100`.</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
           </div>
         </section>
 
@@ -170,18 +199,28 @@ export function TechnicalDocumentation({ onBack }: TechnicalDocumentationProps) 
                     <td className="py-4">workouts (array de objetos com data, foco e cargas)</td>
                   </tr>
                   <tr className="border-b border-border/50">
-                    <td className="py-4 font-mono text-xs">/posts/&#123;postId&#125;</td>
+                    <td className="py-4 font-mono text-xs">/users/&#123;uid&#125;/data/nutriPlan</td>
+                    <td className="py-4">Plano nutricional atual</td>
+                    <td className="py-4">goal, calories, macros, meals</td>
+                  </tr>
+                  <tr className="border-b border-border/50">
+                    <td className="py-4 font-mono text-xs">/users/&#123;uid&#125;/gamification/activities</td>
+                    <td className="py-4">Pontos e Conquistas</td>
+                    <td className="py-4">xp, level, badges, history</td>
+                  </tr>
+                  <tr className="border-b border-border/50">
+                    <td className="py-4 font-mono text-xs">/speltagram_posts/&#123;postId&#125;</td>
                     <td className="py-4">Feed Global (SpeltaGram)</td>
-                    <td className="py-4">userId, content, imageUrl, likes, comments, createdAt</td>
+                    <td className="py-4">userId, content, imageUrl, likes, commentCount</td>
                   </tr>
                 </tbody>
               </table>
             </div>
             
             <div className="p-6 rounded-3xl bg-blue-50 border border-blue-200 text-blue-900 mt-6">
-              <h4 className="font-black text-sm uppercase mb-2">Procedimento de Deleção (Wipe)</h4>
+              <h4 className="font-black text-sm uppercase mb-2">Procedimento de Deleção (Factory Reset)</h4>
               <p className="text-sm">
-                Como o Firestore não deleta subcoleções automaticamente ao deletar o documento pai, o botão "Resetar Banco" no painel Admin executa um script em lote que itera sobre todos os usuários e deleta explicitamente cada documento dentro das subcoleções `/data/*` antes de deletar o documento do usuário.
+                O botão "Resetar Banco" no painel Admin executa um script em lote que itera sobre todos os usuários e deleta explicitamente cada documento dentro de todas as subcoleções (`/data/*`, `/evolution`, `/photos`, `/activities`), além de limpar a coleção global `/speltagram_posts`. Ao final do processo, a aplicação força um `window.location.reload()` para limpar o estado em memória do React, garantindo um reset de fábrica completo.
               </p>
             </div>
           </div>

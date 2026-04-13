@@ -288,18 +288,25 @@ export function LandingPage({ onStart, hasPlan, onContinue, onViewTerms, onViewP
         </div>
       </section>
 
-      {/* Legal Links */}
-      <div className="flex items-center justify-center gap-6 text-sm text-text-muted mt-8">
-        {onViewTerms && (
-          <button onClick={onViewTerms} className="hover:text-brand transition-colors">
-            Termos de Uso
-          </button>
-        )}
-        {onViewPrivacy && (
-          <button onClick={onViewPrivacy} className="hover:text-brand transition-colors">
-            Política de Privacidade
-          </button>
-        )}
+      {/* Legal Links & Contact */}
+      <div className="flex flex-col items-center justify-center gap-4 text-sm text-text-muted mt-8">
+        <div className="flex items-center justify-center gap-6">
+          {onViewTerms && (
+            <button onClick={onViewTerms} className="hover:text-brand transition-colors">
+              Termos de Uso
+            </button>
+          )}
+          {onViewPrivacy && (
+            <button onClick={onViewPrivacy} className="hover:text-brand transition-colors">
+              Política de Privacidade
+            </button>
+          )}
+        </div>
+        <div className="flex flex-col md:flex-row items-center gap-2 md:gap-6 text-xs opacity-70">
+          <span>Contato: speltafit@gmail.com</span>
+          <span className="hidden md:inline">•</span>
+          <span>WhatsApp: (21) 97828-1073</span>
+        </div>
       </div>
 
     </div>

@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { WorkoutPlan, AnamnesisData, formatProgressionText, adjustWorkoutPlanRuleBased } from '../services/workoutGenerator';
-import { CheckCircle2, Dumbbell, Timer, Flame, Zap, Activity, Trophy, Brain, X, Loader2, Info, ChevronDown, ChevronUp, MessageSquare, Sparkles, TrendingUp, Target, Quote, Edit3, Save, Plus, Trash2, ArrowUp, ArrowDown, LayoutGrid, Scale, Droplets, Play, Square, Bell } from 'lucide-react';
+import { CheckCircle2, Dumbbell, Timer, Flame, Zap, Activity, Trophy, Brain, X, Loader2, Info, ChevronDown, ChevronUp, MessageSquare, Sparkles, TrendingUp, Target, Quote, Edit3, Save, Plus, Trash2, ArrowUp, ArrowDown, LayoutGrid, Scale, Droplets, Play, Square, Bell, Battery, BatteryWarning, BatteryCharging } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { auth, db } from '../firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { EXERCISE_DB } from '../data/exerciseDatabase';
+import { calculateCrossSync, evaluateReadiness, CrossSyncResult } from '../services/crossSyncEngine';
 
 interface Props {
   plan: WorkoutPlan;
@@ -27,7 +28,7 @@ export function WorkoutTracker({ plan, user, onUpdatePlan, readOnly = false, stu
   const [completedSets, setCompletedSets] = useState<Record<string, boolean>>({});
   const [actualLoads, setActualLoads] = useState<Record<string, string>>({});
   const [exerciseFeedback, setExerciseFeedback] = useState<Record<string, { pse: number, execution: string, pain: boolean, notes: string }>>({});
-  const [checkins, setCheckins] = useState<Record<string, { effort: string, notes: string, date: string, weight?: number, rpe?: number }>>({});
+  const [checkins, setCheckins] = useState<Record<string, { effort: string, notes: string, date: string, weight?: number, duration?: number, crossSync?: CrossSyncResult, rpe?: number }>>({});
   
   // Daily Checkin State
   const [dailyEffort, setDailyEffort] = useState('');
@@ -68,7 +69,13 @@ export function WorkoutTracker({ plan, user, onUpdatePlan, readOnly = false, stu
   const [workoutDuration, setWorkoutDuration] = useState(0);
   const [restTimer, setRestTimer] = useState<number | null>(null);
   const [waterReminderCount, setWaterReminderCount] = useState(0);
-  const [showNotification, setShowNotification] = useState<{message: string, type: 'water' | 'meal' | 'info'} | null>(null);
+  const [showNotification, setShowNotification] = useState<{message: string, type: 'water' | 'meal' | 'info' | 'cross-sync'} | null>(null);
+
+  // Readiness State
+  const [showReadinessModal, setShowReadinessModal] = useState(false);
+  const [readinessData, setReadinessData] = useState({ sleep: 3, soreness: 3, stress: 3 });
+  const [activeReadiness, setActiveReadiness] = useState<{ zone: string, volumeAdjustment: number, intensityAdjustment: number } | null>(null);
+  const [crossSyncResult, setCrossSyncResult] = useState<CrossSyncResult | null>(null);
 
   const toggleDetails = (exId: string) => {
     setExpandedDetails(prev => ({ ...prev, [exId]: !prev[exId] }));
@@ -123,17 +130,37 @@ export function WorkoutTracker({ plan, user, onUpdatePlan, readOnly = false, stu
     return () => clearInterval(interval);
   }, [isActiveWorkout, workoutStartTime]);
 
+  const handleStartWorkoutClick = () => {
+    setShowReadinessModal(true);
+  };
+
   const startWorkout = () => {
+    const readiness = evaluateReadiness(readinessData.sleep, readinessData.soreness, readinessData.stress);
+    setActiveReadiness(readiness as any);
+    setShowReadinessModal(false);
     setIsActiveWorkout(true);
     setWorkoutStartTime(Date.now());
     setWorkoutDuration(0);
     setRestTimer(null);
+    
+    if (readiness.zone !== 'Yellow') {
+      setShowNotification({ message: readiness.recommendation, type: 'info' });
+      setTimeout(() => setShowNotification(null), 8000);
+    }
   };
 
   const finishWorkout = () => {
     setIsActiveWorkout(false);
     setRestTimer(null);
-    // Here we could save the total workoutDuration to the checkin or a new workoutLog collection
+    
+    // Run Cross-Sync Engine
+    const result = calculateCrossSync(completedSets, actualLoads, workoutDuration, user.weight || 70);
+    setCrossSyncResult(result);
+    
+    if (result.energyCostKcal > 150) {
+      setShowNotification({ message: result.message, type: 'cross-sync' });
+      setTimeout(() => setShowNotification(null), 10000);
+    }
   };
 
   // Load saved progress
@@ -360,7 +387,8 @@ export function WorkoutTracker({ plan, user, onUpdatePlan, readOnly = false, stu
         notes: dailyNotes, 
         date: new Date().toISOString(),
         weight: isNaN(weightNum) ? undefined : weightNum,
-        duration: workoutDuration > 0 ? workoutDuration : undefined
+        duration: workoutDuration > 0 ? workoutDuration : undefined,
+        crossSync: crossSyncResult || undefined
       }
     }));
 
@@ -430,10 +458,19 @@ export function WorkoutTracker({ plan, user, onUpdatePlan, readOnly = false, stu
   const dayData = activePlan?.weeklyRoutine?.[selectedDay];
 
   const getDynamicSets = (baseSets: number | string, currentWeek: number, phaseName?: string) => {
-    if (phaseName && phaseName.includes('Adaptação e Aprendizado Motor') && Number(baseSets) === 1) {
-      return currentWeek === 1 ? 1 : currentWeek === 2 ? 2 : 3;
+    let sets = Number(baseSets) || 0;
+    
+    if (phaseName && phaseName.includes('Adaptação e Aprendizado Motor') && sets === 1) {
+      sets = currentWeek === 1 ? 1 : currentWeek === 2 ? 2 : 3;
     }
-    return Number(baseSets) || 0;
+    
+    // Apply Readiness Engine Adjustment
+    if (activeReadiness && activeReadiness.volumeAdjustment !== 0) {
+      sets += activeReadiness.volumeAdjustment;
+      if (sets < 1) sets = 1; // Minimum 1 set
+    }
+    
+    return sets;
   };
 
   // Calculate progress for the selected day
@@ -478,7 +515,7 @@ export function WorkoutTracker({ plan, user, onUpdatePlan, readOnly = false, stu
               Seu Treino
               {!readOnly && !isPlanComplete && !isActiveWorkout && (
                 <button
-                  onClick={startWorkout}
+                  onClick={handleStartWorkoutClick}
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all bg-brand text-white hover:scale-105 shadow-lg shadow-brand/20"
                 >
                   <Play className="w-3 h-3 fill-current" />
@@ -1545,17 +1582,117 @@ export function WorkoutTracker({ plan, user, onUpdatePlan, readOnly = false, stu
             initial={{ opacity: 0, y: -50, scale: 0.9 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -50, scale: 0.9 }}
-            className={`fixed top-6 left-1/2 -translate-x-1/2 z-[60] px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-4 border-2 ${
+            className={`fixed top-6 left-1/2 -translate-x-1/2 z-[60] px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-4 border-2 max-w-[90vw] md:max-w-md ${
               showNotification.type === 'water' ? 'bg-blue-500/10 border-blue-500/30 text-blue-500' :
               showNotification.type === 'meal' ? 'bg-green-500/10 border-green-500/30 text-green-500' :
+              showNotification.type === 'cross-sync' ? 'bg-amber-500/10 border-amber-500/30 text-amber-500' :
               'bg-brand/10 border-brand/30 text-brand'
             }`}
           >
-            {showNotification.type === 'water' && <Droplets className="w-6 h-6" />}
-            {showNotification.type === 'meal' && <Flame className="w-6 h-6" />}
-            {showNotification.type === 'info' && <Bell className="w-6 h-6" />}
-            <span className="font-black tracking-tight">{showNotification.message}</span>
+            {showNotification.type === 'water' && <Droplets className="w-6 h-6 shrink-0" />}
+            {showNotification.type === 'meal' && <Flame className="w-6 h-6 shrink-0" />}
+            {showNotification.type === 'info' && <Bell className="w-6 h-6 shrink-0" />}
+            {showNotification.type === 'cross-sync' && <Zap className="w-6 h-6 shrink-0" />}
+            <span className="font-black tracking-tight text-sm leading-tight">{showNotification.message}</span>
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Readiness Check Modal */}
+      <AnimatePresence>
+        {showReadinessModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-surface w-full max-w-md rounded-[2.5rem] p-8 shadow-2xl border border-border/50 relative overflow-hidden"
+            >
+              <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-brand via-amber-500 to-emerald-500"></div>
+              
+              <div className="flex items-center gap-4 mb-8">
+                <div className="bg-brand/10 p-3 rounded-2xl">
+                  <Battery className="w-8 h-8 text-brand" />
+                </div>
+                <div>
+                  <h2 className="text-2xl font-black text-text-main tracking-tight leading-none">Auto-Regulação</h2>
+                  <p className="text-xs text-text-muted font-medium mt-1">Como está seu corpo hoje?</p>
+                </div>
+              </div>
+
+              <div className="space-y-6 mb-8">
+                {/* Sleep */}
+                <div>
+                  <label className="flex justify-between text-sm font-bold text-text-main mb-2">
+                    <span>Qualidade do Sono</span>
+                    <span className="text-brand">{readinessData.sleep}/5</span>
+                  </label>
+                  <input 
+                    type="range" min="1" max="5" step="1"
+                    value={readinessData.sleep}
+                    onChange={(e) => setReadinessData({...readinessData, sleep: parseInt(e.target.value)})}
+                    className="w-full h-2 bg-bg-main rounded-lg appearance-none cursor-pointer accent-brand"
+                  />
+                  <div className="flex justify-between text-[10px] text-text-muted mt-1 font-medium">
+                    <span>Péssimo</span>
+                    <span>Excelente</span>
+                  </div>
+                </div>
+
+                {/* Soreness */}
+                <div>
+                  <label className="flex justify-between text-sm font-bold text-text-main mb-2">
+                    <span>Dores Musculares</span>
+                    <span className="text-brand">{readinessData.soreness}/5</span>
+                  </label>
+                  <input 
+                    type="range" min="1" max="5" step="1"
+                    value={readinessData.soreness}
+                    onChange={(e) => setReadinessData({...readinessData, soreness: parseInt(e.target.value)})}
+                    className="w-full h-2 bg-bg-main rounded-lg appearance-none cursor-pointer accent-brand"
+                  />
+                  <div className="flex justify-between text-[10px] text-text-muted mt-1 font-medium">
+                    <span>Muita Dor (1)</span>
+                    <span>Nenhuma Dor (5)</span>
+                  </div>
+                </div>
+
+                {/* Stress */}
+                <div>
+                  <label className="flex justify-between text-sm font-bold text-text-main mb-2">
+                    <span>Nível de Estresse / Energia</span>
+                    <span className="text-brand">{readinessData.stress}/5</span>
+                  </label>
+                  <input 
+                    type="range" min="1" max="5" step="1"
+                    value={readinessData.stress}
+                    onChange={(e) => setReadinessData({...readinessData, stress: parseInt(e.target.value)})}
+                    className="w-full h-2 bg-bg-main rounded-lg appearance-none cursor-pointer accent-brand"
+                  />
+                  <div className="flex justify-between text-[10px] text-text-muted mt-1 font-medium">
+                    <span>Exausto (1)</span>
+                    <span>Energizado (5)</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowReadinessModal(false)}
+                  className="flex-1 py-4 rounded-2xl font-black text-sm uppercase tracking-widest bg-bg-main text-text-muted hover:text-text-main transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={startWorkout}
+                  className="flex-[2] py-4 rounded-2xl font-black text-sm uppercase tracking-widest bg-brand text-white shadow-lg shadow-brand/20 hover:scale-[1.02] transition-all flex items-center justify-center gap-2"
+                >
+                  <Play className="w-4 h-4 fill-current" />
+                  Iniciar Treino
+                </button>
+              </div>
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
     </div>

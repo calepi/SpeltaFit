@@ -55,7 +55,7 @@ export const gamificationService = {
       streak: 0
     };
     
-    await updateDoc(doc(db, 'users', userId), { stats: initialStats });
+    await setDoc(doc(db, 'users', userId), { stats: initialStats }, { merge: true });
     return initialStats;
   },
 

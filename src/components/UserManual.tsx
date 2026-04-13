@@ -19,7 +19,10 @@ import {
   Search,
   MessageSquare,
   Printer,
-  FileText
+  FileText,
+  Apple,
+  Trophy,
+  Bell
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import html2pdf from 'html2pdf.js';
@@ -54,8 +57,11 @@ export function UserManual() {
     { id: 'performance', label: 'Performance Humana', icon: <TrendingUp className="w-4 h-4" /> },
     { id: 'anamnesis', label: 'Motores e Anamnese', icon: <Zap className="w-4 h-4" /> },
     { id: 'workout', label: 'Guia de Treino', icon: <Dumbbell className="w-4 h-4" /> },
+    { id: 'nutrition', label: 'SpeltaNutri', icon: <Apple className="w-4 h-4" /> },
     { id: 'evolution', label: 'Evolução e Dados', icon: <TrendingUp className="w-4 h-4" /> },
+    { id: 'gamification', label: 'Gamificação', icon: <Trophy className="w-4 h-4" /> },
     { id: 'community', label: 'SpeltaGram', icon: <Users className="w-4 h-4" /> },
+    { id: 'reminders', label: 'Lembretes', icon: <Bell className="w-4 h-4" /> },
     { id: 'admin', label: 'Painel do Treinador', icon: <Shield className="w-4 h-4" /> },
     { id: 'config', label: 'Configuração Técnica', icon: <Settings className="w-4 h-4" /> },
   ];
@@ -121,8 +127,11 @@ export function UserManual() {
             {activeSection === 'performance' && <PerformanceSection />}
             {activeSection === 'anamnesis' && <AnamnesisSection />}
             {activeSection === 'workout' && <WorkoutSection />}
+            {activeSection === 'nutrition' && <NutritionSection />}
             {activeSection === 'evolution' && <EvolutionSection />}
+            {activeSection === 'gamification' && <GamificationSection />}
             {activeSection === 'community' && <CommunitySection />}
+            {activeSection === 'reminders' && <RemindersSection />}
             {activeSection === 'admin' && <AdminSection />}
             {activeSection === 'config' && <ConfigSection />}
           </motion.div>
@@ -413,6 +422,103 @@ function PerformanceSection() {
   );
 }
 
+function NutritionSection() {
+  return (
+    <div>
+      <SectionTitle icon={<Apple className="w-6 h-6" />}>SpeltaNutri</SectionTitle>
+      <p>
+        O SpeltaNutri é o nosso motor de inteligência nutricional. Ele cria planos alimentares adaptados à sua rotina, orçamento e objetivos.
+      </p>
+
+      <SubTitle>Como funciona?</SubTitle>
+      <ul className="space-y-4 list-none p-0">
+        <li className="flex gap-3">
+          <div className="mt-1"><CheckCircle2 className="w-4 h-4 text-brand" /></div>
+          <div>
+            <span className="font-bold">Anamnese Nutricional:</span> Você informa seu objetivo (emagrecimento, hipertrofia), tipo de dieta (flexível, low-carb, vegana), alergias, orçamento e tempo para cozinhar.
+          </div>
+        </li>
+        <li className="flex gap-3">
+          <div className="mt-1"><CheckCircle2 className="w-4 h-4 text-brand" /></div>
+          <div>
+            <span className="font-bold">Geração do Plano:</span> O motor calcula seus macros e calorias diárias e monta refeições práticas.
+          </div>
+        </li>
+        <li className="flex gap-3">
+          <div className="mt-1"><CheckCircle2 className="w-4 h-4 text-brand" /></div>
+          <div>
+            <span className="font-bold">Substituições Inteligentes:</span> Cansou de frango? Clique no botão de "Substituir" ao lado do alimento e o sistema calculará automaticamente a quantidade exata de outra proteína (ex: carne, ovo, whey) para manter os mesmos macros da refeição.
+          </div>
+        </li>
+      </ul>
+
+      <InfoBox title="Acompanhamento (Tracking)" type="success">
+        Na aba de Nutrição, você pode registrar seu peso diário e sua adesão à dieta (0 a 100%). O sistema cruzará esses dados com seus treinos para gerar insights poderosos sobre sua recomposição corporal.
+      </InfoBox>
+    </div>
+  );
+}
+
+function GamificationSection() {
+  return (
+    <div>
+      <SectionTitle icon={<Trophy className="w-6 h-6" />}>Gamificação e Ranking</SectionTitle>
+      <p>A consistência é recompensada. Transformamos seu esforço diário em um jogo onde você é o personagem principal.</p>
+
+      <SubTitle>Sistema de Pontuação (XP)</SubTitle>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="p-4 bg-bg-main border border-border rounded-2xl flex items-center justify-between">
+          <span className="font-bold">Treino Concluído</span>
+          <span className="text-brand font-black">+50 XP</span>
+        </div>
+        <div className="p-4 bg-bg-main border border-border rounded-2xl flex items-center justify-between">
+          <span className="font-bold">Check-in Diário</span>
+          <span className="text-brand font-black">+10 XP</span>
+        </div>
+        <div className="p-4 bg-bg-main border border-border rounded-2xl flex items-center justify-between">
+          <span className="font-bold">Bater Meta de Água</span>
+          <span className="text-brand font-black">+15 XP</span>
+        </div>
+        <div className="p-4 bg-bg-main border border-border rounded-2xl flex items-center justify-between">
+          <span className="font-bold">Refeição 100% na Dieta</span>
+          <span className="text-brand font-black">+20 XP</span>
+        </div>
+      </div>
+
+      <SubTitle>Níveis e Conquistas (Badges)</SubTitle>
+      <p>
+        Conforme você acumula XP, seu nível sobe. Além disso, você desbloqueia medalhas exclusivas por marcos importantes, como "7 dias seguidos de treino" ou "1000kg levantados no total".
+      </p>
+
+      <InfoBox title="Ranking Global" type="info">
+        Compare seu nível com outros alunos na aba "Ranking". A competição amigável é um excelente motivador para os dias em que a preguicia bater.
+      </InfoBox>
+    </div>
+  );
+}
+
+function RemindersSection() {
+  return (
+    <div>
+      <SectionTitle icon={<Bell className="w-6 h-6" />}>Lembretes e Alarmes</SectionTitle>
+      <p>O SpeltaFit ajuda você a manter a disciplina automatizando seus avisos diários.</p>
+
+      <SubTitle>Configurando Alertas</SubTitle>
+      <p>Na aba de Lembretes (ícone de sino no menu), você pode ativar notificações para:</p>
+      <ul className="space-y-2 list-disc pl-6 text-text-muted">
+        <li>Beber Água (intervalos regulares)</li>
+        <li>Hora do Treino</li>
+        <li>Refeições Planejadas (sincronizado com seu SpeltaNutri)</li>
+        <li>Hora de Dormir (Higiene do Sono)</li>
+      </ul>
+
+      <InfoBox title="Permissões do Navegador" type="warning">
+        Para que os alarmes funcionem, você precisa permitir que o site envie notificações no seu navegador ou celular. O sistema solicitará essa permissão no primeiro uso.
+      </InfoBox>
+    </div>
+  );
+}
+
 function AdminSection() {
   return (
     <div>
@@ -431,6 +537,20 @@ function AdminSection() {
           <span className="font-bold">Ajuste de Planos:</span> O treinador pode intervir e modificar um treino ou dieta 
           caso perceba que o aluno está estagnado.
         </div>
+      </div>
+
+      <SubTitle>Reset de Fábrica (Wipe Database)</SubTitle>
+      <div className="p-6 rounded-3xl bg-red-50 border border-red-200 text-red-900 mt-4">
+        <h4 className="font-black text-sm uppercase mb-2 flex items-center gap-2">
+          <AlertTriangle className="w-4 h-4" />
+          Atenção: Ação Irreversível
+        </h4>
+        <p className="text-sm">
+          O botão <strong>"Resetar Banco"</strong> apaga absolutamente todos os dados gerados pelos usuários (Treinos, Dietas, Fotos, Posts no SpeltaGram, XP, etc). 
+          Ele é útil para reiniciar turmas ou limpar o sistema após um período de testes. 
+          <br/><br/>
+          <strong>Nota de Segurança:</strong> A conta do administrador também tem seus dados limpos, mas o acesso ao painel é mantido intacto. Os motores e o banco de alimentos não são afetados.
+        </p>
       </div>
     </div>
   );
