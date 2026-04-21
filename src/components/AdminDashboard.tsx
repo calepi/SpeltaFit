@@ -6,7 +6,9 @@ import { Users, Activity, Target, Calendar, ChevronRight, ArrowLeft, Search, Dum
 import { motion } from 'motion/react';
 import { WorkoutPlanView } from './WorkoutPlanView';
 import { NutritionalPlanView } from './NutritionalPlanView';
+import { FisioPlanView } from './FisioPlanView';
 import { NutriAnamnesisData, NutritionalPlan } from '../types/nutrition';
+import { FisioPlan } from '../services/fisioGenerator';
 
 interface UserProfile {
   uid: string;
@@ -22,6 +24,7 @@ interface StudentData {
   plan: WorkoutPlan | null;
   nutriAnamnesis: NutriAnamnesisData | null;
   nutriPlan: NutritionalPlan | null;
+  fisioPlan: FisioPlan | null;
   progress: any | null;
 }
 
@@ -159,6 +162,7 @@ export function AdminDashboard({ onViewDocumentation, onViewPatent }: AdminDashb
       const progressSnap = await getDoc(doc(db, `users/${profile.uid}/data/progress`));
       const nutriAnamnesisSnap = await getDoc(doc(db, `users/${profile.uid}/data/nutriAnamnesis`));
       const nutriPlanSnap = await getDoc(doc(db, `users/${profile.uid}/data/nutriPlan`));
+      const fisioPlanSnap = await getDoc(doc(db, `users/${profile.uid}/data/fisioPlan`));
 
       setSelectedStudent({
         profile,
@@ -166,6 +170,7 @@ export function AdminDashboard({ onViewDocumentation, onViewPatent }: AdminDashb
         plan: planSnap.exists() ? (planSnap.data() as WorkoutPlan) : null,
         nutriAnamnesis: nutriAnamnesisSnap.exists() ? (nutriAnamnesisSnap.data() as NutriAnamnesisData) : null,
         nutriPlan: nutriPlanSnap.exists() ? (nutriPlanSnap.data() as NutritionalPlan) : null,
+        fisioPlan: fisioPlanSnap.exists() ? (fisioPlanSnap.data() as FisioPlan) : null,
         progress: progressSnap.exists() ? progressSnap.data() : null,
       });
     } catch (error) {
@@ -214,7 +219,7 @@ export function AdminDashboard({ onViewDocumentation, onViewPatent }: AdminDashb
             </div>
           </div>
 
-          {!selectedStudent.anamnesis && !selectedStudent.plan && !selectedStudent.nutriPlan && (
+          {!selectedStudent.anamnesis && !selectedStudent.plan && !selectedStudent.nutriPlan && !selectedStudent.fisioPlan && (
             <div className="text-center py-12 bg-bg-main rounded-2xl border border-border">
               <Dumbbell className="w-12 h-12 text-text-muted mx-auto mb-4 opacity-50" />
               <h3 className="text-xl font-bold text-text-main mb-2">Nenhum dado encontrado</h3>
@@ -223,6 +228,13 @@ export function AdminDashboard({ onViewDocumentation, onViewPatent }: AdminDashb
           )}
 
           <div className="space-y-12">
+            {selectedStudent.fisioPlan && selectedStudent.anamnesis && (
+               <div className="mt-8">
+                 <h3 className="text-xl font-black text-text-main mb-6 border-b border-border pb-4">Plano Fisioterapêutico (SpeltaFisio)</h3>
+                 <FisioPlanView plan={selectedStudent.fisioPlan} user={selectedStudent.anamnesis} />
+               </div>
+            )}
+            
             {selectedStudent.plan && selectedStudent.anamnesis && (
               <div className="mt-8">
                 <h3 className="text-xl font-black text-text-main mb-6 border-b border-border pb-4">Treino e Avaliação do Aluno</h3>
@@ -231,6 +243,7 @@ export function AdminDashboard({ onViewDocumentation, onViewPatent }: AdminDashb
                   user={selectedStudent.anamnesis} 
                   onReset={() => {}} 
                   onUpdatePlan={() => {}} 
+                  hideResetButton={true}
                   readOnly={true}
                   studentUid={selectedStudent.profile.uid}
                 />

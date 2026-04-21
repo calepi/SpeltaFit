@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { AnamnesisForm } from './components/AnamnesisForm';
+import { Profile360Form } from './components/Profile360Form';
+import { FisioPlanView } from './components/FisioPlanView';
+import { generateFisioPlan, FisioPlan } from './services/fisioGenerator';
 import { WorkoutPlanView } from './components/WorkoutPlanView';
 import { LandingPage } from './components/LandingPage';
 import { AdminDashboard } from './components/AdminDashboard';
@@ -24,13 +26,12 @@ import { TermsOfService } from './components/TermsOfService';
 import { PrivacyPolicy } from './components/PrivacyPolicy';
 import { PatentDocumentation } from './components/PatentDocumentation';
 import { Paywall } from './components/Paywall';
-import { NutriAnamnesisForm } from './components/NutriAnamnesisForm';
 import { NutritionalPlanView } from './components/NutritionalPlanView';
 import { AuthModal } from './components/AuthModal';
 import { NutriAnamnesisData, NutritionalPlan } from './types/nutrition';
 import { generateNutritionalPlan } from './services/nutritionGenerator';
 
-type AppState = 'landing' | 'form' | 'plan' | 'admin' | 'library' | 'speltagram' | 'evolution' | 'manual' | 'documentation' | 'patent' | 'comparison' | 'gamification' | 'reminders' | 'terms' | 'privacy' | 'nutriForm' | 'nutriPlan' | 'paywall';
+type AppState = 'landing' | 'form' | 'dashboard' | 'admin' | 'library' | 'speltagram' | 'evolution' | 'manual' | 'documentation' | 'patent' | 'comparison' | 'gamification' | 'reminders' | 'terms' | 'privacy' | 'paywall';
 type Theme = 'default' | 'green' | 'blue' | 'gold';
 
 export default function App() {
@@ -39,6 +40,7 @@ export default function App() {
   const [userData, setUserData] = useState<AnamnesisData | null>(null);
   const [nutriData, setNutriData] = useState<NutriAnamnesisData | null>(null);
   const [nutriPlan, setNutriPlan] = useState<NutritionalPlan | null>(null);
+  const [fisioPlan, setFisioPlan] = useState<FisioPlan | null>(null);
   const [proposedPlan, setProposedPlan] = useState<WorkoutPlan | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -106,12 +108,14 @@ export default function App() {
           const planRef = doc(db, `users/${currentUser.uid}/data/workoutPlan`);
           const nutriAnamnesisRef = doc(db, `users/${currentUser.uid}/data/nutriAnamnesis`);
           const nutriPlanRef = doc(db, `users/${currentUser.uid}/data/nutriPlan`);
+          const fisioPlanRef = doc(db, `users/${currentUser.uid}/data/fisioPlan`);
           
-          const [anamnesisSnap, planSnap, nutriAnamnesisSnap, nutriPlanSnap] = await Promise.all([
+          const [anamnesisSnap, planSnap, nutriAnamnesisSnap, nutriPlanSnap, fisioPlanSnap] = await Promise.all([
             getDoc(anamnesisRef),
             getDoc(planRef),
             getDoc(nutriAnamnesisRef),
-            getDoc(nutriPlanRef)
+            getDoc(nutriPlanRef),
+            getDoc(fisioPlanRef)
           ]);
 
           if (anamnesisSnap.exists() && planSnap.exists()) {
@@ -121,7 +125,7 @@ export default function App() {
           } else {
             setPlan(null);
             setUserData(null);
-            if (appState === 'plan') setAppState('landing');
+            if (appState === 'dashboard') setAppState('landing');
           }
 
           if (nutriAnamnesisSnap.exists()) {
@@ -135,6 +139,12 @@ export default function App() {
           } else {
             setNutriPlan(null);
           }
+          
+          if (fisioPlanSnap.exists()) {
+            setFisioPlan(fisioPlanSnap.data() as FisioPlan);
+          } else {
+            setFisioPlan(null);
+          }
         } catch (err) {
           console.error("Error loading user data from Firestore:", err);
         }
@@ -144,7 +154,8 @@ export default function App() {
         setUserData(null);
         setNutriData(null);
         setNutriPlan(null);
-        if (appState === 'plan' || appState === 'form' || appState === 'admin' || appState === 'nutriForm' || appState === 'nutriPlan') {
+        setFisioPlan(null);
+        if (appState === 'dashboard' || appState === 'form' || appState === 'admin') {
           setAppState('landing');
         }
       }
@@ -203,128 +214,126 @@ export default function App() {
     }
   };
 
-  const handleAnamnesisSubmit = async (data: AnamnesisData) => {
+  const handleProfile360Submit = async (data: AnamnesisData) => {
     if (!user) {
-      alert("Você precisa estar logado para gerar um treino.");
+      alert("Você precisa estar logado para gerar seu ecossistema esportivo.");
       return;
     }
     
     setIsLoading(true);
     setError(null);
     try {
-      // Garantir que a data de início do treino seja definida se for a primeira vez
       const finalData = { ...data };
       if (!finalData.trainingStartDate) {
         finalData.trainingStartDate = new Date().toISOString();
       }
 
-      const generatedPlan = await generateWorkoutPlanRuleBased(finalData);
+      // Generate all 3 engines
+      const genWorkout = await generateWorkoutPlanRuleBased(finalData);
+      const generatedFisio = generateFisioPlan(finalData);
+      
+      // We need to map Profile360 to NutriAnamnesis data format or just use the same data
+      // For now we map what we can
+      const nutriMappedData: NutriAnamnesisData = {
+        name: finalData.name,
+        age: finalData.age || 0,
+        gender: finalData.gender as any,
+        weight: finalData.weight || 0,
+        height: finalData.height || 0,
+        bodyFatPercentage: finalData.bodyFat,
+        goal: finalData.goal,
+        activityLevel: finalData.activityLevel || 'Moderadamente Ativo',
+        trainingFrequency: `${finalData.daysPerWeek} dias`,
+        dietaryPreference: finalData.dietaryPreference || '',
+        allergiesIntolerances: finalData.allergiesIntolerances || [],
+        foodAversions: finalData.foodAversions || [],
+        mealsPerDay: finalData.mealsPerDay || '4 refeições',
+        waterIntake: finalData.waterIntake || '1 a 2 Litros',
+        emotionalEating: finalData.emotionalEating || [],
+        stressLevel: finalData.stressLevel || '',
+        sleepQuality: finalData.sleepQuality || '',
+        energyLevels: 'Normal', // Defaulting as removed from AnamnesisData
+        bowelMovement: finalData.bowelMovement || '',
+        medicalConditions: finalData.medicalConditions || [],
+        currentSupplements: [],
+        medications: finalData.medications || ''
+      };
+      
+      const genNutri = await generateNutritionalPlan(nutriMappedData, finalData);
+
+      setPlan(genWorkout);
+      setFisioPlan(generatedFisio);
+      setNutriPlan(genNutri);
+      setUserData(finalData);
+      setNutriData(nutriMappedData);
       
       if (finalData.remodelPlan && finalData.structuredExistingPlan && finalData.structuredExistingPlan.length > 0) {
-        setProposedPlan(generatedPlan);
-        setUserData(finalData);
+        setProposedPlan(genWorkout);
         setAppState('comparison');
       } else {
-        setPlan(generatedPlan);
-        setUserData(finalData);
-        setAppState('plan');
-        
-        // Save to Firestore (only if not going to comparison)
-        await savePlanToFirestore(finalData, generatedPlan);
+        setAppState('dashboard');
+        await saveAllPlansToFirestore(finalData, genWorkout, nutriMappedData, genNutri, generatedFisio);
       }
     } catch (err) {
       console.error(err);
-      setError(err instanceof Error ? err.message : 'Ocorreu um erro ao gerar seu plano. Por favor, tente novamente.');
+      setError(err instanceof Error ? err.message : 'Ocorreu um erro ao gerar seus planos. Por favor, tente novamente.');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleNutriAnamnesisSubmit = async (data: NutriAnamnesisData) => {
-    if (!user) {
-      alert("Você precisa estar logado para gerar um plano nutricional.");
-      return;
-    }
-    
-    setIsLoading(true);
-    setError(null);
-    try {
-      const generatedPlan = await generateNutritionalPlan(data, userData);
-      
-      setNutriPlan(generatedPlan);
-      setNutriData(data);
-      setAppState('nutriPlan');
-      
-      // Save to Firestore
-      const nutriAnamnesisRef = doc(db, `users/${user.uid}/data/nutriAnamnesis`);
-      const nutriPlanRef = doc(db, `users/${user.uid}/data/nutriPlan`);
-      
-      const cleanObject = (obj: any): any => {
-        if (Array.isArray(obj)) {
-          return obj.map(cleanObject);
-        } else if (obj !== null && typeof obj === 'object') {
-          return Object.fromEntries(
-            Object.entries(obj)
-              .filter(([_, v]) => v !== undefined)
-              .map(([k, v]) => [k, cleanObject(v)])
-          );
-        }
-        return obj;
-      };
-
-      await Promise.all([
-        setDoc(nutriAnamnesisRef, { ...cleanObject(data), updatedAt: new Date().toISOString() }),
-        setDoc(nutriPlanRef, { ...cleanObject(generatedPlan), createdAt: new Date().toISOString() })
-      ]);
-    } catch (err) {
-      console.error(err);
-      setError(err instanceof Error ? err.message : 'Ocorreu um erro ao gerar seu plano nutricional. Por favor, tente novamente.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const savePlanToFirestore = async (data: AnamnesisData, finalPlan: WorkoutPlan) => {
+  const saveAllPlansToFirestore = async (
+    data: AnamnesisData, 
+    workout: WorkoutPlan, 
+    nutriDat: NutriAnamnesisData, 
+    nutriPln: NutritionalPlan,
+    fisio: FisioPlan | null
+  ) => {
     if (!user) return;
     
-    const anamnesisRef = doc(db, `users/${user.uid}/data/anamnesis`);
-    const planRef = doc(db, `users/${user.uid}/data/workoutPlan`);
+    const dbRefs = {
+      anamnesis: doc(db, `users/${user.uid}/data/anamnesis`),
+      workoutPlan: doc(db, `users/${user.uid}/data/workoutPlan`),
+      nutriAnamnesis: doc(db, `users/${user.uid}/data/nutriAnamnesis`),
+      nutriPlan: doc(db, `users/${user.uid}/data/nutriPlan`),
+      fisioPlan: doc(db, `users/${user.uid}/data/fisioPlan`)
+    };
     
     const cleanObject = (obj: any): any => {
-      if (Array.isArray(obj)) {
-        return obj.map(cleanObject);
-      } else if (obj !== null && typeof obj === 'object') {
+      if (Array.isArray(obj)) return obj.map(cleanObject);
+      else if (obj !== null && typeof obj === 'object') {
         return Object.fromEntries(
-          Object.entries(obj)
-            .filter(([_, v]) => v !== undefined)
-            .map(([k, v]) => [k, cleanObject(v)])
+          Object.entries(obj).filter(([_, v]) => v !== undefined).map(([k, v]) => [k, cleanObject(v)])
         );
       }
       return obj;
     };
 
-    const cleanData = cleanObject(data);
-    const cleanPlan = cleanObject(finalPlan);
-    
     const promises = [
-      setDoc(anamnesisRef, { ...cleanData, updatedAt: new Date().toISOString() }),
-      setDoc(planRef, { ...cleanPlan, createdAt: new Date().toISOString() })
+      setDoc(dbRefs.anamnesis, { ...cleanObject(data), updatedAt: new Date().toISOString() }),
+      setDoc(dbRefs.workoutPlan, { ...cleanObject(workout), createdAt: new Date().toISOString() }),
+      setDoc(dbRefs.nutriAnamnesis, { ...cleanObject(nutriDat), updatedAt: new Date().toISOString() }),
+      setDoc(dbRefs.nutriPlan, { ...cleanObject(nutriPln), createdAt: new Date().toISOString() })
     ];
+    
+    if (fisio) {
+      promises.push(setDoc(dbRefs.fisioPlan, { ...cleanObject(fisio), createdAt: new Date().toISOString() }));
+    } else {
+      promises.push(deleteDoc(dbRefs.fisioPlan).catch(() => {}));
+    }
 
     await Promise.all(promises);
     
     const progressRef = doc(db, `users/${user.uid}/data/progress`);
-    await Promise.all([
-      deleteDoc(progressRef).catch(() => {})
-    ]);
+    await deleteDoc(progressRef).catch(() => {});
   };
 
   const handleComparisonConfirm = async (finalPlan: WorkoutPlan) => {
-    if (!user || !userData) return;
+    if (!user || !userData || !nutriData || !nutriPlan) return;
     setPlan(finalPlan);
-    setAppState('plan');
+    setAppState('dashboard');
     
-    await savePlanToFirestore(userData, finalPlan);
+    await saveAllPlansToFirestore(userData, finalPlan, nutriData, nutriPlan, fisioPlan);
   };
 
   const handleUpdatePlan = async (newPlan: WorkoutPlan) => {
@@ -367,6 +376,8 @@ export default function App() {
 
     // 1. Clear local state
     setPlan(null);
+    setNutriPlan(null);
+    setFisioPlan(null);
     setUserData(previousUserData ? {
       ...previousUserData,
       structuredExistingPlan: currentPlanAsExisting,
@@ -380,7 +391,9 @@ export default function App() {
       const anamnesisRef = doc(db, `users/${user.uid}/data/anamnesis`);
       const planRef = doc(db, `users/${user.uid}/data/workoutPlan`);
       const dietPlanRef = doc(db, `users/${user.uid}/data/dietPlan`);
-      const nutritionalAnamnesisRef = doc(db, `users/${user.uid}/data/nutritionalAnamnesis`);
+      const nutritionalAnamnesisRef = doc(db, `users/${user.uid}/data/nutriAnamnesis`);
+      const getNutriPlanRef = doc(db, `users/${user.uid}/data/nutriPlan`);
+      const getFisioPlanRef = doc(db, `users/${user.uid}/data/fisioPlan`);
       const trackingRef = doc(db, `users/${user.uid}/data/nutritionTracking`); // If this exists as a doc
       
       await Promise.all([
@@ -388,6 +401,8 @@ export default function App() {
         deleteDoc(planRef).catch(() => {}),
         deleteDoc(dietPlanRef).catch(() => {}),
         deleteDoc(nutritionalAnamnesisRef).catch(() => {}),
+        deleteDoc(getNutriPlanRef).catch(() => {}),
+        deleteDoc(getFisioPlanRef).catch(() => {}),
         deleteDoc(trackingRef).catch(() => {})
       ]);
     } catch (err) {
@@ -437,14 +452,14 @@ export default function App() {
             {user && (
               <>
                 <button 
-                  onClick={() => setAppState(appState === 'nutriForm' || appState === 'nutriPlan' ? 'plan' : (nutriPlan ? 'nutriPlan' : 'nutriForm'))}
-                  className={`p-2 rounded-xl transition-colors ${appState === 'nutriForm' || appState === 'nutriPlan' ? 'bg-brand text-text-inverse' : 'bg-brand/10 text-brand hover:bg-brand/20'}`}
-                  title="SpeltaNutri"
+                  onClick={() => setAppState('dashboard')}
+                  className={`p-2 rounded-xl transition-colors ${appState === 'dashboard' ? 'bg-brand text-text-inverse' : 'bg-brand/10 text-brand hover:bg-brand/20'}`}
+                  title="Protocolo Spelta360"
                 >
                   <Apple className="w-5 h-5" />
                 </button>
                 <button 
-                  onClick={() => setAppState(appState === 'gamification' ? 'plan' : 'gamification')}
+                  onClick={() => setAppState(appState === 'gamification' ? 'dashboard' : 'gamification')}
                   className={`p-2 rounded-xl transition-colors ${appState === 'gamification' ? 'bg-brand text-text-inverse' : 'bg-brand/10 text-brand hover:bg-brand/20'}`}
                   title="Gamificação"
                 >
@@ -452,28 +467,28 @@ export default function App() {
                 </button>
 
                 <button 
-                  onClick={() => setAppState(appState === 'reminders' ? 'plan' : 'reminders')}
+                  onClick={() => setAppState(appState === 'reminders' ? 'dashboard' : 'reminders')}
                   className={`p-2 rounded-xl transition-colors ${appState === 'reminders' ? 'bg-brand text-text-inverse' : 'bg-brand/10 text-brand hover:bg-brand/20'}`}
                   title="Lembretes"
                 >
                   <Bell className="w-5 h-5" />
                 </button>
                 <button 
-                  onClick={() => setAppState(appState === 'evolution' ? 'plan' : 'evolution')}
+                  onClick={() => setAppState(appState === 'evolution' ? 'dashboard' : 'evolution')}
                   className={`p-2 rounded-xl transition-colors ${appState === 'evolution' ? 'bg-brand text-text-inverse' : 'bg-brand/10 text-brand hover:bg-brand/20'}`}
                   title="Evolução"
                 >
                   <TrendingUp className="w-5 h-5" />
                 </button>
                 <button 
-                  onClick={() => setAppState(appState === 'speltagram' ? 'plan' : 'speltagram')}
+                  onClick={() => setAppState(appState === 'speltagram' ? 'dashboard' : 'speltagram')}
                   className={`p-2 rounded-xl transition-colors ${appState === 'speltagram' ? 'bg-brand text-text-inverse' : 'bg-brand/10 text-brand hover:bg-brand/20'}`}
                   title="SpeltaGram"
                 >
                   <Users className="w-5 h-5" />
                 </button>
                 <button 
-                  onClick={() => setAppState(appState === 'manual' ? 'plan' : 'manual')}
+                  onClick={() => setAppState(appState === 'manual' ? 'dashboard' : 'manual')}
                   className={`p-2 rounded-xl transition-colors ${appState === 'manual' ? 'bg-brand text-text-inverse' : 'bg-brand/10 text-brand hover:bg-brand/20'}`}
                   title="Manual do Usuário"
                 >
@@ -566,11 +581,11 @@ export default function App() {
               <>
                 <div className="grid grid-cols-4 gap-2">
                   <button 
-                    onClick={() => { setAppState(appState === 'nutriForm' || appState === 'nutriPlan' ? 'plan' : (nutriPlan ? 'nutriPlan' : 'nutriForm')); setIsMobileMenuOpen(false); }}
-                    className={`flex flex-col items-center justify-center gap-1 p-3 rounded-xl transition-colors ${appState === 'nutriForm' || appState === 'nutriPlan' ? 'bg-brand text-text-inverse' : 'bg-bg-main text-text-main hover:bg-brand/10 hover:text-brand'}`}
+                    onClick={() => { setAppState('dashboard'); setIsMobileMenuOpen(false); }}
+                    className={`flex flex-col items-center justify-center gap-1 p-3 rounded-xl transition-colors ${appState === 'dashboard' ? 'bg-brand text-text-inverse' : 'bg-bg-main text-text-main hover:bg-brand/10 hover:text-brand'}`}
                   >
                     <Apple className="w-6 h-6" />
-                    <span className="text-[10px] font-bold">Nutrição</span>
+                    <span className="text-[10px] font-bold">Protocolo</span>
                   </button>
                   <button 
                     onClick={() => { setAppState('gamification'); setIsMobileMenuOpen(false); }}
@@ -695,7 +710,7 @@ export default function App() {
                   }
                 }} 
                 hasPlan={!!plan}
-                onContinue={() => setAppState('plan')}
+                onContinue={() => setAppState('dashboard')}
                 onViewTerms={() => setAppState('terms')}
                 onViewPrivacy={() => setAppState('privacy')}
                 hidePricing={IS_PLAY_STORE_REVIEW_MODE}
@@ -703,8 +718,8 @@ export default function App() {
             )}
 
             {appState === 'form' && (
-              <AnamnesisForm 
-                onSubmit={handleAnamnesisSubmit} 
+              <Profile360Form 
+                onSubmit={handleProfile360Submit} 
                 isLoading={isLoading} 
                 initialData={userData}
               />
@@ -719,13 +734,46 @@ export default function App() {
               />
             )}
 
-            {appState === 'plan' && plan && userData && (
-              <WorkoutPlanView 
-                plan={plan} 
-                user={userData} 
-                onReset={handleReset} 
-                onUpdatePlan={handleUpdatePlan}
-              />
+            {appState === 'dashboard' && (userData) && (
+              <div className="space-y-8 animate-in fade-in">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
+                  <div>
+                    <h2 className="text-3xl font-black text-text-main">
+                      Protocolo Integrado <span className="text-brand">Spelta360</span>
+                    </h2>
+                    <p className="text-text-muted mt-1">Seu chassi, seu combustível e sua performance.</p>
+                  </div>
+                  <button 
+                    onClick={handleReset}
+                    className="px-4 py-2 bg-bg-main border border-border text-text-muted hover:border-brand hover:text-brand rounded-xl font-bold transition-colors"
+                  >
+                    Refazer Avaliação
+                  </button>
+                </div>
+
+                {fisioPlan && (
+                  <FisioPlanView plan={fisioPlan} user={userData} />
+                )}
+
+                {plan && (
+                  <WorkoutPlanView 
+                    plan={plan} 
+                    user={userData} 
+                    onReset={handleReset} 
+                    onUpdatePlan={handleUpdatePlan}
+                    hideResetButton={true}
+                  />
+                )}
+
+                {nutriPlan && nutriData && (
+                  <NutritionalPlanView 
+                    plan={nutriPlan} 
+                    userData={nutriData} 
+                    onReset={handleReset} 
+                    hideResetButton={true}
+                  />
+                )}
+              </div>
             )}
 
             {appState === 'admin' && user?.email === 'calepi@gmail.com' && (
@@ -768,23 +816,6 @@ export default function App() {
 
             {appState === 'patent' && (
               <PatentDocumentation onBack={() => setAppState('admin')} />
-            )}
-
-            {appState === 'nutriForm' && (
-              <NutriAnamnesisForm 
-                onSubmit={handleNutriAnamnesisSubmit} 
-                isLoading={isLoading} 
-                initialData={nutriData}
-                workoutData={userData}
-              />
-            )}
-
-            {appState === 'nutriPlan' && nutriPlan && nutriData && (
-              <NutritionalPlanView 
-                plan={nutriPlan} 
-                userData={nutriData} 
-                onReset={() => setAppState('nutriForm')} 
-              />
             )}
 
             {appState === 'terms' && (

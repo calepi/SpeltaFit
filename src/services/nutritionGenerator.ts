@@ -160,6 +160,19 @@ export async function generateNutritionalPlan(data: NutriAnamnesisData, workoutD
       purpose: 'Aumento de força e volume muscular.'
     });
   }
+
+  if (data.goal.includes('Ganho de Peso') || (data.goal.includes('Hipertrofia') && targetCalories >= 2300)) {
+    supplements.push({
+      name: 'Hipercalórico Caseiro',
+      dosage: '1 porção líquida ao dia',
+      timing: 'Pós-treino ou no Lanche da Tarde / Manhã',
+      purpose: 'Atingir e bater a alta demanda calórica com mais facilidade, sem causar empanzinamento.\n\n' +
+      'Bata tudo no liquidificador. Aqui estão 3 opções fáceis:\n\n' +
+      'Opção 1 (Vitamina Clássica):\n• 400ml de Leite (integral ou vegetal)\n• 2 Bananas médias\n• 3 col. sopa de Aveia em flocos\n• 2 col. sopa de Pasta de Amendoim\n• 1 dose de Whey Protein ou Proteína de Soja\n\n' +
+      'Opção 2 (Choco-Calórico):\n• 400ml de Leite\n• 1 Banana\n• 2 col. sopa de Leite em Pó (opcional, p/ mais caloria)\n• 1 col. sopa de Cacau em pó 50%\n• 2 col. sopa de Mel ou Melado\n• 2 col. sopa de Aveia\n\n' +
+      'Opção 3 (Abacate Power):\n• 300ml de Leite\n• 3 col. sopa de Abacate\n• 3 col. sopa de Farinha de Aveia\n• 1 col. sopa de Mel\n• 1 dose de Whey Protein (sabor Baunilha ou Morango combina bem)'
+    });
+  }
   
   // Deep Integration Supplements
   if (workoutData) {

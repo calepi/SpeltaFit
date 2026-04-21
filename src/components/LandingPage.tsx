@@ -53,7 +53,7 @@ export function LandingPage({ onStart, hasPlan, onContinue, onViewTerms, onViewP
         </h1>
         
         <p className="text-xl md:text-2xl text-text-muted mb-12 max-w-3xl mx-auto leading-relaxed">
-          O SpeltaFit utiliza motores de regras determinísticos baseados em fisiologia do exercício e nutrição esportiva para gerar planos precisos, sem depender de "IAs genéricas".
+          <strong>SpeltaFit</strong> e <strong>SpeltaNutri</strong> trabalhando juntos. Nosso motor algorítmico cruza suas variáveis de treino, estresse e nível de experiência para gerar treinos progressivos e dietas de altíssima precisão. Sem fórmulas prontas, sem "IAs genéricas" alucinando.
         </p>
 
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
@@ -170,15 +170,15 @@ export function LandingPage({ onStart, hasPlan, onContinue, onViewTerms, onViewP
           className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
         >
           {[
-            { icon: Cpu, title: 'Motores de Regras', desc: 'Geração de treinos e dietas baseada em algoritmos determinísticos, sem alucinações de IA.' },
-            { icon: Apple, title: 'Motor de Substituição', desc: 'Troque alimentos da sua dieta mantendo o balanço exato de macronutrientes através de cálculos automáticos.' },
-            { icon: Target, title: 'Gamificação (XP e Níveis)', desc: 'Ganhe XP por treinos concluídos, hidratação e refeições perfeitas. Suba de nível e desbloqueie conquistas.' },
-            { icon: Activity, title: 'Tracker Interativo', desc: 'Marque séries concluídas com um toque e registre a carga exata utilizada em cada exercício.' },
-            { icon: History, title: 'Progressive Overload', desc: 'O app lembra a carga que você usou no último treino para você focar apenas em progredir (Volume Load).' },
-            { icon: Users, title: 'SpeltaGram', desc: 'Rede social interna para alunos. Compartilhe sua evolução, curta e comente nas postagens da comunidade.' },
-            { icon: BookOpen, title: 'Documentação Técnica', desc: 'Acesse o Manual do Usuário e a Documentação Oficial detalhando todas as fórmulas matemáticas utilizadas.' },
-            { icon: Palette, title: 'Múltiplos Temas', desc: 'Personalize a interface escolhendo entre os temas Laranja, Verde, Azul ou Dourado.' },
-            { icon: ShieldCheck, title: 'Painel do Treinador', desc: 'Área exclusiva para administradores gerenciarem alunos, acompanharem resultados e acessarem a documentação técnica.' }
+            { icon: Cpu, title: 'Motor SpeltaFit', desc: 'Geração de treinos progressivos e baseados em regras biomecânicas. Esqueça fichas estáticas.' },
+            { icon: Apple, title: 'Motor SpeltaNutri', desc: 'Dietas exatas com sistema integrado de substituição que mantém o balanço exato dos seus macronutrientes.' },
+            { icon: Target, title: 'Gamificação & Ranking', desc: 'Ganhe XP por treinos concluídos, hidratação e refeições perfeitas. Suba de nível e enfrente os desafios.' },
+            { icon: Activity, title: 'Tracker Interativo', desc: 'Marque séries concluídas com um toque e registre a carga exata utilizada em cada exercício na mesma tela.' },
+            { icon: History, title: 'Progressive Overload', desc: 'O app memoriza a carga do seu último treino para você focar em evoluir o Tensão Mecânica e Volume Load.' },
+            { icon: Users, title: 'SpeltaGram', desc: 'Rede social exclusiva. Compartilhe seu shape, curta as vitórias da comunidade e ganhe engajamento.' },
+            { icon: BookOpen, title: 'Matemática Aberta', desc: 'Acesse nossa Documentação Oficial e o Dossiê de Patente que detalha a ciência por trás dos planos.' },
+            { icon: Palette, title: 'Interface Adaptativa', desc: 'Deixe o app com a sua cara mudando o Tema para Laranja, Verde, Azul ou até o modo Elite em Dourado.' },
+            { icon: ShieldCheck, title: 'Portal do Treinador', desc: 'Área segura para treinadores gerenciarem a integração profunda entre os gráficos de Nutrição e Treino dos alunos.' }
           ].map((feature, i) => (
             <motion.div key={i} variants={itemVariants} className="bg-surface p-8 rounded-3xl border border-border hover:border-brand/50 transition-colors shadow-sm hover:shadow-md group">
               <div className="w-14 h-14 bg-brand/10 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
@@ -231,13 +231,13 @@ export function LandingPage({ onStart, hasPlan, onContinue, onViewTerms, onViewP
 
                 <ul className="space-y-3 mb-8">
                   <li className="flex items-center gap-2 text-sm text-text-main">
-                    <CheckCircle2 className="w-4 h-4 text-brand" /> Treinos com IA
+                    <CheckCircle2 className="w-4 h-4 text-brand" /> Treinos Inteligentes (SpeltaFit)
                   </li>
                   <li className="flex items-center gap-2 text-sm text-text-main">
-                    <CheckCircle2 className="w-4 h-4 text-brand" /> Planos Nutricionais
+                    <CheckCircle2 className="w-4 h-4 text-brand" /> Dietas Integradas (SpeltaNutri)
                   </li>
                   <li className="flex items-center gap-2 text-sm text-text-main">
-                    <CheckCircle2 className="w-4 h-4 text-brand" /> SpeltaGram
+                    <CheckCircle2 className="w-4 h-4 text-brand" /> Gamificação & Comunidade
                   </li>
                 </ul>
 

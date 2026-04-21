@@ -14,9 +14,10 @@ interface Props {
   onUpdatePlan: (newPlan: WorkoutPlan) => void;
   readOnly?: boolean;
   studentUid?: string;
+  hideResetButton?: boolean;
 }
 
-export function WorkoutPlanView({ plan, user, onReset, onUpdatePlan, readOnly = false, studentUid }: Props) {
+export function WorkoutPlanView({ plan, user, onReset, onUpdatePlan, readOnly = false, studentUid, hideResetButton = false }: Props) {
   const exportRef = useRef<HTMLDivElement>(null);
   const [isExporting, setIsExporting] = useState(false);
   const [activeTab, setActiveTab] = useState<'overview' | 'tracker' | 'dashboard'>('tracker');
@@ -78,7 +79,7 @@ export function WorkoutPlanView({ plan, user, onReset, onUpdatePlan, readOnly = 
             </h2>
           </div>
           <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
-            {!readOnly && (
+            {!readOnly && !hideResetButton && (
               <button 
                 onClick={() => setShowResetModal(true)}
                 className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-3 text-sm font-bold text-red-500 bg-red-500/10 hover:bg-red-500/20 rounded-xl transition-all shadow-sm"

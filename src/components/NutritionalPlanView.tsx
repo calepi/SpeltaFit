@@ -10,9 +10,10 @@ interface Props {
   userData: NutriAnamnesisData;
   onReset: () => void;
   readOnly?: boolean;
+  hideResetButton?: boolean;
 }
 
-export function NutritionalPlanView({ plan, userData, onReset, readOnly = false }: Props) {
+export function NutritionalPlanView({ plan, userData, onReset, readOnly = false, hideResetButton = false }: Props) {
   const [latestCrossSync, setLatestCrossSync] = useState<CrossSyncResult | null>(null);
 
   useEffect(() => {
@@ -228,7 +229,7 @@ export function NutritionalPlanView({ plan, userData, onReset, readOnly = false 
                   <h4 className="font-bold text-gray-900">{supp.name}</h4>
                   <p className="text-sm text-brand font-medium mt-1">{supp.dosage}</p>
                   <p className="text-xs text-gray-500 mt-2"><span className="font-semibold">Horário:</span> {supp.timing}</p>
-                  <p className="text-xs text-gray-500 mt-1"><span className="font-semibold">Objetivo:</span> {supp.purpose}</p>
+                  <p className="text-xs text-gray-500 mt-1 whitespace-pre-line"><span className="font-semibold">Objetivo e Receitas:</span> {supp.purpose}</p>
                 </div>
               ))}
             </div>
@@ -237,7 +238,7 @@ export function NutritionalPlanView({ plan, userData, onReset, readOnly = false 
       )}
 
       {/* Actions */}
-      {!readOnly && (
+      {!readOnly && !hideResetButton && (
         <div className="flex justify-center pt-8">
           <button 
             onClick={onReset}

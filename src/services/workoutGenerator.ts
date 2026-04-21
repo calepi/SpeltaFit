@@ -12,6 +12,7 @@ export interface ExistingDay {
 }
 
 export interface AnamnesisData {
+  // 1. Biometrics
   name: string;
   age: number | undefined;
   gender: string;
@@ -19,24 +20,42 @@ export interface AnamnesisData {
   height: number | undefined;
   bodyFat?: number;
   targetWeight?: number;
+  
+  // 2. Goals & Lifestyle
   goal: string;
   secondaryGoal: string;
   tertiaryGoal?: string;
   specificGoals?: string[];
+  activityLevel?: string;
+  sleepQuality: string;
+  stressLevel: string;
+  
+  // 3. SpeltaFit (Workout)
   experience: string;
   daysPerWeek: number | undefined;
   duration: number | undefined;
-  limitations: string;
-  postureIssues?: string;
-  medications?: string;
   cardioPreference: string;
   equipment: string;
-  sleepQuality: string;
-  stressLevel: string;
-  existingPlan?: string; // Keep for legacy/quick paste
-  structuredExistingPlan?: ExistingDay[]; // New structured format
+  existingPlan?: string; 
+  structuredExistingPlan?: ExistingDay[]; 
   remodelPlan?: boolean;
-  trainingStartDate?: string; // Data de início para controle de meses (Mês 1, 2, 3)
+  trainingStartDate?: string; 
+
+  // 4. SpeltaNutri (Nutrition)
+  dietaryPreference?: string;
+  allergiesIntolerances?: string[];
+  foodAversions?: string[];
+  mealsPerDay?: string;
+  waterIntake?: string;
+  emotionalEating?: string[];
+  bowelMovement?: string;
+
+  // 5. SpeltaFisio (Orthopedics & Clinical)
+  medications?: string;
+  medicalConditions?: string[];
+  painPoints?: string[]; // e.g., ['Lombar', 'Joelho', 'Ombro']
+  postureIssues?: string;
+  limitations: string; // Keep for legacy
 }
 
 export interface WorkoutPlan {
