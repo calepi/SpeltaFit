@@ -4,7 +4,6 @@ import { motion } from 'motion/react';
 import { Target, TrendingUp, Info, FileText, Calendar, AlertTriangle, User } from 'lucide-react';
 import { WorkoutSheetExport } from './WorkoutSheetExport';
 import { WorkoutTracker } from './WorkoutTracker';
-import html2pdf from 'html2pdf.js';
 import Markdown from 'react-markdown';
 
 interface Props {
@@ -24,39 +23,41 @@ export function WorkoutPlanView({ plan, user, onReset, onUpdatePlan, readOnly = 
   const [showResetModal, setShowResetModal] = useState(false);
   const [trackerState, setTrackerState] = useState<{ selectedWeek: number, actualLoads: Record<string, string> }>({ selectedWeek: 1, actualLoads: {} });
 
-  const handleExport = async () => {
+  const handleExport = () => {
     if (!exportRef.current) return;
     
-    try {
-      setIsExporting(true);
-      
-      // Temporarily make the element visible for html2canvas
-      exportRef.current.style.opacity = '1';
-      exportRef.current.style.position = 'static';
-      exportRef.current.style.zIndex = '1';
+    setIsExporting(true);
+    
+    // Usamos setTimeout para permitir que a UI atualize (mostrando "Gerando PDF...") 
+    // antes que a thread principal seja bloqueada pela renderização do html2canvas.
+    setTimeout(async () => {
+      try {
+        if (exportRef.current) {
+          exportRef.current.style.opacity = '1';
+        }
 
-      const opt = {
-        margin:       10,
-        filename:     `SpeltaFit_Treino_${user.name.replace(/\s+/g, '_')}.pdf`,
-        image:        { type: 'jpeg' as const, quality: 0.98 },
-        html2canvas:  { scale: 2, useCORS: true },
-        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'landscape' as const }
-      };
+        const { default: html2pdf } = await import('html2pdf.js');
 
-      await html2pdf().set(opt).from(exportRef.current).save();
+        const opt = {
+          margin:       8,
+          filename:     `SpeltaFit_Treino_${user.name.replace(/\s+/g, '_')}.pdf`,
+          image:        { type: 'jpeg' as const, quality: 0.95 },
+          html2canvas:  { scale: 1.5, useCORS: true, logging: false },
+          jsPDF:        { unit: 'mm', format: 'a4', orientation: 'landscape' as const }
+        };
 
-    } catch (err) {
-      console.error('Failed to export PDF', err);
-      alert('Erro ao gerar o PDF. Tente novamente.');
-    } finally {
-      // Restore hidden state
-      if (exportRef.current) {
-        exportRef.current.style.opacity = '0';
-        exportRef.current.style.position = 'absolute';
-        exportRef.current.style.zIndex = '-50';
+        await html2pdf().set(opt).from(exportRef.current).save();
+        
+      } catch (err) {
+        console.error('Failed to export PDF', err);
+        alert('Erro ao gerar o PDF. Verifique se seu dispositivo possui memória RAM disponível ou tente abrir no computador.');
+      } finally {
+        if (exportRef.current) {
+          exportRef.current.style.opacity = '0';
+        }
+        setIsExporting(false);
       }
-      setIsExporting(false);
-    }
+    }, 200);
   };
 
   return (
@@ -259,11 +260,8 @@ export function WorkoutPlanView({ plan, user, onReset, onUpdatePlan, readOnly = 
       )}
       </motion.div>
 
-      {/* Hidden Export Component */}
-      <div 
-        className="absolute top-0 left-0 -z-50 pointer-events-none" 
-        style={{ opacity: isExporting ? 1 : 0 }}
-      >
+      {/* Export Component (Visible only when Printing) */}
+      <div className="hidden print:block print:w-full print:absolute print:top-0 print:left-0 bg-white text-black z-50">
         <WorkoutSheetExport 
           ref={exportRef} 
           plan={plan} 

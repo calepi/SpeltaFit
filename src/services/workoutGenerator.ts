@@ -388,7 +388,8 @@ export async function generateWorkoutPlanRuleBased(data: AnamnesisData, blacklis
   }
 
   const weeklyRoutine: WorkoutPlan['weeklyRoutine'] = [];
-  const days = data.daysPerWeek || 3;
+  const daysString = String(data.daysPerWeek || "3");
+  const days = parseInt(daysString.charAt(0)) || 3;
 
   // Estrutura de divisão básica baseada nos dias
   let split: { dayName: string, focus: string, groups: { name: keyof typeof EXERCISE_DB, count: number }[] }[] = [];
