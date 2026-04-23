@@ -56,6 +56,7 @@ export interface AnamnesisData {
   painPoints?: string[]; // e.g., ['Lombar', 'Joelho', 'Ombro']
   postureIssues?: string;
   limitations: string; // Keep for legacy
+  strava?: any;
 }
 
 export interface WorkoutPlan {

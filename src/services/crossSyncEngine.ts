@@ -20,7 +20,8 @@ export function calculateCrossSync(
   completedSets: Record<string, boolean>,
   actualLoads: Record<string, string>,
   workoutDurationSeconds: number,
-  userWeight: number
+  userWeight: number,
+  stravaCalories: number = 0
 ): CrossSyncResult {
   let totalVolumeLoad = 0;
   let totalSetsCompleted = 0;
@@ -58,7 +59,7 @@ export function calculateCrossSync(
   // Gasto do Volume Load: ~0.03 kcal por kg levantado (Trabalho mecânico)
   const volumeBasedBurn = totalVolumeLoad * 0.03;
 
-  const totalEnergyCost = Math.round(timeBasedBurn + volumeBasedBurn);
+  const totalEnergyCost = Math.round(timeBasedBurn + volumeBasedBurn + stravaCalories);
 
   // 3. Calcular Ajuste de Macronutrientes (Cross-Sync)
   // Se o gasto for significativo (> 150 kcal), geramos um ajuste pós-treino
@@ -73,7 +74,8 @@ export function calculateCrossSync(
     addedCarbsGrams = Math.round((totalEnergyCost * 0.7) / 4);
     addedProteinGrams = Math.round((totalEnergyCost * 0.3) / 4);
 
-    message = `🔥 Treino Intenso Detectado! Volume Load: ${totalVolumeLoad}kg. Gasto extra: ${totalEnergyCost} kcal. Adicionamos ${addedCarbsGrams}g de Carboidratos e ${addedProteinGrams}g de Proteínas na sua próxima refeição para otimizar a recuperação.`;
+    const stravaMsg = stravaCalories > 0 ? ` + ${Math.round(stravaCalories)} kcal do Strava` : "";
+    message = `🔥 Treino Intenso Detectado! Volume Load: ${totalVolumeLoad}kg. Gasto extra: ${totalEnergyCost} kcal${stravaMsg}. Adicionamos ${addedCarbsGrams}g de Carboidratos e ${addedProteinGrams}g de Proteínas na sua próxima refeição para otimizar a recuperação.`;
 
     postWorkoutMealAdjustment = {
       description: '⚡ Ajuste Dinâmico Pós-Treino (Cross-Sync)',

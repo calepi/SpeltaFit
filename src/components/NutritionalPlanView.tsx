@@ -3,7 +3,8 @@ import { NutritionalPlan, NutriAnamnesisData } from '../types/nutrition';
 import { Apple, Droplets, Flame, Brain, Heart, Activity, CheckCircle, Clock, Zap } from 'lucide-react';
 import { auth, db } from '../firebase';
 import { doc, getDoc } from 'firebase/firestore';
-import { CrossSyncResult } from '../services/crossSyncEngine';
+import { CrossSyncResult, calculateCrossSync } from '../services/crossSyncEngine';
+import { getStravaActivities } from '../services/stravaService';
 
 interface Props {
   plan: NutritionalPlan;
@@ -15,41 +16,112 @@ interface Props {
 
 export function NutritionalPlanView({ plan, userData, onReset, readOnly = false, hideResetButton = false }: Props) {
   const [latestCrossSync, setLatestCrossSync] = useState<CrossSyncResult | null>(null);
+  const [isStravaProcessed, setIsStravaProcessed] = useState(false);
 
   useEffect(() => {
-    const fetchProgress = async () => {
+    const fetchProgressAndStrava = async () => {
       const user = auth.currentUser;
       if (user) {
         try {
+          let currentCrossSync: CrossSyncResult | null = null;
+          
+          // 1. Fetch Regular Workout CrossSync from Checkins
           const progressRef = doc(db, `users/${user.uid}/data/progress`);
           const snap = await getDoc(progressRef);
           if (snap.exists()) {
             const data = snap.data();
             if (data.checkins) {
-              // Encontrar o checkin mais recente que tenha crossSync
               const checkinsArray = Object.values(data.checkins) as any[];
               const sortedCheckins = checkinsArray
                 .filter(c => c.crossSync)
                 .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
               
               if (sortedCheckins.length > 0) {
-                // Verificar se o checkin é de hoje
                 const latest = sortedCheckins[0];
                 const today = new Date().toDateString();
                 const checkinDate = new Date(latest.date).toDateString();
                 
                 if (today === checkinDate) {
-                  setLatestCrossSync(latest.crossSync);
+                  currentCrossSync = latest.crossSync;
                 }
               }
             }
+          }
+
+          // 2. Fetch Strava Automatic Sync
+          // Even without a checkin, we should dynamically adjust if Strava has a run or ride today
+          let totalStravaKcal = 0;
+          try {
+             const activities = await getStravaActivities(user.uid);
+             if (activities && Array.isArray(activities)) {
+               const todayStr = new Date().toDateString();
+               const todaysActivities = activities.filter((act: any) => new Date(act.start_date).toDateString() === todayStr);
+               
+               todaysActivities.forEach((act: any) => {
+                 // Estima calorias do Strava (caso a API não retorne "calories" na listagem básica)
+                 // MET aproximado: Corrida ~ 10, Ciclismo ~ 8
+                 let met = 8;
+                 if (act.type === 'Run') met = 10;
+                 if (act.type === 'Swim') met = 7;
+                 
+                 const durationHours = act.moving_time / 3600;
+                 const weight = userData.weight || 70;
+                 const estimatedCalories = act.calories || Math.round(met * weight * durationHours);
+                 
+                 totalStravaKcal += estimatedCalories;
+               });
+             }
+          } catch (err) {
+             console.log("No Strava or error fetching", err);
+          }
+
+          // Merge Strava data with or without existing CrossSync
+          if (totalStravaKcal > 0 || currentCrossSync) {
+            // Se já tínhamos um crossSync, vamos atualizar ele adicionando as calorias do Strava
+            // Se não tínhamos, criamos um novo apenas baseado no Strava
+            const baseResult = currentCrossSync || {
+              energyCostKcal: 0,
+              volumeLoadKg: 0,
+              durationMinutes: 0,
+              addedCarbsGrams: 0,
+              addedProteinGrams: 0,
+              message: "",
+              postWorkoutMealAdjustment: null
+            };
+
+            // Atualiza com os valores do Strava se ainda não processamos
+            if (totalStravaKcal > 0) {
+               // Evita duplicar se já estivesse lá (uma forma simples: só adicionamos uma vez neste componente)
+               const newEnergyCost = baseResult.energyCostKcal + totalStravaKcal;
+               
+               // Recalcular os macros extras (70% carbo / 30% proteina do gasto extra TOTAL)
+               const addedCarbsGrams = Math.round((newEnergyCost * 0.7) / 4);
+               const addedProteinGrams = Math.round((newEnergyCost * 0.3) / 4);
+               
+               baseResult.energyCostKcal = newEnergyCost;
+               baseResult.addedCarbsGrams = addedCarbsGrams;
+               baseResult.addedProteinGrams = addedProteinGrams;
+               
+               baseResult.message = `🔥 Ajuste Dinâmico! Treino de força + Strava detectados. Gasto total extra estimado de ${newEnergyCost} kcal hoje.`;
+               
+               baseResult.postWorkoutMealAdjustment = {
+                 description: '⚡ Ajuste Automático Pós-Treino (Musculação + Strava)',
+                 items: [
+                   `Proteína Extra: +${addedProteinGrams}g (Ex: ${Math.round((addedProteinGrams/25)*100)}g de Frango ou Whey)`,
+                   `Carboidrato Extra: +${addedCarbsGrams}g (Ex: ${Math.round((addedCarbsGrams/28)*100)}g de Arroz ou Batata)`,
+                   `Motivo: Compensação do gasto energético total! Strava (+${totalStravaKcal} kcal) ${currentCrossSync ? `e Musculação (+${currentCrossSync.energyCostKcal} kcal)` : ''}.`
+                 ]
+               };
+            }
+            
+            setLatestCrossSync(baseResult);
           }
         } catch (err) {
           console.error("Error fetching cross-sync data:", err);
         }
       }
     };
-    fetchProgress();
+    fetchProgressAndStrava();
   }, []);
 
   return (
