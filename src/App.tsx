@@ -9,7 +9,7 @@ import { ExerciseLibrary } from './components/ExerciseLibrary';
 import { AnamnesisData, WorkoutPlan, ExistingDay } from './services/workoutGenerator';
 import { generateWorkoutPlanRuleBased } from './services/workoutGenerator';
 import { Logo } from './components/Logo';
-import { LogIn, LogOut, User as UserIcon, Shield, BookOpen, Users, Palette, TrendingUp, HelpCircle, Trophy, Bell, Menu, X, Apple } from 'lucide-react';
+import { LogIn, LogOut, User as UserIcon, Shield, BookOpen, Users, Palette, TrendingUp, HelpCircle, Trophy, Bell, Menu, X, LayoutDashboard } from 'lucide-react';
 import { ReminderSettings } from './components/ReminderSettings';
 import { ReminderManager } from './components/ReminderManager';
 import { auth, db, googleProvider } from './firebase';
@@ -53,6 +53,7 @@ export default function App() {
   const [hasSubscription, setHasSubscription] = useState(false);
   const [trialEndsAt, setTrialEndsAt] = useState<string | null>(null);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+  const [activeDashboardTab, setActiveDashboardTab] = useState<'workout' | 'nutrition' | 'fisio'>('workout');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   // Scroll to top on navigation
@@ -454,9 +455,9 @@ export default function App() {
                 <button 
                   onClick={() => setAppState('dashboard')}
                   className={`p-2 rounded-xl transition-colors ${appState === 'dashboard' ? 'bg-brand text-text-inverse' : 'bg-brand/10 text-brand hover:bg-brand/20'}`}
-                  title="Protocolo Spelta360"
+                  title="Painel Central do Aluno"
                 >
-                  <Apple className="w-5 h-5" />
+                  <LayoutDashboard className="w-5 h-5" />
                 </button>
                 <button 
                   onClick={() => setAppState(appState === 'gamification' ? 'dashboard' : 'gamification')}
@@ -584,8 +585,8 @@ export default function App() {
                     onClick={() => { setAppState('dashboard'); setIsMobileMenuOpen(false); }}
                     className={`flex flex-col items-center justify-center gap-1 p-3 rounded-xl transition-colors ${appState === 'dashboard' ? 'bg-brand text-text-inverse' : 'bg-bg-main text-text-main hover:bg-brand/10 hover:text-brand'}`}
                   >
-                    <Apple className="w-6 h-6" />
-                    <span className="text-[10px] font-bold">Protocolo</span>
+                    <LayoutDashboard className="w-6 h-6" />
+                    <span className="text-[10px] font-bold">Painel</span>
                   </button>
                   <button 
                     onClick={() => { setAppState('gamification'); setIsMobileMenuOpen(false); }}
@@ -743,19 +744,36 @@ export default function App() {
                     </h2>
                     <p className="text-text-muted mt-1">Seu chassi, seu combustível e sua performance.</p>
                   </div>
-                  <button 
-                    onClick={handleReset}
-                    className="px-4 py-2 bg-bg-main border border-border text-text-muted hover:border-brand hover:text-brand rounded-xl font-bold transition-colors"
-                  >
-                    Refazer Avaliação
-                  </button>
                 </div>
 
-                {fisioPlan && (
+                <div className="flex gap-2 p-1 bg-surface border border-border rounded-2xl overflow-x-auto print:hidden w-full max-w-2xl mx-auto mb-8">
+                  <button
+                    onClick={() => setActiveDashboardTab('workout')}
+                    className={`flex-1 py-3 px-4 rounded-xl font-bold text-sm text-center transition-all min-w-[120px] ${activeDashboardTab === 'workout' ? 'bg-brand text-white shadow-lg' : 'text-text-muted hover:bg-bg-main'}`}
+                  >
+                    🏋️‍♂️ Menu de Treinos
+                  </button>
+                  <button
+                    onClick={() => setActiveDashboardTab('nutrition')}
+                    className={`flex-1 py-3 px-4 rounded-xl font-bold text-sm text-center transition-all min-w-[120px] ${activeDashboardTab === 'nutrition' ? 'bg-brand text-white shadow-lg' : 'text-text-muted hover:bg-bg-main'}`}
+                  >
+                    🍏 Menu Nutricional
+                  </button>
+                  {fisioPlan && (
+                    <button
+                      onClick={() => setActiveDashboardTab('fisio')}
+                      className={`flex-1 py-3 px-4 rounded-xl font-bold text-sm text-center transition-all min-w-[120px] ${activeDashboardTab === 'fisio' ? 'bg-brand text-white shadow-lg' : 'text-text-muted hover:bg-bg-main'}`}
+                    >
+                      ⚕️ Fisioterapia
+                    </button>
+                  )}
+                </div>
+
+                {activeDashboardTab === 'fisio' && fisioPlan && (
                   <FisioPlanView plan={fisioPlan} user={userData} />
                 )}
 
-                {plan && (
+                {activeDashboardTab === 'workout' && plan && (
                   <WorkoutPlanView 
                     plan={plan} 
                     user={userData} 
@@ -765,7 +783,7 @@ export default function App() {
                   />
                 )}
 
-                {nutriPlan && nutriData && (
+                {activeDashboardTab === 'nutrition' && nutriPlan && nutriData && (
                   <NutritionalPlanView 
                     plan={nutriPlan} 
                     userData={nutriData} 

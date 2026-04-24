@@ -1,10 +1,12 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { WorkoutPlan, AnamnesisData } from '../services/workoutGenerator';
 import { motion } from 'motion/react';
 import { Target, TrendingUp, Info, FileText, Calendar, AlertTriangle, User } from 'lucide-react';
 import { WorkoutSheetExport } from './WorkoutSheetExport';
 import { WorkoutTracker } from './WorkoutTracker';
 import Markdown from 'react-markdown';
+import { db, auth } from '../firebase';
+import { doc, getDoc } from 'firebase/firestore';
 
 interface Props {
   plan: WorkoutPlan;
@@ -20,8 +22,24 @@ export function WorkoutPlanView({ plan, user, onReset, onUpdatePlan, readOnly = 
   const exportRef = useRef<HTMLDivElement>(null);
   const [isExporting, setIsExporting] = useState(false);
   const [activeTab, setActiveTab] = useState<'overview' | 'tracker' | 'dashboard'>('tracker');
-  const [showResetModal, setShowResetModal] = useState(false);
   const [trackerState, setTrackerState] = useState<{ selectedWeek: number, actualLoads: Record<string, string> }>({ selectedWeek: 1, actualLoads: {} });
+  const [totalCompletedWorkouts, setTotalCompletedWorkouts] = useState(0);
+
+  useEffect(() => {
+    const fetchProgress = async () => {
+      const targetUid = studentUid || auth.currentUser?.uid;
+      if (targetUid) {
+        const progressRef = doc(db, `users/${targetUid}/data/progress`);
+        const snap = await getDoc(progressRef);
+        if (snap.exists()) {
+          const data = snap.data();
+          const checkins = data.checkins ? Object.keys(data.checkins).length : 0;
+          setTotalCompletedWorkouts(checkins);
+        }
+      }
+    };
+    fetchProgress();
+  }, [studentUid]);
 
   const handleExport = () => {
     if (!exportRef.current) return;
@@ -60,6 +78,40 @@ export function WorkoutPlanView({ plan, user, onReset, onUpdatePlan, readOnly = 
     }, 200);
   };
 
+  const getReassessmentInfo = () => {
+    // If we have a creation date inside the plan Object (added by Firestore)
+    const createdAtStr = (plan as any).createdAt || user.trainingStartDate;
+    if (!createdAtStr) return null;
+
+    const startDate = new Date(createdAtStr);
+    const durationDays = plan.durationWeeks ? plan.durationWeeks * 7 : 30; // Default 30 days if not present
+    
+    // Calculate expected workouts based on the routine length
+    const expectedWeeklyWorkouts = plan.weeklyRoutine.length || 3;
+    const expectedWorkoutsSinceStart = Math.floor(((new Date().getTime() - startDate.getTime()) / (1000 * 3600 * 24)) * (expectedWeeklyWorkouts / 7));
+    
+    // Calculo de dias adiados: (Esperados - Completados) * Fator
+    const missedWorkouts = Math.max(0, expectedWorkoutsSinceStart - totalCompletedWorkouts);
+    const postponedDays = Math.ceil(missedWorkouts * (7 / expectedWeeklyWorkouts));
+
+    const baseEndDate = new Date(startDate.getTime() + durationDays * 24 * 60 * 60 * 1000);
+    const endDate = new Date(baseEndDate.getTime() + postponedDays * 24 * 60 * 60 * 1000);
+    const today = new Date();
+    
+    const diffTime = endDate.getTime() - today.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays <= 0) {
+      return { status: 'expired', msg: `Reavaliação Pendente! O sistema analisará seu ecossistema em breve para a próxima fase. ${postponedDays > 0 ? `(Adiada em ${postponedDays} dias por inconstância)` : ''}` };
+    } else if (diffDays <= 7) {
+      return { status: 'warning', msg: `Atenção: Faltam apenas ${diffDays} dias para o processamento da sua reavaliação. ${postponedDays > 0 ? `(Adiada em ${postponedDays} dias)` : ''}` };
+    } else {
+      return { status: 'ok', msg: `Faltam ${diffDays} dias para a reavaliação sistêmica. ${postponedDays > 0 ? `(Adiada em ${postponedDays} dias por ${missedWorkouts} faltas)` : ''}` };
+    }
+  };
+
+  const reassessmentInfo = getReassessmentInfo();
+
   return (
     <>
       <motion.div 
@@ -67,6 +119,25 @@ export function WorkoutPlanView({ plan, user, onReset, onUpdatePlan, readOnly = 
         animate={{ opacity: 1 }}
         className="max-w-5xl mx-auto space-y-8 print:hidden"
       >
+        {reassessmentInfo && (
+          <div className={`p-4 rounded-xl border font-bold flex items-center justify-between shadow-sm animate-in slide-in-from-top ${
+            reassessmentInfo.status === 'expired' ? 'bg-red-500/10 border-red-500/20 text-red-600' :
+            reassessmentInfo.status === 'warning' ? 'bg-orange-500/10 border-orange-500/20 text-orange-600' :
+            'bg-brand/10 border-brand/20 text-brand'
+          }`}>
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4">
+              <span className={`p-2 rounded-lg ${
+                reassessmentInfo.status === 'expired' ? 'bg-red-500/20' :
+                reassessmentInfo.status === 'warning' ? 'bg-orange-500/20' :
+                'bg-brand/20'
+              }`}>
+                {reassessmentInfo.status === 'expired' ? <AlertTriangle className="w-5 h-5" /> : <Calendar className="w-5 h-5" />}
+              </span>
+              <span>{reassessmentInfo.msg}</span>
+            </div>
+          </div>
+        )}
+
         {/* Header */}
         <div className="bg-surface border border-border rounded-3xl p-6 md:p-8 shadow-2xl">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
@@ -80,15 +151,6 @@ export function WorkoutPlanView({ plan, user, onReset, onUpdatePlan, readOnly = 
             </h2>
           </div>
           <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
-            {!readOnly && !hideResetButton && (
-              <button 
-                onClick={() => setShowResetModal(true)}
-                className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-3 text-sm font-bold text-red-500 bg-red-500/10 hover:bg-red-500/20 rounded-xl transition-all shadow-sm"
-              >
-                <AlertTriangle className="w-5 h-5" />
-                Novo Planejamento
-              </button>
-            )}
             <button 
               onClick={handleExport}
               disabled={isExporting}
@@ -270,40 +332,6 @@ export function WorkoutPlanView({ plan, user, onReset, onUpdatePlan, readOnly = 
           actualLoads={trackerState.actualLoads} 
         />
       </div>
-
-      {/* Reset Confirmation Modal */}
-      {showResetModal && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="bg-surface border border-border rounded-3xl p-6 md:p-8 max-w-md w-full shadow-2xl animate-in fade-in zoom-in duration-200">
-            <div className="flex items-center gap-4 mb-6 text-red-500">
-              <div className="p-3 bg-red-500/10 rounded-full">
-                <AlertTriangle className="w-8 h-8" />
-              </div>
-              <h3 className="text-2xl font-black text-text-main">Atenção</h3>
-            </div>
-            <p className="text-text-muted mb-8 text-lg">
-              Tem certeza que deseja criar um novo treino? Seu progresso atual será perdido.
-            </p>
-            <div className="flex gap-3 justify-end">
-              <button 
-                onClick={() => setShowResetModal(false)}
-                className="px-5 py-3 rounded-xl font-bold text-text-main bg-bg-main hover:bg-border transition-colors cursor-pointer"
-              >
-                Cancelar
-              </button>
-              <button 
-                onClick={() => {
-                  setShowResetModal(false);
-                  onReset();
-                }}
-                className="px-5 py-3 rounded-xl font-bold text-white bg-red-500 hover:bg-red-600 transition-colors shadow-lg shadow-red-500/20 cursor-pointer"
-              >
-                Sim, Refazer
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </>
   );
 }

@@ -309,18 +309,6 @@ export function NutritionalPlanView({ plan, userData, onReset, readOnly = false,
         </div>
       )}
 
-      {/* Actions */}
-      {!readOnly && !hideResetButton && (
-        <div className="flex justify-center pt-8">
-          <button 
-            onClick={onReset}
-            className="px-6 py-3 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition-colors"
-          >
-            Refazer Anamnese Nutricional
-          </button>
-        </div>
-      )}
-
     </div>
   );
 }
