@@ -35,6 +35,8 @@ export function WorkoutPlanView({ plan, user, onReset, onUpdatePlan, readOnly = 
           const data = snap.data();
           const checkins = data.checkins ? Object.keys(data.checkins).length : 0;
           setTotalCompletedWorkouts(checkins);
+        } else {
+          setTotalCompletedWorkouts(0);
         }
       }
     };
@@ -101,12 +103,17 @@ export function WorkoutPlanView({ plan, user, onReset, onUpdatePlan, readOnly = 
     const diffTime = endDate.getTime() - today.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     
+    // Check if it's the very beginning of the protocol
+    const isVeryBeginning = diffDays === durationDays && totalCompletedWorkouts === 0;
+
     if (diffDays <= 0) {
-      return { status: 'expired', msg: `Reavaliação Pendente! O sistema analisará seu ecossistema em breve para a próxima fase. ${postponedDays > 0 ? `(Adiada em ${postponedDays} dias por inconstância)` : ''}` };
+      return { status: 'expired', msg: `Seu ciclo atual foi concluído! O sistema gerará sua reavaliação com base no seu ecossistema. ${postponedDays > 0 ? `(Ciclo estendido em ${postponedDays} dias por inconstância)` : ''}` };
+    } else if (isVeryBeginning) {
+      return { status: 'ok', msg: `Protocolo de ${plan.durationWeeks || 4} semanas iniciado. Faltam ${diffDays} dias para sua primeira reavaliação sistêmica.` };
     } else if (diffDays <= 7) {
       return { status: 'warning', msg: `Atenção: Faltam apenas ${diffDays} dias para o processamento da sua reavaliação. ${postponedDays > 0 ? `(Adiada em ${postponedDays} dias)` : ''}` };
     } else {
-      return { status: 'ok', msg: `Faltam ${diffDays} dias para a reavaliação sistêmica. ${postponedDays > 0 ? `(Adiada em ${postponedDays} dias por ${missedWorkouts} faltas)` : ''}` };
+      return { status: 'ok', msg: `O seu protocolo dura ${durationDays} dias. Faltam ${diffDays} dias para a conclusão do ciclo e reavaliação sistêmica. ${postponedDays > 0 ? `(Última reavaliação adiada em ${postponedDays} dias devido a ${missedWorkouts} faltas detectadas)` : ''}` };
     }
   };
 
@@ -268,9 +275,9 @@ export function WorkoutPlanView({ plan, user, onReset, onUpdatePlan, readOnly = 
               <h3 className="text-2xl font-black text-text-main flex items-center gap-3">
                 📋 Dados da Anamnese
               </h3>
-              {!readOnly && (
+              {!readOnly && !hideResetButton && (
                 <button 
-                  onClick={() => setShowResetModal(true)}
+                  onClick={onReset}
                   className="text-sm font-bold text-red-500 hover:text-red-600 px-4 py-2 bg-red-500/10 hover:bg-red-500/20 rounded-xl transition-colors"
                 >
                   Novo Planejamento

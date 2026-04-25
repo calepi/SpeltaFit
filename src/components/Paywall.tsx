@@ -30,7 +30,7 @@ export function Paywall({ onSubscribe, onLogout, isLoading }: Props) {
             Desbloqueie seu <span className="text-brand">Potencial Máximo</span>
           </h1>
           <p className="text-xl text-text-muted max-w-2xl mx-auto">
-            Seu período de teste acabou. Escolha um plano para continuar transformando seu corpo com inteligência artificial e acompanhamento profissional.
+            Seu período de teste acabou. Escolha um plano para continuar transformando seu corpo e saúde com nosso motor algorítmico determinístico.
           </p>
         </div>
 
@@ -40,9 +40,9 @@ export function Paywall({ onSubscribe, onLogout, isLoading }: Props) {
             <h2 className="text-2xl font-bold text-text-main mb-6">O que você ganha:</h2>
             <ul className="space-y-4">
               {[
-                'Treinos personalizados com IA',
-                'Planos nutricionais e lista de compras',
-                'Acompanhamento de evolução visual e medidas',
+                'Protocolos personalizados baseados em dados biopsicossociais',
+                'Planejamento nutricional e listas técnicas de compras',
+                'Acompanhamento de evolução real por medidas e fotos',
                 'Acesso à comunidade SpeltaGram',
                 'Gamificação e recompensas',
                 'Suporte direto no app'

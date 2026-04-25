@@ -64,11 +64,8 @@ export default function App() {
   // ============================================================================
   // MODO DE REVISÃO DA PLAY STORE
   // ============================================================================
-  // ATENÇÃO: Mantenha como TRUE enquanto o app estiver em análise pelo Google.
-  // Isso esconde os preços e o paywall para evitar rejeição por não usar o 
-  // Google Play Billing.
-  // Mude para FALSE após o app ser aprovado e publicado na loja.
-  const IS_PLAY_STORE_REVIEW_MODE = true; 
+  // ATENÇÃO: Mantenha como FALSE para produção real.
+  const IS_PLAY_STORE_REVIEW_MODE = false; 
   // ============================================================================
 
   // Handle Firebase Auth and Data Loading
@@ -186,20 +183,17 @@ export default function App() {
     if (!user) return;
     setIsProcessingPayment(true);
     
-    // Simulate payment processing delay
-    setTimeout(async () => {
-      try {
-        const userDocRef = doc(db, 'users', user.uid);
-        await setDoc(userDocRef, { hasSubscription: true }, { merge: true });
-        setHasSubscription(true);
-        alert("Pagamento aprovado! Bem-vindo ao SpeltaFit Premium.");
-      } catch (error) {
-        console.error("Error updating subscription:", error);
-        alert("Erro ao processar assinatura. Tente novamente.");
-      } finally {
-        setIsProcessingPayment(false);
-      }
-    }, 2000);
+    try {
+      const userDocRef = doc(db, 'users', user.uid);
+      await setDoc(userDocRef, { hasSubscription: true }, { merge: true });
+      setHasSubscription(true);
+      alert("Bem-vindo ao SpeltaFit Premium.");
+    } catch (error) {
+      console.error("Error updating subscription:", error);
+      alert("Erro ao processar assinatura. Tente novamente.");
+    } finally {
+      setIsProcessingPayment(false);
+    }
   };
 
   const handleThemeChange = async (newTheme: Theme) => {
@@ -233,6 +227,10 @@ export default function App() {
       const genWorkout = await generateWorkoutPlanRuleBased(finalData);
       const generatedFisio = generateFisioPlan(finalData);
       
+      const createdAtISO = new Date().toISOString();
+      (genWorkout as any).createdAt = createdAtISO;
+      if (generatedFisio) (generatedFisio as any).createdAt = createdAtISO;
+      
       // We need to map Profile360 to NutriAnamnesis data format or just use the same data
       // For now we map what we can
       const nutriMappedData: NutriAnamnesisData = {
@@ -243,6 +241,8 @@ export default function App() {
         height: finalData.height || 0,
         bodyFatPercentage: finalData.bodyFat,
         goal: finalData.goal,
+        secondaryGoal: finalData.secondaryGoal,
+        tertiaryGoal: finalData.tertiaryGoal,
         activityLevel: finalData.activityLevel || 'Moderadamente Ativo',
         trainingFrequency: `${finalData.daysPerWeek} dias`,
         dietaryPreference: finalData.dietaryPreference || '',
@@ -261,6 +261,7 @@ export default function App() {
       };
       
       const genNutri = await generateNutritionalPlan(nutriMappedData, finalData);
+      (genNutri as any).createdAt = createdAtISO;
 
       setPlan(genWorkout);
       setFisioPlan(generatedFisio);
@@ -272,8 +273,8 @@ export default function App() {
         setProposedPlan(genWorkout);
         setAppState('comparison');
       } else {
-        setAppState('dashboard');
         await saveAllPlansToFirestore(finalData, genWorkout, nutriMappedData, genNutri, generatedFisio);
+        setAppState('dashboard');
       }
     } catch (err) {
       console.error(err);
@@ -331,10 +332,12 @@ export default function App() {
 
   const handleComparisonConfirm = async (finalPlan: WorkoutPlan) => {
     if (!user || !userData || !nutriData || !nutriPlan) return;
+    
+    // Save first to ensure progress doc is deleted before rendering Dashboard
+    await saveAllPlansToFirestore(userData, finalPlan, nutriData, nutriPlan, fisioPlan);
+    
     setPlan(finalPlan);
     setAppState('dashboard');
-    
-    await saveAllPlansToFirestore(userData, finalPlan, nutriData, nutriPlan, fisioPlan);
   };
 
   const handleUpdatePlan = async (newPlan: WorkoutPlan) => {

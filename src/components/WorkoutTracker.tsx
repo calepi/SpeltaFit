@@ -35,7 +35,7 @@ export function WorkoutTracker({ plan, user, onUpdatePlan, readOnly = false, stu
   const [dailyNotes, setDailyNotes] = useState('');
   const [dailyWeight, setDailyWeight] = useState(user.weight?.toString() || '');
 
-  // AI Adjustment State
+  // Engine Adjustment State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isAdjusting, setIsAdjusting] = useState(false);
   const [analysisMessage, setAnalysisMessage] = useState<string | null>(null);
@@ -522,16 +522,6 @@ export function WorkoutTracker({ plan, user, onUpdatePlan, readOnly = false, stu
                   <span className="hidden sm:inline">Iniciar Treino</span>
                 </button>
               )}
-              {auth.currentUser?.email === 'calepi@gmail.com' && !isPlanComplete && (
-                <button
-                  onClick={() => setIsSimulatingReevaluation(true)}
-                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all bg-purple-500/10 border border-purple-500/30 text-purple-500 hover:bg-purple-500 hover:text-white"
-                  title="Simular conclusão do ciclo (Apenas admin)"
-                >
-                  <Sparkles className="w-3 h-3" />
-                  <span className="hidden sm:inline">Simular Reavaliação</span>
-                </button>
-              )}
             </h1>
             <p className="text-xs text-text-muted font-medium">{activePlan?.phaseName}</p>
           </div>
@@ -572,7 +562,7 @@ export function WorkoutTracker({ plan, user, onUpdatePlan, readOnly = false, stu
         )}
       </div>
 
-      {/* AI Analysis Message - More Prominent and Premium */}
+      {/* Engine Analysis Message - More Prominent and Premium */}
       {analysisMessage && (
         <motion.div 
           initial={{ opacity: 0, y: -20 }}

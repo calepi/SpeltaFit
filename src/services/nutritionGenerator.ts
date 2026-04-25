@@ -53,6 +53,10 @@ export async function generateNutritionalPlan(data: NutriAnamnesisData, workoutD
 
   // Deep Integration with Workout Data
   if (workoutData) {
+    if (data.secondaryGoal || data.tertiaryGoal) {
+      strategySummary += ` Além do objetivo principal, o plano considera suas missões extras (${[data.secondaryGoal, data.tertiaryGoal].filter(Boolean).join(', ')}).`;
+    }
+
     if (workoutData.experience === 'Avançado') {
       strategySummary += ' Ajuste para atleta avançado: maior aporte de carboidratos peri-treino para sustentar volume de treino intenso.';
       if (data.goal.includes('Hipertrofia')) targetCalories += 200; // Extra calories for advanced hypertrophy

@@ -3,6 +3,29 @@ import { AnamnesisData, ExistingDay, ExistingExercise } from '../services/workou
 import { Activity, User, Target, Calendar, AlertTriangle, HeartPulse, Dumbbell, Moon, Brain, FileText, Plus, Trash2, ChevronRight, ChevronLeft, ChevronDown, Sparkles, Apple, Settings2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
+const GOAL_CASCADES: Record<string, { secondary: string[], tertiary: string[] }> = {
+  'Emagrecimento': {
+    secondary: ['Definição Muscular', 'Melhora Cardiovascular', 'Controle Metabólico', 'Tônus Muscular'],
+    tertiary: ['Redução de Medidas', 'Mais Energia Diária', 'Saúde Articular', 'Autoestima']
+  },
+  'Hipertrofia': {
+    secondary: ['Aumento de Força Base', 'Simetria Corporal', 'Resistência Muscular', 'Ganho de Peso'],
+    tertiary: ['Densidade Muscular', 'Potência', 'Hipertrofia Miofibrilar', 'Estética']
+  },
+  'Força': {
+    secondary: ['Potência Muscular', 'Hipertrofia', 'Resistência de Força', 'Estabilidade Core'],
+    tertiary: ['Levantamento Máximo', 'Prevenção de Lesões', 'Fortalecimento Articular', 'Postura']
+  },
+  'Condicionamento': {
+    secondary: ['Agilidade e Velocidade', 'Resistência Aeróbica', 'Emagrecimento', 'Saúde Cardiovascular'],
+    tertiary: ['Performance Esportiva', 'Fôlego', 'Recuperação Rápida', 'Vitalidade']
+  },
+  'Saúde e Bem-estar': {
+    secondary: ['Longevidade', 'Flexibilidade e Mobilidade', 'Controle do Estresse', 'Qualidade de Sono'],
+    tertiary: ['Correção Postural', 'Imunidade', 'Equilíbrio Mental', 'Disposição Física']
+  }
+};
+
 interface Props {
   onSubmit: (data: AnamnesisData) => void;
   isLoading: boolean;
@@ -156,18 +179,47 @@ export function Profile360Form({ onSubmit, isLoading, initialData }: Props) {
             <div className="space-y-6 animate-in fade-in slide-in-from-right-4">
               <h3 className="text-xl font-bold text-text-main border-b border-border pb-2">Missão e Estilo de Vida</h3>
               
-              <div>
-                <label className="block text-sm font-bold text-text-main mb-3">Qual a missão principal?</label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {['Emagrecimento', 'Hipertrofia', 'Força', 'Condicionamento', 'Saúde e Bem-estar'].map(goal => (
-                    <button key={goal} type="button" onClick={() => updateField('goal', goal)}
-                      className={`p-3 rounded-xl border text-left text-sm font-bold transition-all ${
-                        formData.goal === goal ? 'bg-brand/10 border-brand text-brand' : 'bg-bg-main border-border text-text-muted hover:border-brand/50'
-                      }`}>
-                      {goal}
-                    </button>
-                  ))}
+              <div className="space-y-6">
+                <div>
+                  <label className="block text-sm font-bold text-text-main mb-3">Qual a missão principal?</label>
+                  <select name="goal" value={formData.goal} onChange={(e) => {
+                    updateField('goal', e.target.value);
+                    updateField('secondaryGoal', '');
+                    updateField('tertiaryGoal', '');
+                  }} className="w-full p-3 bg-bg-main border border-border rounded-xl focus:border-brand outline-none">
+                    <option value="">Selecione...</option>
+                    {Object.keys(GOAL_CASCADES).map(goal => (
+                      <option key={goal} value={goal}>{goal}</option>
+                    ))}
+                  </select>
                 </div>
+
+                {formData.goal && (
+                  <div className="animate-in fade-in slide-in-from-top-2">
+                    <label className="block text-sm font-bold text-text-main mb-3">Missão Secundária (Foco de Apoio)</label>
+                    <select name="secondaryGoal" value={formData.secondaryGoal || ''} onChange={(e) => {
+                      updateField('secondaryGoal', e.target.value);
+                      updateField('tertiaryGoal', '');
+                    }} className="w-full p-3 bg-bg-main border border-border rounded-xl focus:border-brand outline-none">
+                      <option value="">Selecione...</option>
+                      {(GOAL_CASCADES[formData.goal]?.secondary || []).map(goal => (
+                        <option key={goal} value={goal}>{goal}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+                
+                {formData.secondaryGoal && (
+                  <div className="animate-in fade-in slide-in-from-top-2">
+                    <label className="block text-sm font-bold text-text-main mb-3">Missão Terciária (Complemento)</label>
+                    <select name="tertiaryGoal" value={formData.tertiaryGoal || ''} onChange={handleChange} className="w-full p-3 bg-bg-main border border-border rounded-xl focus:border-brand outline-none">
+                      <option value="">Selecione...</option>
+                      {(GOAL_CASCADES[formData.goal]?.tertiary || []).map(goal => (
+                        <option key={goal} value={goal}>{goal}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
               </div>
 
               <div>

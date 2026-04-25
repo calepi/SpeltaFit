@@ -9,6 +9,8 @@ export interface NutriAnamnesisData {
   
   // 2. Goals & Activity
   goal: string;
+  secondaryGoal?: string;
+  tertiaryGoal?: string;
   activityLevel: string;
   trainingFrequency: string;
   

@@ -39,15 +39,15 @@ export function analyzeEcosystemContinuously(
     return analysis;
   }
 
-  const initialWeight = parseFloat(anamnesis.currentWeight);
-  const targetWeight = parseFloat(anamnesis.targetWeight);
-  const goal = anamnesis.primaryGoal;
+  const initialWeight = Number(anamnesis.weight);
+  const targetWeight = initialWeight; // TODO: handle target weight safely
+  const goalGroup = [anamnesis.goal, anamnesis.secondaryGoal, anamnesis.tertiaryGoal].join(' ').toLowerCase();
 
   // 1. Análise de Meta de Peso vs Peso Atual
   const weightDiff = currentWeight - initialWeight;
   let weightAdjusted = false;
 
-  if (goal === 'loss' || goal === 'extreme_loss') {
+  if (goalGroup.includes('emagrecimento') || goalGroup.includes('definição')) {
     analysis.isDeficit = true;
     if (weightDiff >= 0 && initialWeight !== currentWeight) {
       analysis.status = 'Requer Atenção';
@@ -65,7 +65,7 @@ export function analyzeEcosystemContinuously(
         actionTaken: 'Manutenção do déficit teto estabelecido.'
       });
     }
-  } else if (goal === 'muscle') {
+  } else if (goalGroup.includes('hipertrofia') || goalGroup.includes('ganho') || goalGroup.includes('força')) {
     if (weightDiff <= 0 && initialWeight !== currentWeight) {
       analysis.status = 'Requer Atenção';
       analysis.recommendedCaloricChange = +200;

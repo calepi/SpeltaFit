@@ -100,13 +100,13 @@ export interface AdjustmentResponse {
 
 // --- FUNÇÕES AUXILIARES ---
 
-function getAdvancedTechnique(experience: string, allGoals: string, isCompound: boolean, isLastExercise: boolean) {
+function getAdvancedTechnique(experience: string, allGoals: string, isCompound: boolean, isLastExercise: boolean, index: number) {
   const exp = experience.toLowerCase();
   const isHypertrophy = allGoals.includes('hipertrofia') || allGoals.includes('estética') || allGoals.includes('definição');
   
   if (exp.includes('iniciante') || exp.includes('sedentário')) {
-    // Keep it simple for beginners, maybe "Duas Cargas" as it's safe
-    if (Math.random() > 0.8 && !isCompound) {
+    // Deterministic selection based on index/order
+    if (index % 5 === 0 && !isCompound) {
       return {
         method: 'Duas Cargas (Drop 50%)',
         notes: 'Técnica Avançada: Na última série, após a falha, reduza a carga pela metade e faça o máximo de repetições possíveis sem descanso.'
@@ -116,18 +116,18 @@ function getAdvancedTechnique(experience: string, allGoals: string, isCompound: 
   }
 
   if (exp.includes('intermediário')) {
-    if (Math.random() > 0.7) {
+    if (index % 3 === 0) {
       const techniques = [
         { method: 'Pirâmide Crescente', notes: 'Técnica Avançada: Aumente a carga e diminua as repetições a cada série (ex: 12, 10, 8, 6).' },
         { method: 'Ponto Zero', notes: 'Técnica Avançada: Faça uma pausa de 3 a 5 segundos no ponto de maior alongamento do músculo (fase excêntrica) em cada repetição.' }
       ];
-      return techniques[Math.floor(Math.random() * techniques.length)];
+      return techniques[index % techniques.length];
     }
     return { method: 'Série Normal', notes: 'Série Normal: Execute as repetições indicadas com uma carga que seja desafiadora, mas que permita manter a postura correta. Descanse o tempo prescrito entre as séries.' };
   }
 
   // Avançado / Atleta
-  if (Math.random() > 0.5) {
+  if (index % 2 === 0) {
     const techniques = [];
     if (isLastExercise && isHypertrophy) {
       techniques.push({ method: 'FST-7', notes: 'Técnica FST-7: Na última série do exercício, faça 7 mini-séries de 8-12 repetições com apenas 30 segundos de descanso entre elas. Alongue o músculo durante o descanso.' });
@@ -144,7 +144,7 @@ function getAdvancedTechnique(experience: string, allGoals: string, isCompound: 
     }
     
     if (techniques.length > 0) {
-      return techniques[Math.floor(Math.random() * techniques.length)];
+      return techniques[index % techniques.length];
     }
   }
 
@@ -198,8 +198,8 @@ function filterExercises(
     }
   }
 
-  // Shuffle and pick 'count' exercises
-  return available.sort(() => 0.5 - Math.random()).slice(0, count);
+  // Sort by ID to be deterministic and pick 'count' exercises
+  return available.sort((a, b) => a.id.localeCompare(b.id)).slice(0, count);
 }
 
 function getTrainingParameters(hormonalStatus: string, allGoals: string) {
@@ -485,8 +485,8 @@ export async function generateWorkoutPlanRuleBased(data: AnamnesisData, blacklis
           exRest = '45 segundos';
         }
 
-        // Aplicar técnicas avançadas do E-book
-        const advancedTech = getAdvancedTechnique(data.experience, allGoals, ex.mechanics === 'Composto', isLastExercise);
+        // Aplicar técnicas avançadas determinísticas
+        const advancedTech = getAdvancedTechnique(data.experience, allGoals, ex.mechanics === 'Composto', isLastExercise, index);
         if (advancedTech.method !== 'Série Normal') {
           exMethod = advancedTech.method;
           exNotes += `\n\n${advancedTech.notes}`;
@@ -655,7 +655,7 @@ export function formatProgressionText(
     else dynamicText = `Semana ${week} (Pico): Dê o seu máximo no cardio esta semana, mantendo a frequência cardíaca no alvo.`;
   }
 
-  // Handle AI generated text
+  // Handle engine generated text
   if (text.includes('Semana 1 (Calibração)')) {
     return text.replace(/Semana 1 \(Calibração\).*?(?=(\n|$))/g, dynamicText);
   }

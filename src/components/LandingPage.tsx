@@ -53,7 +53,7 @@ export function LandingPage({ onStart, hasPlan, onContinue, onViewTerms, onViewP
         </h1>
         
         <p className="text-xl md:text-2xl text-text-muted mb-12 max-w-3xl mx-auto leading-relaxed">
-          <strong>SpeltaFit</strong> e <strong>SpeltaNutri</strong> trabalhando juntos. Nosso motor algorítmico cruza suas variáveis de treino, estresse e nível de experiência para gerar treinos progressivos e dietas de altíssima precisão. Sem fórmulas prontas, sem "IAs genéricas" alucinando.
+          <strong>SpeltaFit</strong> e <strong>SpeltaNutri</strong> trabalhando juntos. Nosso motor algorítmico determinístico cruza suas variáveis de treino, estresse e nível de experiência para gerar treinos progressivos e dietas de altíssima precisão. Sem fórmulas prontas, sem improvisos.
         </p>
 
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
